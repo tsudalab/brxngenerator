@@ -106,8 +106,8 @@ def train(data_pairs, model,args):
 		print("---> reconstruction loss:", total_loss.item()/len(dataloader)-beta * total_kl_loss.item()/len(dataloader))
 		
 		if (epoch+1) %10 ==0:
-			torch.save(model.state_dict(),args['datasetname']+ "_" + "vae_iter-{}-with{}.npy".format(epoch+1,TaskID))
-			print("saving file:", args['save_path']+"/"+ args['datasetname']+ "_" + "vae_iter-{}-with{}.npy".format(epoch+1,TaskID))
+			torch.save(model.state_dict(),"./weights/bvae_iter-{}-with{}.npy".format(epoch+1,TaskID))
+			print("saving file:./weights/bvae_iter-{}-with{}.npy".format(epoch+1,TaskID))
 
 def validate(data_pairs, model, args):
 	beta = args['beta']

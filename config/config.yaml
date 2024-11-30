@@ -1,14 +1,10 @@
 seed: 1
 device: 'cpu'
 vae_model:
-  # model_path: '../fast_molvae/vae_model/dim300/best/model.iter-155000'      # model path
-  # vocab_path: '../data/zinc/vocab.txt'                                      # vocab path
-  binary_dim: 50                                                           # binary dimensionality
+  binary_dim: 100                                                           # binary dimensionality
   depthT: 20                                                                # tree depth 
   depthG: 3                                                                 # graph depth
 opt:
-  # train_smiles: '../data/opt/plogp_train_smiles10k.npy'                      # smiles training data for surrogate model
-  # train_prop: '../data/opt/plogp_train_props10k.npy'                          # property training data for surrogate model
   output: 'results/'                      # output path
   cache: 'cache'                                                           # cache path
   surro_model: 'factorization machine'                                       # selected surrogate model
