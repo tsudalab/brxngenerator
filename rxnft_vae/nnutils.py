@@ -32,9 +32,6 @@ def GRU(x, h_nei, W_z, W_r, U_r, W_h):
     new_h = (1.0 - z) * sum_h + z * pre_h
     return new_h
 def attention(encoder_outputs, hiddens):
-    # encoder_output: B x n x d
-    # hidden :        B x d
-    #return torch.zeros_like(hiddens)
     encoder_hidden_outs = torch.stack(encoder_outputs, dim=0)
     hiddens = hiddens.unsqueeze(1) # hidden: B x 1 x d
     t_hiddens = torch.transpose(hiddens, 1, 2) # hidden: B x d x 1
@@ -43,6 +40,5 @@ def attention(encoder_outputs, hiddens):
     unsq_weight = attention_weight[:,:, 0].unsqueeze(2)
     weighted_outputs = encoder_hidden_outs * unsq_weight
     weighted_sum = torch.sum(weighted_outputs, axis=1)
-    #print(weighted_sum.size())
 
     return weighted_sum

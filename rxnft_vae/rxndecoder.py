@@ -18,8 +18,6 @@ from rdkit.Chem import AllChem
 def get_template_order(rxn):
 	mol_nodes = rxn.molecule_nodes
 	tem_nodes = rxn.template_nodes
-	#for template_node in tem_nodes:
-	#	print(template_node.id)
 
 	order={}
 	root = tem_nodes[0]
@@ -30,14 +28,12 @@ def get_template_order(rxn):
 	
 	while len(queue) > 0:
 		x = queue.popleft()
-		#print("pop:", x.id)
 		for y in x.children:
 			if len(y.children) == 0: # starting molecule
 				continue
 			template = y.children[0] 
 			if template.id not in visisted:
 				queue.append(template)
-				#print("push:", template.id)
 				visisted.add(template.id)
 				template.depth = x.depth + 1
 				if template.depth not in order:
@@ -73,7 +69,6 @@ class RXNDecoder1(nn.Module):
 		self.W_is_leaf = nn.Linear(self.latent_size + 3 * self.hidden_size, 1)
 
 
-		#self.root_loss = nn.MSELoss(size_average=False)
 		self.molecule_loss = nn.MSELoss(size_average=False)
 		self.is_leaf_loss = nn.BCEWithLogitsLoss(size_average=False)
 		self.starting_react_loss = nn.CrossEntropyLoss(size_average=False)
@@ -122,13 +117,9 @@ class RXNDecoder1(nn.Module):
 		i=0
 		for rxn_id in range(len(rxn_tree_batch)):
 			for j in range(len(rxn_tree_batch[rxn_id].template_nodes)):
-				#print(rxn_id, j)
 				l_target[(rxn_id, j)] = target_templates[i]
 				i+=1
 
-		# predicting roots embedding
-		#padding = create_var(torch.zeros((B, self.hidden_size)))
-		#r_in = torch.cat((latent_vecs, padding), dim=1)
 		root_embeddings = self.W_root(latent_vecs)
 		root_embeddings = nn.ReLU()(root_embeddings)
 
@@ -158,9 +149,7 @@ class RXNDecoder1(nn.Module):
 				if t < len(order):
 					template_ids.extend(order[t])
 					rxn_ids.extend([i]*len(order[t]))
-			#print(t, rxn_ids, template_ids)
 
-			# template prediction
 			cur_hiddens = []
 			cur_latents =[]
 			n_reactants = []
@@ -186,8 +175,6 @@ class RXNDecoder1(nn.Module):
 			logits = self.W_template(input)
 			
 
-			#template_targets = create_var(torch.LongTensor(template_targets))
-			#template_loss += self.template_loss(logits, template_targets)
 			i=0
 			for template_id, rxn_id in zip(template_ids, rxn_ids):
 				logits_pred[(rxn_id, template_id)] = logits[i]
@@ -196,7 +183,6 @@ class RXNDecoder1(nn.Module):
 			
 
 
-			# gumbel sampling
 			output = F.gumbel_softmax(logits, tau=0.5, hard=True, eps=1e-10, dim=-1)
 			_, ind = output.max(dim=-1)
 			template_vecs = create_var(torch.LongTensor(ind.cpu()))
@@ -205,14 +191,10 @@ class RXNDecoder1(nn.Module):
 			template_vecs = self.t_embedding(template_vecs)
 			i = 0
 			for template_id, rxn_id in zip(template_ids, rxn_ids):
-				#l[(rxn_id, template_id)] = template_vecs[i]
 				l_pred[(rxn_id, template_id)] = template_vecs[i]
 				i+=1
-				#debug_tempaltes.append((rxn_id, template_id))
 
 
-			# predict reactants
-			#input = torch.cat([input, template_vecs], dim=1)
 			max_n_reactants = max(n_reactants)
 			for n in range(max_n_reactants):
 				rxn_tem_mols= []
@@ -222,7 +204,6 @@ class RXNDecoder1(nn.Module):
 				template_vectors_t = []
 				cur_enc_outputs_t=[]
 				
-				#print("FINISH 1", n)
 				
 				for template_id, rxn_id in zip(template_ids, rxn_ids):
 					template_node = rxn_tree_batch[rxn_id].template_nodes[template_id]
@@ -234,9 +215,6 @@ class RXNDecoder1(nn.Module):
 						latent_vectors_t.append(latent_vecs[rxn_id])
 						product_vectors_t.append(h_pred[(rxn_id, product_id)])
 						cur_enc_outputs_t.append(encoder_outputs[rxn_id])
-						#template_vectors_t.append(l_pred[(rxn_id, template_id)])
-						#print(l_pred[(rxn_id, template_id)])
-						#print(l_target[(rxn_id, template_id)])
 						template_vectors_t.append(l_target[(rxn_id, template_id)])
 						if n == 0:
 							prev_vectors_t.append(create_var(torch.zeros(self.hidden_size), False))
@@ -246,21 +224,16 @@ class RXNDecoder1(nn.Module):
 				prev_vectors_t = torch.stack(prev_vectors_t, dim=0)
 				latent_vectors_t = torch.stack(latent_vectors_t, dim = 0)
 				product_vectors_t = torch.stack(product_vectors_t, dim=0)
-				#template_vectors_t = torch.stack(template_vectors_t, dim=0)
 				template_vectors_t = self.t_embedding(create_var(torch.LongTensor(template_vectors_t)))
 				context = attention(cur_enc_outputs_t, product_vectors_t)
 				cur_input = torch.cat([prev_vectors_t,latent_vectors_t, product_vectors_t, template_vectors_t, context], dim=1)
 				cur_output = self.W_reactant(cur_input)
 				cur_output = nn.ReLU()(cur_output)
-				#print(cur_output)
 
 
 
 				for i in range(len(rxn_tem_mols)):
 					rxn_id, template_id, mol_id = rxn_tem_mols[i]
-					#if (rxn_id, mol_id) in h.keys():
-					#	debug.append((rxn_id, mol_id))
-						#exit(1)
 					h_pred[(rxn_id, mol_id)] = cur_output[i]
 		starting_react_vecs=[]
 		starting_react_ids =[]
@@ -287,7 +260,6 @@ class RXNDecoder1(nn.Module):
 		starting_react_vecs = F.softmax(starting_react_vecs, dim=1)
 		_, starting_react_vecs = starting_react_vecs.max(dim=-1)
 		starting_react_correct = (starting_react_vecs == starting_react_ids).float().sum()
-		#======================================================================
 
 		tem_targets = []
 		tem_pred = []
@@ -298,11 +270,9 @@ class RXNDecoder1(nn.Module):
 				tem_pred.append(logits_pred[(rxn_id,tem_id)])
 		tem_pred = torch.stack(tem_pred,dim=0)
 		tem_targets = create_var(torch.LongTensor(tem_targets))
-		#print(tem_targets)
 		template_loss = self.template_loss(tem_pred, tem_targets)
 		output = F.softmax(tem_pred, dim=1)
 		_, output = output.max(dim=-1)
-			#print(outputs
 		correct = (output == tem_targets).float().sum()
 
 
@@ -323,10 +293,6 @@ class RXNDecoder(nn.Module):
 			self.template_embedding = nn.Embedding(self.templateDic.size(), self.hidden_size)
 		else:
 			self.template_embedding = template_embedding
-		#if fragment_embedding is None:
-		#	self.fragment_embedding = nn.Embedding(self.fragmentDic.size(), self.hidden_size)
-		#else:
-		#	self.fragment_embedding = fragment_embedding
 
 		if molecule_embedding is None:
 			self.molecule_embedding = nn.Embedding(self.reactantDic.size(), self.hidden_size)
@@ -349,7 +315,6 @@ class RXNDecoder(nn.Module):
 
 
 
-		# update molecules
 		self.gru = nn.GRU(3 * self.hidden_size + self.latent_size, self.hidden_size, dropout=0.5)
 		self.gru_template = nn.GRU(1 * self.hidden_size + self.latent_size, self.hidden_size, dropout=0.5)
 
@@ -364,7 +329,6 @@ class RXNDecoder(nn.Module):
 
 
 	def decode(self, latent_vector, encoder_outputs, prob_decode=True):
-		#context_vector = attention(encoder_outputs, latent_vector)
 		root_embedding = self.W_root(torch.cat([latent_vector], dim=1))
 		root_embedding = nn.ReLU()(root_embedding)
 
@@ -385,7 +349,6 @@ class RXNDecoder(nn.Module):
 		molecule_counter += 1
 
 
-		# predict template
 		product_vector = molecule_hs[0]
 		context = attention(encoder_outputs, product_vector)
 		prev_xs = torch.cat([latent_vector, context], dim=1).unsqueeze(0)
@@ -404,8 +367,6 @@ class RXNDecoder(nn.Module):
 		template_node.parents.append(tree_root)
 		tree_root.children.append(template_node)
 		template_nodes.append(template_node)
-		#template_vec = self.template_embedding(create_var(torch.LongTensor(template_type)))
-		#l[template_id] = template_vec
 		template_hs[template_counter] = hs
 		template_labels[template_counter] = template_type
 		template_counter += 1
@@ -420,7 +381,6 @@ class RXNDecoder(nn.Module):
 			else:
 				prev_mol_id = template_node.children[n-1].id
 				mol_label =molecule_labels[prev_mol_id]
-				#print(mol_label)
 				pre_xs = self.molecule_embedding(mol_label)
 				pre_hs = molecule_hs[prev_mol_id]
 			context = attention(encoder_outputs, pre_hs)
@@ -433,7 +393,6 @@ class RXNDecoder(nn.Module):
 			output = nn.ReLU()(self.W_reactant_out(input))
 			output = self.W_label(output)
 			output = F.softmax(output, dim=1)
-			#label = output.max(dim=-1)
 			
 			if prob_decode:
 				label = torch.multinomial(output[0], 1)
@@ -447,7 +406,6 @@ class RXNDecoder(nn.Module):
 			molecule_counter+=1
 		count =1
 		while len(queue)> 0:
-			#print(queue)
 			count +=1
 			if count > 20:
 				return None, None
@@ -473,8 +431,6 @@ class RXNDecoder(nn.Module):
 			else:
 				_, output = torch.max(output, dim=1)
 			if output.item()== self.reactantDic.size()-1:
-				# continue to perform reaction
-				# predict tempalte
 				context = attention(encoder_outputs, cur_molecule_vec)
 				pre_xs  = torch.cat([latent_vector, context], dim=1).unsqueeze(0)
 				os, hs = self.gru_template(pre_xs, cur_molecule_vec.unsqueeze(0))
@@ -483,7 +439,6 @@ class RXNDecoder(nn.Module):
 				context = attention(encoder_outputs, hs)
 				logits = self.W_template(torch.cat([latent_vector, context, hs], dim=1))
 				output = F.softmax(logits, dim=1)
-				#template_type = torch.multinomial(output[0], 1)
 				_, template_type = torch.max(output, dim=1)
 
 				template_node = TemplateNode("", template_counter)
@@ -502,7 +457,6 @@ class RXNDecoder(nn.Module):
 					else:
 						prev_mol_id = template_node.children[n-1].id
 						mol_label =molecule_labels[prev_mol_id]
-						#print(mol_label)
 						pre_xs = self.molecule_embedding(mol_label)
 						pre_hs = molecule_hs[prev_mol_id]
 					context = attention(encoder_outputs, pre_hs)
@@ -524,7 +478,6 @@ class RXNDecoder(nn.Module):
 					reactant_node = MoleculeNode("", molecule_counter)
 					reactant_node.parents.append(template_node)
 					template_node.children.append(reactant_node)
-					#print(n, molecule_labels)
 
 					queue.append(reactant_node)
 					molecule_counter+=1
@@ -532,13 +485,6 @@ class RXNDecoder(nn.Module):
 			else:
 				cur_molecule_node.reactant_id = output[0].item()
 
-		#print("dkm", molecule_labels, template_labels)
-		# generate the final product
-		#print(molecule_labels, template_labels)
-		#for node in molecule_nodes:
-		#	print(node.id)
-		#for node in template_nodes:
-		#	print(node.id, node.template_type)
 
 
 		node2smiles ={}
@@ -583,7 +529,6 @@ class RXNDecoder(nn.Module):
 				for template in possible_templates:
 					rxn = rdChemReactions.ReactionFromSmarts(template)
 					AllChem.SanitizeRxn(rxn)
-					#for reacts in possible_reacts:
 					products = rxn.RunReactants(reacts)
 					if len(products) > 0:
 						n = len(products)
@@ -616,7 +561,6 @@ class RXNDecoder(nn.Module):
 
 
 	def forward(self, rxn_tree_batch, latent_vectors, encoder_outputs):
-		# intiualize sth
 		template_loss = 0
 		template_acc = 0
 		n_templates = 0
@@ -640,14 +584,12 @@ class RXNDecoder(nn.Module):
 			molecule_nodes = rxn_tree_batch[rxn_id].molecule_nodes
 			template_nodes = rxn_tree_batch[rxn_id].template_nodes
 			for ind, molecule_node in enumerate(molecule_nodes):
-				#target_molecules.append(molecule_node.smiles)
 				if len(molecule_node.children)==0:
 					molecule_labels[(rxn_id, ind)] = self.reactantDic.get_index(molecule_node.smiles)
 				else:
 					molecule_labels[(rxn_id, ind)] = self.reactantDic.get_index("unknown")
 			for template_node in template_nodes:
 				target_templates.append(self.templateDic.get_index(template_node.template))
-		#target_mol_embeddings = self.mpn(target_molecules)
 
 		
 		o_target ={}
@@ -658,18 +600,12 @@ class RXNDecoder(nn.Module):
 		logits_pred={}
 		template_hids={}
 		template_outs={}
-		#i=0
-		#for rxn_id in range(len(rxn_tree_batch)):
-		#	for j in range(len(rxn_tree_batch[rxn_id].molecule_nodes)):
-		#		o_target[(rxn_id, j)] = target_mol_embeddings[i]
-		#		i=i+1
 		i = 0
 		for rxn_id in range(len(rxn_tree_batch)):
 			for j in range(len(rxn_tree_batch[rxn_id].template_nodes)):
 				l_target[(rxn_id, j)] = target_templates[i]
 				i+=1
 
-		#context_vectors = attention(encoder_outputs, latent_vectors)
 		root_embeddings = self.W_root(torch.cat([latent_vectors], dim=1))
 		root_embeddings = nn.ReLU()(root_embeddings)
 
@@ -683,7 +619,6 @@ class RXNDecoder(nn.Module):
 			tem_E ={}
 			template_targets =[]
 			template_hs ={}
-			# for tracking
 			template_ids =[]
 			rxn_ids =[]
 			template2reactants={}
@@ -703,26 +638,15 @@ class RXNDecoder(nn.Module):
 				latent_vectors_t.append(latent_vectors[rxn_id])
 				cur_enc_outputs.append(encoder_outputs[rxn_id])
 				tem_targets.append(self.templateDic.get_index(template_node.template))
-				#template2reactants.append(len(template_node.children))
 				n_reactants.append(len(template_node.children))
-			#prev_hs = torch.stack(prev_hs, dim=0).unsqueeze(0)
-			#prev_xs = torch.stack(prev_xs, dim=0)
-			#latent_vectors_t = torch.stack(latent_vectors_t, dim = 0)
-			#product_vectors_t = torch.stack(product_vectors_t, dim=0)
 			
 			
-			#prev_xs = torch.cat([prev_xs, latent_vectors_t, product_vectors_t, template_vectors_t], dim=1).unsqueeze(0)
-			#os, hs = self.gru(prev_xs, prev_hs)
-			#os, hs = os[0,:,:], hs[0,:,:]
-			#prev_hs = torch.stack(product_vectors_t, dim=0)
 			product_vectors_t = torch.stack(product_vectors_t, dim=0)
 			latent_vectors_t = torch.stack(latent_vectors_t, dim=0)
 			context = attention(cur_enc_outputs, product_vectors_t)
 			prev_xs = torch.cat([latent_vectors_t, context], dim=1).unsqueeze(0) 
 			os, hs = self.gru_template(prev_xs, product_vectors_t.unsqueeze(0))
 			hs = hs[0,:,:]
-			#hs = hs[0,:,:]
-			#print(hs.size())
 			i=0
 			for template_id, rxn_id in zip(template_ids, rxn_ids):
 				template_hs[(rxn_id, template_id)] = hs[i]
@@ -730,17 +654,7 @@ class RXNDecoder(nn.Module):
 
 			context = attention(cur_enc_outputs, hs)
 			logits = self.W_template(torch.cat([latent_vectors_t, context, hs], dim=1))
-			#print("logits", logits)
-			#output = F.gumbel_softmax(logits, tau=0.5, hard=True, eps=1e-10, dim=-1)
-			#_, ind = output.max(dim=-1)
-			#template_vecs = create_var(torch.LongTensor(ind))
-			#template_vecs = self.template_embedding(template_vecs)
-			#i=0
-			#for template_id, rxn_id in zip(template_ids, rxn_ids):
-			#	tem_E[(rxn_id, template_id)] = template_vecs[i]
-			#	i+=1
 
-			# for target
 			tem_vecs = self.template_embedding(create_var(torch.LongTensor(tem_targets)))
 			i=0
 			
@@ -760,22 +674,12 @@ class RXNDecoder(nn.Module):
 			tem_targets = create_var(torch.LongTensor(tem_targets))
 			template_loss += self.template_loss(logits, tem_targets)
 			output = F.softmax(logits, dim=1)
-			#print(output)
 			_, output = output.max(dim=-1)
 			template_acc += (output == tem_targets).float().sum()
 			n_templates += tem_targets.shape[0]
-			#output = F.gumbel_softmax(logits, tau=0.5, hard=True, eps=1e-10, dim=-1)
-			#output = F.softmax(logits, dim=1)
-			#_, ind = output.max(dim=-1)
 
-			#template_vecs = create_var(torch.LongTensor(ind.cpu()))
 
-			#template_vecs = self.template_embedding(template_vecs)
 			i = 0
-			#for template_id, rxn_id in zip(template_ids, rxn_ids):
-				#l[(rxn_id, template_id)] = template_vecs[i]
-			#	l_pred[(rxn_id, template_id)] = template_vecs[i]
-			#	i+=1
 			max_n_reactants = max(n_reactants)
 
 
@@ -798,7 +702,6 @@ class RXNDecoder(nn.Module):
 						if n == 0:
 							continue
 						else:
-							#prev_mol_id = template_node.children[n-1].smiles
 							molecule_node = template_node.children[n-1]
 							if len(molecule_node.children) == 0:
 								id = self.reactantDic.get_index(template_node.children[n-1].smiles)
@@ -833,10 +736,7 @@ class RXNDecoder(nn.Module):
 						product_vectors_t.append(h_pred[(rxn_id, product_id)])
 						template_vectors_t.append(l_target[(rxn_id, template_id)])
 						encoder_outputs_t.append(encoder_outputs[rxn_id])
-						#mol_targets.append(o_target[(rxn_id, mol_id)])
 						if n==0:
-							#prev_xs.append(create_var(torch.zeros(self.hidden_size), False))
-							#prev_hs.append(create_var(torch.zeros(self.hidden_size), False))
 							prev_xs.append(tem_E[(rxn_id, template_id)])
 							prev_hs.append(template_hs[(rxn_id, template_id)])
 						else:
@@ -849,7 +749,6 @@ class RXNDecoder(nn.Module):
 				prev_xs = torch.stack(prev_xs, dim=0)
 				latent_vectors_t = torch.stack(latent_vectors_t, dim = 0)
 				product_vectors_t = torch.stack(product_vectors_t, dim=0)
-				#template_vectors_t = self.template_embedding(create_var(torch.LongTensor(template_vectors_t)))
 				context = attention(encoder_outputs_t, prev_hs)
 				prev_xs = torch.cat([latent_vectors_t, context, prev_xs, product_vectors_t], dim=1)
 
@@ -861,8 +760,6 @@ class RXNDecoder(nn.Module):
 					o_pred[(rxn_id, mol_id)] = os[i]
 				context = attention(encoder_outputs_t, hs)
 				mol_preds = nn.ReLU()(self.W_reactant_out(torch.cat([latent_vectors_t, context, hs], dim=1)))
-				#mol_targets = self.mpn(mol_targets)
-				#molecule_distance_loss += self.molecule_distance_loss(mol_preds, mol_targets)
 				n_molecules += mol_preds.shape[0]
 
 				pred_labels = self.W_label(mol_preds)
@@ -874,13 +771,8 @@ class RXNDecoder(nn.Module):
 
 
 
-				#mol_targets=[]
 				
 
-				#for i in range(len(rxn_tem_mols)):
-				#	rxn_id, template_id, mol_id = rxn_tem_mols[i]
-				#	h_pred[(rxn_id, mol_id)] = hs[i]
-					#o_pred[(rxn_id, mol_id)] = os[i]
 		'''
 		tem_targets = []
 		tem_pred = []
@@ -891,16 +783,10 @@ class RXNDecoder(nn.Module):
 				tem_pred.append(logits_pred[(rxn_id,tem_id)])
 		tem_pred = torch.stack(tem_pred,dim=0)
 		tem_targets = create_var(torch.LongTensor(tem_targets))
-		#print(tem_targets)
 		template_loss = self.template_loss(tem_pred, tem_targets)
-		# gumbel sampling
-			#output = F.gumbel_softmax(logits, tau=1, hard=True, eps=1e-10, dim=-1)
-			#_, ind = output.max(dim=-1)
 
-		#softmax
 		output = F.softmax(tem_pred, dim=1)
 		_, output = output.max(dim=-1)
-			#print(outputs
 		template_acc = (output == tem_targets).float().sum()
 
 

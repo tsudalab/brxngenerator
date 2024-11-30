@@ -25,25 +25,9 @@ def schedule(counter, M):
 
 def train(data_pairs, model,args):
 
-	#
-	#if torch.cuda.is_available():
-	#	device = torch.device("cuda")
-	#else:
-	#	device = torch.device("cpu")
-	#print("You are working on:",device, "n of data:", len(data_pairs))
-	#model.cuda()
 
-	#import pickle
 	n_pairs = len(data_pairs)
 	ind_list = [i for i in range(n_pairs)]
-	#random.shuffle(ind_list)
-	#print(ind_list)
-	#with open('ind_list2.txt', 'rb') as f:
-	#	ind_list = pickle.load(f)
-	#with open('ind_list.txt', 'wb') as f:
-	#	pickle.dump(ind_list, f)
-	#print(ind_list)
-	#random.shuffle(data_pairs)
 	data_pairs = [data_pairs[i] for i in ind_list]
 	lr = args['lr']
 	batch_size = args['batch_size']
@@ -76,7 +60,6 @@ def train(data_pairs, model,args):
 		total_molecule_label_loss = 0
 		total_label_acc =0
 		for it, batch in enumerate(dataloader):
-			#print(epoch, it, len(dataloader))
 			if epoch < 20:
 				beta = schedule(counter, M)
 			else:
@@ -103,7 +86,6 @@ def train(data_pairs, model,args):
 		print("---> pred loss:", total_pred_loss.item()/len(dataloader), "pred acc:", total_pred_acc/len(dataloader))
 		print("---> stop loss:", total_stop_loss.item()/len(dataloader), "stop acc:", total_stop_acc/len(dataloader))
 		print("---> template loss:", total_template_loss.item()/len(dataloader), "tempalte acc:", total_template_acc.item()/len(dataloader))
-		#print("---> molecule distance loss:", total_molecule_distance_loss.item()/len(dataloader))
 		print("---> molecule label loss:", total_molecule_label_loss.item()/len(dataloader), "molecule acc:", total_label_acc.item()/len(dataloader))
 		print("---> kl loss:", total_kl_loss.item()/len(dataloader))
 		print("---> reconstruction loss:", total_loss.item()/len(dataloader)-beta * total_kl_loss.item()/len(dataloader))
@@ -113,7 +95,6 @@ def train(data_pairs, model,args):
 			print("saving file:", args['save_path']+"/"+ args['datasetname']+ "_" + "vae_iter-{}.npy".format(epoch+1))
 
 def validate(data_pairs, model, args):
-	#model.eval()
 	beta = args['beta']
 	batch_size = args['batch_size']
 	dataloader = DataLoader(data_pairs, batch_size = batch_size, shuffle = True, collate_fn = lambda x:x)
@@ -123,7 +104,6 @@ def validate(data_pairs, model, args):
 	total_template_loss = 0
 	total_template_acc = 0
 	total_molecule_distance_loss =0
-	#total_molecule_label_loss = 0
 	total_label_acc =0
 	total_pred_loss=0
 	total_stop_loss =0
@@ -167,7 +147,6 @@ parser.add_option("-e", "--epochs", dest="epochs", default = 100)
 
 opts, _ = parser.parse_args()
 
-# get parameters
 batch_size = int(opts.batch_size)
 hidden_size = int(opts.hidden_size)
 latent_size = int(opts.latent_size)

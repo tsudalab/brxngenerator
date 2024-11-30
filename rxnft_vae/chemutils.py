@@ -19,7 +19,6 @@ def set_atommap(mol, num = 0):
 
 def get_mol(smiles):
 	mol = Chem.MolFromSmiles(smiles)
-	#print("ok2", mol)
 	if mol is None:
 		return None
 	Chem.Kekulize(mol)
@@ -27,7 +26,6 @@ def get_mol(smiles):
 
 def get_smiles(mol):
     return Chem.MolToSmiles(mol, kekuleSmiles=True)
-    #return Chem.MolToSmiles(mol)
 
 
 def copy_atom(atom, atommap=True):
@@ -47,8 +45,6 @@ def copy_edit_mol(mol):
     	a2 = bond.GetEndAtom().GetIdx()
     	bt = bond.GetBondType()
     	new_mol.AddBond(a1, a2, bt)
-    	#if bt == Chem.rdchem.BondType.AROMATIC and not aromatic:
-    	#	bt = Chem.rdchem.BondType.SINGLE
     return new_mol
 def ring_bond_equal(b1, b2, reverse=False):
     b1 = (b1.GetBeginAtom(), b1.GetEndAtom())
@@ -61,9 +57,7 @@ def get_clique_mol(mol, atoms):
 	smiles = Chem.MolFragmentToSmiles(mol, atoms, kekuleSmiles=True)
 	new_mol = Chem.MolFromSmiles(smiles, sanitize=False)
 	new_mol = copy_edit_mol(new_mol).GetMol()
-	#print(smiles, new_mol,"before")
 	new_mol = sanitize(new_mol)
-	#print(smiles, new_mol, "after")
 	return new_mol
 
 def sanitize(mol, kekulize=True):
@@ -93,7 +87,6 @@ def decode_stereo(smiles2D):
 
 
 def tree_decomp(mol):
-	#print("decomposing tree")
 	n_atoms = mol.GetNumAtoms()
 	
 	if n_atoms==1:
@@ -112,7 +105,6 @@ def tree_decomp(mol):
 	for i in range(len(cliques)):
 		for atom in cliques[i]:
 			nei_list[atom].append(i)
-	# merging rings with intersection > 2 atoms
 	for i in range(len(cliques)):
 		if len(cliques[i]) <= 2: continue
 		for atom in cliques[i]:
@@ -129,7 +121,6 @@ def tree_decomp(mol):
 		for atom in cliques[i]:
 			nei_list[atom].append(i)
 
-	# building edges and add singleton cliques
 	edges = defaultdict(int)
 	for atom in range(n_atoms):
 		if len(nei_list[atom]) <=1:
@@ -158,7 +149,6 @@ def tree_decomp(mol):
 	edges = [u + (MST_MAX_WEIGHT-v,) for u,v in edges.items()]
 	if len(edges) == 0:
 		return cliques, edges
-	# compute MST
 	row, col, data = zip(*edges)
 	n_clique = len(cliques)
 	clique_graph = csr_matrix( (data,(row,col)), shape=(n_clique,n_clique) )
@@ -200,12 +190,10 @@ def enum_assemble(node, neighbors, prev_nodes=[], prev_amap=[]):
 		cand_amap = enum_attach(node.mol, nei_node, cur_amap, singletons)
 		cand_smiles = set()
 		candidates = []
-		#print("num cand_amap:", len(cand_amap))
 		for i, amap in enumerate(cand_amap):
 			cand_mol = local_attach(node.mol, neighbors[:depth+1], prev_nodes, amap)
 			cand_mol = sanitize(cand_mol)
 			if cand_mol is None:
-				#print("dkm toan None")
 				continue
 			smiles = get_smiles(cand_mol)
 			if smiles in cand_smiles:
@@ -216,7 +204,6 @@ def enum_assemble(node, neighbors, prev_nodes=[], prev_amap=[]):
 			return
 		for new_amap in candidates:
 			search(new_amap, depth + 1)
-	#print("dkm1 search")
 	search(prev_amap, 0)
 	cand_smiles = set()
 	candidates = []
@@ -230,11 +217,8 @@ def enum_assemble(node, neighbors, prev_nodes=[], prev_amap=[]):
 		cand_smiles.add(smiles)
 		Chem.Kekulize(cand_mol)
 		candidates.append( (smiles,cand_mol,amap) )
-	#print("end enum_assemble")
 	return candidates
-#This version records idx mapping between ctr_mol and nei_mol
 def attach_mols(ctr_mol, neighbors, prev_nodes, nei_amap):
-	#print("atach mols")
 	prev_nids = [node.nid for node in prev_nodes]
 	for nei_node in prev_nodes + neighbors:
 		nei_id,nei_mol = nei_node.nid,nei_node.mol
@@ -256,7 +240,6 @@ def attach_mols(ctr_mol, neighbors, prev_nodes, nei_amap):
 				elif nei_id in prev_nids: #father node overrides
 					ctr_mol.RemoveBond(a1, a2)
 					ctr_mol.AddBond(a1, a2, bond.GetBondType())
-	#print("end attach mols")
 	return ctr_mol
 def check_singleton(cand_mol, ctr_node, nei_nodes):
     rings = [node for node in nei_nodes + [ctr_node] if node.mol.GetNumAtoms() > 2]
@@ -271,18 +254,15 @@ def check_singleton(cand_mol, ctr_node, nei_nodes):
 
     return n_leaf2_atoms == 0
 def local_attach(ctr_mol, neighbors, prev_nodes, amap_list):
-	#print("begin local attach")
 	ctr_mol = copy_edit_mol(ctr_mol)
 	nei_amap = {nei.nid:{} for nei in prev_nodes + neighbors}
 	for nei_id,ctr_atom,nei_atom in amap_list:
 		nei_amap[nei_id][nei_atom] = ctr_atom
 	ctr_mol = attach_mols(ctr_mol, neighbors, prev_nodes, nei_amap)
-	#print("end local attach")
 	return ctr_mol.GetMol()
 def atom_equal(a1, a2):
     return a1.GetSymbol() == a2.GetSymbol() and a1.GetFormalCharge() == a2.GetFormalCharge()
 def enum_attach(ctr_mol, nei_node, amap, singletons):
-	#print("begin enum_attach")
 	nei_mol,nei_idx = nei_node.mol,nei_node.nid
 	att_confs = []
 	black_list = [atom_idx for nei_id,atom_idx,_ in amap if nei_id in singletons]
@@ -300,7 +280,6 @@ def enum_attach(ctr_mol, nei_node, amap, singletons):
 		bond_val = int(bond.GetBondTypeAsDouble())
 		b1,b2 = bond.GetBeginAtom(), bond.GetEndAtom()
 		for atom in ctr_atoms: 
-			#Optimize if atom is carbon (other atoms may change valence)
 			if atom.GetAtomicNum() == 6 and atom.GetTotalNumHs() < bond_val:
 				continue
 			if atom_equal(atom, b1):
@@ -313,7 +292,6 @@ def enum_attach(ctr_mol, nei_node, amap, singletons):
 		for a1 in ctr_atoms:
 			for a2 in nei_mol.GetAtoms():
 				if atom_equal(a1, a2):
-					#Optimize if atom is carbon (other atoms may change valence)
 					if a1.GetAtomicNum() == 6 and a1.GetTotalNumHs() + a2.GetTotalNumHs() < 4:
 						continue
 					new_amap = amap + [(nei_idx, a1.GetIdx(), a2.GetIdx())]
@@ -327,5 +305,4 @@ def enum_attach(ctr_mol, nei_node, amap, singletons):
 					if ring_bond_equal(b1, b2, reverse=True):
 						new_amap = amap + [(nei_idx, b1.GetBeginAtom().GetIdx(), b2.GetEndAtom().GetIdx()), (nei_idx, b1.GetEndAtom().GetIdx(), b2.GetBeginAtom().GetIdx())]
 						att_confs.append( new_amap )
-		#print("end enum_attach")
 	return att_confs

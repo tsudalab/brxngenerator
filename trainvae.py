@@ -1,3 +1,4 @@
+import os
 import sys
 sys.path.append('./rxnft_vae')
 
@@ -13,12 +14,15 @@ import math, random, sys
 from optparse import OptionParser
 from collections import deque
 
-from reaction_utils import read_multistep_rxns
-from reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
-from fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
-from vae import FTRXNVAE, set_batch_nodeID, bFTRXNVAE
-from mpn import MPN,PP,Discriminator
+from rxnft_vae.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
+from rxnft_vae.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
+from rxnft_vae.fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
+from rxnft_vae.vae import FTRXNVAE, set_batch_nodeID, bFTRXNVAE
+from rxnft_vae.mpn import MPN,PP,Discriminator
+import rxnft_vae.sascorer as sascorer
 import random
+
+TaskID =os.environ["TaskID"]
 
 def schedule(counter, M):
 	x = counter/(2*M)
@@ -67,7 +71,6 @@ def train(data_pairs, model,args):
 		total_molecule_label_loss = 0
 		total_label_acc =0
 		for it, batch in enumerate(dataloader):
-			#print(epoch, it, len(dataloader))
 			if epoch < 20:
 				beta = schedule(counter, M)
 			else:
@@ -91,27 +94,22 @@ def train(data_pairs, model,args):
 			total_molecule_distance_loss += molecule_distance_loss
 			total_molecule_label_loss += molecule_label_loss
 			total_label_acc += label_acc
-			if (it+1) %10 ==0:
-				torch.save(model.state_dict(),args['datasetname']+ "_" + "vae_iter-{}.npy".format(epoch+1))
-				print("saving file:", args['save_path']+"/"+ args['datasetname']+ "_" + "vae_iter-{}.npy".format(epoch+1))
-				break
+
 				
 		print("*******************Epoch", epoch, "******************", counter, beta)
+		print("Validation Loss")
 		val_loss = validate(val_pairs, model, args)
+		print("Train Loss")
 		print("---> pred loss:", total_pred_loss.item()/len(dataloader), "pred acc:", total_pred_acc/len(dataloader))
 		print("---> stop loss:", total_stop_loss.item()/len(dataloader), "stop acc:", total_stop_acc/len(dataloader))
 		print("---> template loss:", total_template_loss.item()/len(dataloader), "tempalte acc:", total_template_acc.item()/len(dataloader))
-		#print("---> molecule distance loss:", total_molecule_distance_loss.item()/len(dataloader))
 		print("---> molecule label loss:", total_molecule_label_loss.item()/len(dataloader), "molecule acc:", total_label_acc.item()/len(dataloader))
 		print("---> kl loss:", total_kl_loss.item()/len(dataloader))
 		print("---> reconstruction loss:", total_loss.item()/len(dataloader)-beta * total_kl_loss.item()/len(dataloader))
-		
-		if (epoch+1) %10 ==0:
-			torch.save(model.state_dict(),args['datasetname']+ "_" + "vae_iter-{}.npy".format(epoch+1))
-			print("saving file:", args['save_path']+"/"+ args['datasetname']+ "_" + "vae_iter-{}.npy".format(epoch+1))
+		torch.save(model.state_dict(),"./weights/bvae_iter-{}-with{}.npy".format(epoch+1,TaskID))
+		print("saving file:./weights/bvae_iter-{}-with{}.npy".format(epoch+1,TaskID))
 
 def validate(data_pairs, model, args):
-	#model.eval()
 	beta = args['beta']
 	batch_size = args['batch_size']
 	dataloader = DataLoader(data_pairs, batch_size = batch_size, shuffle = True, collate_fn = lambda x:x)
@@ -121,7 +119,6 @@ def validate(data_pairs, model, args):
 	total_template_loss = 0
 	total_template_acc = 0
 	total_molecule_distance_loss =0
-	#total_molecule_label_loss = 0
 	total_label_acc =0
 	total_pred_loss=0
 	total_stop_loss =0
@@ -165,7 +162,6 @@ parser.add_option("-e", "--epochs", dest="epochs", default = 100)
 
 opts, _ = parser.parse_args()
 
-# get parameters
 batch_size = int(opts.batch_size)
 hidden_size = int(opts.hidden_size)
 latent_size = int(opts.latent_size)
