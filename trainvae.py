@@ -97,17 +97,17 @@ def train(data_pairs, model,args):
 
 				
 		print("*******************Epoch", epoch, "******************", counter, beta)
+		print("Validation Loss")
 		val_loss = validate(val_pairs, model, args)
+		print("Train Loss")
 		print("---> pred loss:", total_pred_loss.item()/len(dataloader), "pred acc:", total_pred_acc/len(dataloader))
 		print("---> stop loss:", total_stop_loss.item()/len(dataloader), "stop acc:", total_stop_acc/len(dataloader))
 		print("---> template loss:", total_template_loss.item()/len(dataloader), "tempalte acc:", total_template_acc.item()/len(dataloader))
 		print("---> molecule label loss:", total_molecule_label_loss.item()/len(dataloader), "molecule acc:", total_label_acc.item()/len(dataloader))
 		print("---> kl loss:", total_kl_loss.item()/len(dataloader))
 		print("---> reconstruction loss:", total_loss.item()/len(dataloader)-beta * total_kl_loss.item()/len(dataloader))
-		
-		if (epoch+1) %10 ==0:
-			torch.save(model.state_dict(),"./weights/bvae_iter-{}-with{}.npy".format(epoch+1,TaskID))
-			print("saving file:./weights/bvae_iter-{}-with{}.npy".format(epoch+1,TaskID))
+		torch.save(model.state_dict(),"./weights/bvae_iter-{}-with{}.npy".format(epoch+1,TaskID))
+		print("saving file:./weights/bvae_iter-{}-with{}.npy".format(epoch+1,TaskID))
 
 def validate(data_pairs, model, args):
 	beta = args['beta']
