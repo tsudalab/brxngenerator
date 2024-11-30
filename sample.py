@@ -12,12 +12,13 @@ import math, random, sys
 from optparse import OptionParser
 from collections import deque
 
-from reaction_utils import read_multistep_rxns
-from reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
-from fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
-from vae import FTRXNVAE, set_batch_nodeID
-from mpn import MPN,PP,Discriminator
-from evaluate import Evaluator
+from rxnft_vae.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
+from rxnft_vae.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
+from rxnft_vae.fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
+from rxnft_vae.vae import FTRXNVAE, set_batch_nodeID, bFTRXNVAE
+from rxnft_vae.mpn import MPN,PP,Discriminator
+import rxnft_vae.sascorer as sascorer
+from rxnft_vae.evaluate import Evaluator
 import random
 
 
@@ -34,7 +35,6 @@ parser.add_option("-o", "--output_file", dest="output_file", default = "Results/
 
 opts, _ = parser.parse_args()
 
-# get parameters
 batch_size = int(opts.batch_size)
 hidden_size = int(opts.hidden_size)
 latent_size = int(opts.latent_size)
@@ -45,7 +45,6 @@ w_save_path = opts.save_path
 output_file = opts.output_file
 
 if torch.cuda.is_available():
-	#device = torch.device("cuda:1")
 	device = torch.device("cuda")
 	torch.cuda.set_device(1)
 else:
@@ -65,7 +64,6 @@ templateDic = Templates(templates, n_reacts)
 
 print("size of reactant dic:", reactantDic.size())
 print("size of template dic:", templateDic.size())
-#print(templateDic.template_list)
 
 n_pairs = len(routes)
 ind_list = [i for i in range(n_pairs)]
@@ -88,7 +86,6 @@ print("size of fragment dic:", fragmentDic.size())
 
 
 
-# loading model
 
 mpn = MPN(hidden_size, depth)
 model = FTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, fragment_embedding=None, reactant_embedding=None, template_embedding=None)
@@ -97,7 +94,6 @@ model.load_state_dict(checkpoint)
 print("loaded model....")
 evaluator = Evaluator(latent_size, model)
 evaluator.validate_and_save(rxn_trees, output_file=output_file)
-#evaluator.novelty_and_uniqueness([output_file], rxn_trees)
 
 
 
