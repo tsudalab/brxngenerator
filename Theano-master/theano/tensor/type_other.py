@@ -1,7 +1,4 @@
 from __future__ import absolute_import, print_function, division
-#
-# Slice type and Op. None Type and NoneConst.
-#
 
 import numpy
 
@@ -26,9 +23,6 @@ class MakeSlice(Op):
     __props__ = ()
 
     def make_node(self, slc, stop=None, step=None):
-        # We need to accept and handle in make_node inputs the node
-        # inputs to allow redoing a new op elsewhere in the graph by
-        # optimization.
         if isinstance(slc, slice):
             assert stop is None
             assert step is None
@@ -68,7 +62,6 @@ class SliceType(Type):
 
     @staticmethod
     def may_share_memory(a, b):
-        # Slices never shared memory between object
         return isinstance(a, slice) and a is b
 
 slicetype = SliceType()
@@ -77,7 +70,6 @@ slicetype = SliceType()
 class SliceConstant(Constant):
     def __init__(self, type, data, name=None):
         assert isinstance(data, slice)
-        # Numpy ndarray aren't hashable, so get rid of them.
         if isinstance(data.start, numpy.ndarray):
             assert data.start.ndim == 0
             assert "int" in str(data.start.dtype)
@@ -117,13 +109,8 @@ class NoneTypeT(Generic):
 
     @staticmethod
     def may_share_memory(a, b):
-        # None never share memory between object, in the sence of DebugMode.
-        # Python None are singleton
         return False
 
 none_type_t = NoneTypeT()
 
-# This is a variable instance. It can be used only once per fgraph.
-# So use NoneConst.clone() before using it in a Theano graph.
-# Use NoneConst.equals(x) to check if two variable are NoneConst.
 NoneConst = Constant(none_type_t, None, name='NoneConst')

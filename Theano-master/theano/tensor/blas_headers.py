@@ -45,23 +45,13 @@ def detect_macos_sdot_bug():
         detect_macos_sdot_bug.tested = True
         return False
 
-    # This code will return -1 if the dot product did not return
-    # the right value (30.).
     flags = config.blas.ldflags.split()
     for f in flags:
-        # Library directories should also be added as rpath,
-        # so that they can be loaded even if the environment
-        # variable LD_LIBRARY_PATH does not contain them
         lib_path = os.environ.get('DYLD_FALLBACK_LIBRARY_PATH', '').split(':')
         if f.startswith('-L'):
             flags.append('-Wl,-rpath,' + f[2:])
-            # also append those paths to DYLD_FALLBACK_LIBRARY_PATH to
-            # support libraries that have the wrong install_name
-            # (such as MKL on canopy installs)
             if (f[2:] not in lib_path):
                 lib_path.append(f[2:])
-        # this goes into the python process environment that is
-        # inherited by subprocesses/used by dyld when loading new objects
         os.environ['DYLD_FALLBACK_LIBRARY_PATH'] = ':'.join(lib_path)
 
     test_code = textwrap.dedent("""\
@@ -88,8 +78,6 @@ def detect_macos_sdot_bug():
         flags=flags, try_run=True)
     detect_macos_sdot_bug.tested = True
 
-    # If compilation failed, we consider there is a bug,
-    # and the fix does not work
     if not compilation_ok:
         _logger.info('Could not compile test case for sdot_.')
         detect_macos_sdot_bug.present = True
@@ -100,11 +88,9 @@ def detect_macos_sdot_bug():
         detect_macos_sdot_bug.present = False
         return False
 
-    # Else, the bug is detected.
     _logger.info('The sdot_ bug is present on this system.')
     detect_macos_sdot_bug.present = True
 
-    # Then, try a simple fix
     test_fix_code = textwrap.dedent("""\
         extern "C" float cblas_sdot(int, float*, int, float*, int);
         static float sdot_(int* Nx, float* x, int* Sx, float* y, int* Sy)
@@ -151,24 +137,13 @@ def cblas_header_text():
     return """
     //#include <stddef.h>
 
-    #undef __BEGIN_DECLS
-    #undef __END_DECLS
-    #ifdef __cplusplus
-    #define __BEGIN_DECLS extern "C" {
-    #define __END_DECLS }
-    #else
-    #define __BEGIN_DECLS           /* empty */
-    #define __END_DECLS             /* empty */
-    #endif
 
     __BEGIN_DECLS
 
-    #define MOD %
 
     /*
      * Enumerated and derived types
      */
-    #define CBLAS_INDEX size_t  /* this may vary between platforms */
 
     enum CBLAS_ORDER {CblasRowMajor=101, CblasColMajor=102};
     enum CBLAS_TRANSPOSE {CblasNoTrans=111, CblasTrans=112, CblasConjTrans=113};
@@ -943,7 +918,6 @@ def blas_header_text():
                     }
                     """)
         else:
-            # Make sure the buggy version of sdot_ is never used
             header += textwrap.dedent("""\
                     static float sdot_(int* Nx, float* x, int* Sx, float* y, int* Sy)
                     {
@@ -962,14 +936,11 @@ def blas_header_text():
 
 
 def blas_header_version():
-    # Version for the base header
     version = (1,)
     if detect_macos_sdot_bug():
         if detect_macos_sdot_bug.fix_works:
-            # Version with fix
             version += (1,)
         else:
-            # Version with error
             version += (2,)
 
     return version
@@ -1051,7 +1022,6 @@ def ____gemm_code(check_ab, a_init, b_init):
         {
             case NPY_FLOAT:
             {
-                #define REAL float
                 float a = %(a_init)s;
                 float b = %(b_init)s;
 
@@ -1071,12 +1041,10 @@ def ____gemm_code(check_ab, a_init, b_init):
                     case 0x111: cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, Nz[0], Nz[1], Nx[1], a, x, sx_1, y, sy_1, b, z, sz_1); break;
                     default: goto _dot_execute_fallback;
                 };
-                #undef REAL
             }
             break;
             case NPY_DOUBLE:
             {
-                #define REAL double
                 double a = %(a_init)s;
                 double b = %(b_init)s;
 
@@ -1095,7 +1063,6 @@ def ____gemm_code(check_ab, a_init, b_init):
                     case 0x111: cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, Nz[0], Nz[1], Nx[1], a, x, sx_1, y, sy_1, b, z, sz_1); break;
                     default: goto _dot_execute_fallback;
                 };
-                #undef REAL
             }
             break;
         }

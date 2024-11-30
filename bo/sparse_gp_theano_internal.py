@@ -33,13 +33,9 @@ def LogSumExp(x, axis = None):
     x_max = T.max(x, axis = axis, keepdims = True)
     return T.log(T.sum(T.exp(x - x_max), axis = axis, keepdims = True)) + x_max
 
-##
-# This class represents a GP node in the network
-#
 
 class Sparse_GP: 
 
-    # n_points are the total number of training points (that is used for cavity computation)
 
     def __init__(self, n_inducing_points, n_points, input_d, input_means, input_vars, training_targets):
 
@@ -51,8 +47,6 @@ class Sparse_GP:
         self.input_means = input_means
         self.input_vars = input_vars
 
-        # These are the actual parameters of the posterior distribution being optimzied
-        # covCavity = (Kzz^-1 + LParamPost LParamPost^T * (n - 1) / n) and meanCavity = covCavity mParamPost * (n - 1) / n
 
         initial_value = np.zeros((n_inducing_points, n_inducing_points))
         self.LParamPost = theano.shared(value = initial_value.astype(theano.config.floatX), name = 'LParamPost', borrow = True)
@@ -64,13 +58,11 @@ class Sparse_GP:
 
         self.set_for_training = casting(1.0)
 
-        # We set the level of jitter to use  (added to the diagonal of Kzz)
 
         self.jitter = casting(1e-3)
 
     def compute_output(self):
         
-        # We compute the output mean
 
         self.Kzz = compute_kernel(self.lls, self.lsf, self.z, self.z) + T.eye(self.z.shape[ 0 ]) * self.jitter * T.exp(self.lsf)
         self.KzzInv = T.nlinalg.MatrixInversePSD()(self.Kzz)
@@ -97,7 +89,6 @@ class Sparse_GP:
             self.EKxz = compute_psi1(self.lls, self.lsf, self.input_means, self.input_vars, self.z)
             self.output_means = T.dot(self.EKxz, self.KzzInvmeanCavity)
 
-            # In other layers we have to compute the expected variance
 
             self.B2 = T.outer(T.dot(self.KzzInv, self.meanCavity), T.dot(self.KzzInv, self.meanCavity))
 
@@ -105,7 +96,6 @@ class Sparse_GP:
 
             if exact_output_vars:
 
-                # We compute the exact output variance
 
                 self.psi2 = compute_psi2(self.lls, self.lsf, self.z, self.input_means, self.input_vars)
                 ll = T.transpose(self.EKxz[ :, None, : ] * self.EKxz[ : , : , None ], [ 1, 2, 0 ])
@@ -115,7 +105,6 @@ class Sparse_GP:
 
             else:
 
-                # We compute the approximate output variance using the unscented kalman filter
 
                 v1 = 0
                 v2 = 0
@@ -155,9 +144,6 @@ class Sparse_GP:
         self.LParamPost.set_value(params[ 4 ])
         self.lvar_noise.set_value(params[ 5 ])
         
-    ##
-    # The next functions compute the log normalizer of each distribution (needed for energy computation)
-    #
 
     def getLogNormalizerCavity(self):
 
@@ -179,9 +165,6 @@ class Sparse_GP:
         return casting(0.5 * self.n_inducing_points * np.log(2 * np.pi)) + casting(0.5) * T.nlinalg.LogDetPSD()(self.covPosterior) + \
             casting(0.5) * T.dot(T.dot(T.transpose(self.meanPosterior), self.covPosteriorInv), self.meanPosterior)
 
-    ##
-    # We return the contribution to the energy of the node (See last Eq. of Sec. 4 in http://arxiv.org/pdf/1602.04133.pdf v1)
-    # 
 
     def getContributionToEnergy(self):
 
@@ -191,13 +174,10 @@ class Sparse_GP:
         logZprior = self.getLogNormalizerPrior()
         logZcav = self.getLogNormalizerCavity()
 
-        # We multiply by the minibatch size and normalize terms according to the total number of points (n_points)
 
         return ((logZcav - logZpost) + logZpost / casting(self.n_points) - logZprior / casting(self.n_points)) * \
 		T.cast(self.input_means.shape[ 0 ], 'float32') + T.sum(self.getLogZ())
 
-	# These methods sets the inducing points to be a random subset of the inputs (we should receive more
-	# inputs than inducing points), the length scales are set to the mean of the euclidean distance
 
     def initialize(self):
 
@@ -208,7 +188,6 @@ class Sparse_GP:
         selected_points = np.random.choice(input_means.shape[ 0 ], self.n_inducing_points, replace = False)
         z = input_means[ selected_points, : ]
 
-        # If we are not in the first layer, we initialize the length scales to one
 
         lls = np.zeros(input_means.shape[ 1 ])
 
@@ -220,11 +199,7 @@ class Sparse_GP:
         self.z.set_value(z.astype(theano.config.floatX))
         self.lsf.set_value(np.zeros(1).astype(theano.config.floatX)[ 0 ])
 
-        # We initialize the cavity and the posterior approximation to the prior but with a small random
-        # mean so that the outputs are not equal to zero (otherwise the output of the gp will be zero and
-        # the next layer will be initialized improperly).
 
-        # If we are not in the first layer, we reduce the variance of the L and m
 
         L = np.random.normal(size = (self.n_inducing_points, self.n_inducing_points)) * 1.0
         m = self.training_targets.get_value()[ selected_points, : ]
@@ -232,8 +207,6 @@ class Sparse_GP:
         self.LParamPost.set_value(L.astype(theano.config.floatX))
         self.mParamPost.set_value(m.astype(theano.config.floatX))
 
-    # This sets the node for prediction. It basically switches the cavity distribution to be the posterior approximation
-    # Once set in this state the network cannot be trained any more.
 
     def setForPrediction(self):
 
@@ -241,11 +214,9 @@ class Sparse_GP:
 
             self.set_for_training = casting(0.0)
 
-    # This function undoes the work done by the previous method
 
     def setForTraining(self):
 
-        # We only do something if the node was set for prediction instead of training
                 
         if self.set_for_training == casting(0.0):
 
@@ -287,7 +258,6 @@ class Sparse_GP:
 
     def compute_log_averaged_ei(self, x, X, randomness, incumbent):
 
-        # We compute the old predictive mean at x
         
         Kzz = compute_kernel(self.lls, self.lsf, self.z, self.z) + T.eye(self.z.shape[ 0 ]) * self.jitter * T.exp(self.lsf)
         KzzInv = T.nlinalg.MatrixInversePSD()(Kzz)
@@ -299,12 +269,10 @@ class Sparse_GP:
         Kxz = compute_kernel(self.lls, self.lsf, x, self.z)
         m_old_x = T.dot(Kxz, KzzInvmeanCavity)
 
-        # We compute the old predictive mean at X
 
         KXz = compute_kernel(self.lls, self.lsf, X, self.z)
         m_old_X = T.dot(KXz, KzzInvmeanCavity)
 
-        # We compute the required cross covariance matrices
 
         KXX = compute_kernel(self.lls, self.lsf, X, X) - T.dot(T.dot(KXz, KzzInv), KXz.T) + T.eye(X.shape[ 0 ]) * self.jitter * T.exp(self.lsf)
         KXXInv = T.nlinalg.MatrixInversePSD()(KXX)
@@ -314,13 +282,11 @@ class Sparse_GP:
         KxXz = compute_kernel(self.lls, self.lsf, xX, self.z)
         KxX = KxX - T.dot(T.dot(KxXz[ 0 : x.shape[ 0], : ], KzzInv), KxXz[ x.shape[ 0 ] : xX.shape[ 0 ], : ].T)
 
-        # We compute the new posterior mean
 
         samples_internal = T.dot(MatrixChol()(KXX), randomness)
 
         new_predictive_mean = T.tile(m_old_x, [ 1, randomness.shape[ 1 ] ]) + T.dot(KxX, T.dot(KXXInv, samples_internal))
 
-        # We compute the new posterior variance
 
         z_expanded = T.concatenate([ self.z, X ], 0)
         Kxz_expanded = compute_kernel(self.lls, self.lsf, x, z_expanded)

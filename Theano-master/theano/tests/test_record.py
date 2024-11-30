@@ -13,7 +13,6 @@ def test_record_good():
         2) Does not raise any errors
     """
 
-    # Record a sequence of events
     output = StringIO()
 
     recorder = Record(file_object=output, replay=False)
@@ -23,13 +22,10 @@ def test_record_good():
     for i in xrange(num_lines):
         recorder.handle_line(str(i) + '\n')
 
-    # Make sure they were recorded correctly
     output_value = output.getvalue()
 
     assert output_value == ''.join(str(i) + '\n' for i in xrange(num_lines))
 
-    # Make sure that the playback functionality doesn't raise any errors
-    # when we repeat them
     output = StringIO(output_value)
 
     playback_checker = Record(file_object=output, replay=True)
@@ -44,7 +40,6 @@ def test_record_bad():
     do something different on playback, the Record class catches it.
     """
 
-    # Record a sequence of events
     output = StringIO()
 
     recorder = Record(file_object=output, replay=False)
@@ -54,8 +49,6 @@ def test_record_bad():
     for i in xrange(num_lines):
         recorder.handle_line(str(i) + '\n')
 
-    # Make sure that the playback functionality doesn't raise any errors
-    # when we repeat some of them
     output_value = output.getvalue()
     output = StringIO(output_value)
 
@@ -64,7 +57,6 @@ def test_record_bad():
     for i in xrange(num_lines // 2):
         playback_checker.handle_line(str(i) + '\n')
 
-    # Make sure it raises an error when we deviate from the recorded sequence
     try:
         playback_checker.handle_line('0\n')
     except MismatchError:
@@ -80,7 +72,6 @@ def test_record_mode_good():
     exact string value of the record in this case.
     """
 
-    # Record a sequence of events
     output = StringIO()
 
     recorder = Record(file_object=output, replay=False)
@@ -96,8 +87,6 @@ def test_record_mode_good():
         recorder.handle_line(str(i) + '\n')
         f(i)
 
-    # Make sure that the playback functionality doesn't raise any errors
-    # when we repeat them
     output_value = output.getvalue()
     output = StringIO(output_value)
 
@@ -120,7 +109,6 @@ def test_record_mode_bad():
     error.
     """
 
-    # Record a sequence of events
     output = StringIO()
 
     recorder = Record(file_object=output, replay=False)
@@ -136,8 +124,6 @@ def test_record_mode_bad():
         recorder.handle_line(str(i) + '\n')
         f(i)
 
-    # Make sure that the playback functionality doesn't raise any errors
-    # when we repeat them
     output_value = output.getvalue()
     output = StringIO(output_value)
 
@@ -152,7 +138,6 @@ def test_record_mode_bad():
         playback_checker.handle_line(str(i) + '\n')
         f(i)
 
-    # Make sure a wrong event causes a MismatchError
     try:
         f(0)
     except MismatchError:

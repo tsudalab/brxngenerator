@@ -38,20 +38,14 @@ class MyType(Type):
         return str(self.thingy)
 
     def filter(self, x, strict=False, allow_downcast=None):
-        # Dummy filter: we want this type to represent strings that
-        # start with `self.thingy`.
         if not isinstance(x, string_types):
             raise TypeError("Invalid type")
         if not x.startswith(self.thingy):
             raise ValueError("Invalid value")
         return x
 
-    # Added to make those tests pass in DebugMode
     @staticmethod
     def may_share_memory(a, b):
-        # As this represent a string and string are immutable, they
-        # never share memory in the DebugMode sence. This is needed as
-        # Python reuse string internally.
         return False
 
 
@@ -86,10 +80,8 @@ class StructOp(Op):
     __props__ = ()
 
     def do_constant_folding(self, node):
-        # we are not constant
         return False
 
-    # The input only serves to distinguish thunks
     def make_node(self, i):
         return Apply(self, [i], [scalar.uint64()])
 
@@ -111,17 +103,13 @@ counter%(name)s++;
 
 class TestOp:
 
-    # Sanity tests
     def test_sanity_0(self):
         r1, r2 = MyType(1)(), MyType(2)()
         node = MyOp.make_node(r1, r2)
-        # Are the inputs what I provided?
         assert [x for x in node.inputs] == [r1, r2]
-        # Are the outputs what I expect?
         assert [x.type for x in node.outputs] == [MyType(3)]
         assert node.outputs[0].owner is node and node.outputs[0].index == 0
 
-    # validate
     def test_validate(self):
         try:
             MyOp(Generic()(), MyType(1)())  # MyOp requires MyType instances
@@ -176,7 +164,6 @@ class TestMakeThunk(unittest.TestCase):
         i = scalar.int32('i')
         o = IncOnePython()(i)
 
-        # Check that the c_code function is not implemented
         self.assertRaises((NotImplementedError, utils.MethodNotDefined),
                           o.owner.op.c_code,
                           o.owner, 'o', ['x'], 'z', {'fail': ''})
@@ -190,7 +177,6 @@ class TestMakeThunk(unittest.TestCase):
                                       no_recycling=[])
 
         required = thunk()
-        # Check everything went OK
         assert not required  # We provided all inputs
         assert compute_map[o][0]
         assert storage_map[o][0] == 4
@@ -213,7 +199,6 @@ class TestMakeThunk(unittest.TestCase):
         i = scalar.int32('i')
         o = IncOneC()(i)
 
-        # Check that the perform function is not implemented
         self.assertRaises((NotImplementedError, utils.MethodNotDefined),
                           o.owner.op.perform,
                           o.owner, 0, [None])
@@ -227,7 +212,6 @@ class TestMakeThunk(unittest.TestCase):
                                       no_recycling=[])
         if theano.config.cxx:
             required = thunk()
-            # Check everything went OK
             assert not required  # We provided all inputs
             assert compute_map[o][0]
             assert storage_map[o][0] == 4
@@ -367,16 +351,11 @@ def test_get_debug_values_exc():
 
         try:
             for x_val in op.get_debug_values(x):
-                # this assert catches the case where we
-                # erroneously get a value returned
                 assert False
             raised = False
         except AttributeError:
             raised = True
 
-        # this assert catches the case where we got []
-        # returned, and possibly issued a warning,
-        # rather than raising an exception
         assert raised
 
     finally:

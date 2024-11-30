@@ -28,8 +28,6 @@ class CpuContiguous(theano.Op):
     def perform(self, node, inputs, output_storage):
         x, = inputs
         y = output_storage[0]
-        # if the ouput is contiguous do nothing, else copy
-        # the input
         if not x.flags['C_CONTIGUOUS']:
             x = x.copy()
         assert x.flags['C_CONTIGUOUS']
@@ -66,7 +64,6 @@ cpu_contiguous = CpuContiguous()
 
 
 class CumsumOp(theano.Op):
-    # See function cumsum for docstring
 
     __props__ = ("axis",)
 
@@ -95,8 +92,6 @@ class CumsumOp(theano.Op):
         if self.axis is None:
             return [cumsum(gi[::-1])[::-1].reshape(inputs[0].shape)]
 
-        # We need to reverse the gradients along ``self.axis``,
-        #  compute cumsum, then reverse again
         reverse_slicing = [slice(None, None, None)] * gi.ndim
         reverse_slicing[self.axis] = slice(None, None, -1)
         reverse_slicing = tuple(reverse_slicing)
@@ -188,7 +183,6 @@ def cumsum(x, axis=None):
 
 
 class CumprodOp(theano.Op):
-    # See function cumprod for docstring
 
     __props__ = ("axis",)
 
@@ -219,8 +213,6 @@ class CumprodOp(theano.Op):
         if self.axis is None:
             return [cumsum((fx * gi)[::-1])[::-1].reshape(inputs[0].shape) / x]
 
-        # We need to reverse the gradients along ``self.axis``,
-        #  compute cumsum, then reverse again
         reverse_slicing = [slice(None, None, None)] * gi.ndim
         reverse_slicing[self.axis] = slice(None, None, -1)
         reverse_slicing = tuple(reverse_slicing)
@@ -313,15 +305,12 @@ def cumprod(x, axis=None):
 
 
 class DiffOp(theano.Op):
-    # See function diff for docstring
 
     __props__ = ("n", "axis")
 
     def __init__(self, n=1, axis=-1):
         self.n = n
         self.axis = axis
-        # numpy return a view in that case.
-        # TODO, make an optimization that remove this op in this case.
         if n == 0:
             self.view_map = {0: [0]}
 
@@ -414,9 +403,6 @@ class BinCountOp(theano.Op):
         if x.dtype not in BinCountOp.compatible_type:
             raise TypeError("Inputs dtype must be an integer.")
 
-        # Some dtypes are not supported by numpy's implementation of bincount.
-        # Until another one is available, we should fail at graph construction
-        # time, not wait for execution.
         int_bitwidth = theano.configdefaults.python_int_bitwidth()
         if int_bitwidth == 64:
             numpy_unsupported_dtypes = ('uint64',)
@@ -455,7 +441,6 @@ class BinCountOp(theano.Op):
         if weights is not None and weights.shape != x.shape:
             raise TypeError("All inputs must have the same shape.")
 
-        # Needed for numpy 1.4.1 compatibility
         if self.minlength:
             out = np.bincount(x, weights=weights, minlength=self.minlength)
         else:
@@ -582,7 +567,6 @@ def compress(condition, x, axis=None):
 
 
 class RepeatOp(theano.Op):
-    # See the repeat function for docstring
 
     __props__ = ("axis",)
 
@@ -596,9 +580,6 @@ class RepeatOp(theano.Op):
         if repeats.dtype not in tensor.discrete_dtypes:
             raise TypeError("repeats.dtype must be an integer.")
 
-        # Some dtypes are not supported by numpy's implementation of repeat.
-        # Until another one is available, we should fail at graph construction
-        # time, not wait for execution.
         ptr_bitwidth = theano.configdefaults.local_bitwidth()
         if ptr_bitwidth == 64:
             numpy_unsupported_dtypes = ('uint64',)
@@ -656,9 +637,6 @@ class RepeatOp(theano.Op):
             return [gz.reshape(shape, x.ndim + 1).sum(axis=axis),
                     DisconnectedType()()]
         elif repeats.ndim == 1:
-            # For this implementation, we would need to specify the length
-            # of repeats in order to split gz in the right way to sum
-            # the good part.
             raise NotImplementedError()
         else:
             raise ValueError()
@@ -668,7 +646,6 @@ class RepeatOp(theano.Op):
         repeats = node.inputs[1]
         out_shape = list(i0_shapes)
 
-        # uint64 shape are not supported.
         dtype = None
         if repeats.dtype in ['uint8', 'uint16', 'uint32']:
             dtype = 'int64'
@@ -741,30 +718,19 @@ def repeat(x, repeats, axis=None):
 
         shape = [x.shape[i] for i in xrange(x.ndim)]
 
-        # shape_ is the shape of the intermediate tensor which has
-        # an additional dimension comparing to x. We use alloc to
-        # allocate space for this intermediate tensor to replicate x
-        # along that additional dimension.
         shape_ = shape[:]
         shape_.insert(axis + 1, repeats)
 
-        # shape is now the shape of output, where shape[axis] becomes
-        # shape[axis]*repeats.
         shape[axis] = shape[axis] * repeats
 
-        # dims_ is the dimension of that intermediate tensor.
         dims_ = list(numpy.arange(x.ndim))
         dims_.insert(axis + 1, 'x')
 
-        # After the original tensor is duplicated along the additional
-        # dimension, we reshape it to the expected output shape, and
-        # return the output z.
         z = tensor.alloc(x.dimshuffle(*dims_), *shape_).reshape(shape)
         return z
 
 
 class Bartlett(gof.Op):
-    # See function bartlett for docstring
     __props__ = ()
 
     def make_node(self, M):
@@ -774,7 +740,6 @@ class Bartlett(gof.Op):
                             % self.__class__.__name__)
         elif (not M.dtype.startswith('int') and
               not M.dtype.startswith('uint')):
-            # dtype is a theano attribute here
             raise TypeError('%s only works on integer input'
                             % self.__class__.__name__)
         return gof.Apply(self, [M], [tensor.dvector()])
@@ -796,7 +761,6 @@ class Bartlett(gof.Op):
 bartlett_ = Bartlett()
 
 
-# I create a function only to have the doc show well.
 def bartlett(M):
     """
     An instance of this class returns the Bartlett spectral window in the
@@ -825,7 +789,6 @@ def bartlett(M):
 
 
 class FillDiagonal(gof.Op):
-    # See function fill_diagonal for docstring
     __props__ = ()
 
     def infer_shape(self, node, in_shapes):
@@ -850,12 +813,8 @@ class FillDiagonal(gof.Op):
         a = inputs[0].copy()
         val = inputs[1]
         if a.ndim == 2:
-            # numpy.fill_diagonal up to date(including 1.6.2) have a
-            # bug for tall matrix.
-            # For 2-d arrays, we accept rectangular ones.
             step = a.shape[1] + 1
             end = a.shape[1] * a.shape[1]
-            # Write the value out into the diagonal.
             a.flat[:end:step] = val
         else:
             numpy.fill_diagonal(a, val)
@@ -878,13 +837,11 @@ class FillDiagonal(gof.Op):
                                       ' for matrices only' %
                                       self.__class__.__name__)
         wr_a = fill_diagonal(grad, 0)  # valid for any number of dimensions
-        # diag is only valid for matrices
         wr_val = theano.tensor.nlinalg.diag(grad).sum()
         return [wr_a, wr_val]
 fill_diagonal_ = FillDiagonal()
 
 
-# I create a function only to have the doc show well.
 def fill_diagonal(a, val):
     """
     Returns a copy of an array with all
@@ -919,7 +876,6 @@ def fill_diagonal(a, val):
 
 
 class FillDiagonalOffset(gof.Op):
-    # See function fill_diagonal_offset for docstring
     __props__ = ()
 
     def infer_shape(self, node, in_shapes):
@@ -975,7 +931,6 @@ class FillDiagonalOffset(gof.Op):
             num_of_step = min(min(width, height), height + offset)
         step = a.shape[1] + 1
         end = start + step * num_of_step
-        # Write the value out into the diagonal.
         a.flat[start:end:step] = val
 
         output_storage[0][0] = a
@@ -993,7 +948,6 @@ class FillDiagonalOffset(gof.Op):
         if (a.dtype.startswith('complex')):
             return [None, None]
 
-        # only valid for matrices
         wr_a = fill_diagonal_offset(grad, 0, offset)
 
         offset_abs = basic.abs_(offset)
@@ -1008,7 +962,6 @@ class FillDiagonalOffset(gof.Op):
         step = a.shape[1] + 1
         end = start + step * num_of_step
 
-        # input of slice should be integer
         start = basic.cast(start, 'int32')
         step = basic.cast(step, 'int32')
         end = basic.cast(end, 'int32')

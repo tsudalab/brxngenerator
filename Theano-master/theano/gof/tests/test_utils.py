@@ -44,8 +44,6 @@ def test_remove():
 
     def odd(x):
         return x % 2 == 1
-    # The list are needed as with python 3, remove and filter return generators
-    # and we can't compare generators.
     assert list(remove(even, range(5))) == list(filter(odd, range(5)))
 
 
@@ -61,7 +59,6 @@ def test_hash_from_dict():
         assert h not in hashs
         hashs.append(h)
 
-    # List are not hashable. So they are transformed into tuple.
     assert hash_from_dict({0: (0,)}) == hash_from_dict({0: [0]})
 
 

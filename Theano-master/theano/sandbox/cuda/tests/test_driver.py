@@ -2,15 +2,12 @@ from __future__ import absolute_import, print_function, division
 import numpy
 import theano
 
-# Skip test if cuda_ndarray is not available.
 try:
     from nose.plugins.skip import SkipTest
     import theano.sandbox.cuda as cuda_ndarray
     if cuda_ndarray.cuda_available == False:
         raise SkipTest('Optional package cuda disabled')
 except ImportError:
-    # To have the GPU back-end work without nose, we need this file to
-    # be importable without nose.
     pass
 import theano.sandbox.cuda as cuda
 import theano.sandbox.cuda.basic_ops as B
@@ -89,5 +86,3 @@ def test_nvcc_cast():
             "Installing CUDA 7.0 (or more recent) should fix the problem.")
 
 
-# TODO make sure the test_nvidia_driver test are executed when we make manually
-# a CudaNdarray like this: cuda.CudaNdarray.zeros((5,4))

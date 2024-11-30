@@ -400,8 +400,6 @@ class TestCpuConv2d(BaseTestConv2d):
 
 
 def test_constant_shapes():
-    # Check that the `imshp` and `kshp` parameters of the AbstractConv Ops
-    # are rejected if not constant or None
     dummy_t4 = tensor.ftensor4()
     alloc_dummy_t4 = tensor.zeros((3, 5, 7, 11), dtype='float32')
 
@@ -455,8 +453,6 @@ class TestConvTypes(unittest.TestCase):
         self.constant_tensor = numpy.zeros((3, 5, 7, 11), dtype='float32')
 
     def test_grad_types(self):
-        # This function simply tests the behaviour of the AbstractConv
-        # Ops, not their optimizations
         input = self.input
         filters = self.filters
         topgrad = self.topgrad
@@ -492,14 +488,12 @@ class TestConvTypes(unittest.TestCase):
             grad_topgrad, grad_topgrad.type, topgrad, topgrad.type)
 
     def test_constant_input(self):
-        # Check the AbstractConv Ops for constant inputs
         input = self.input
         filters = self.filters
         topgrad = self.topgrad
         constant_tensor = self.constant_tensor
         out_shape = tensor.lvector()
 
-        # Check the forward Op
         output = conv.conv2d(constant_tensor, filters)
         grad_filters = theano.grad(output.sum(), wrt=filters)
         assert grad_filters.type == filters.type, (
@@ -510,7 +504,6 @@ class TestConvTypes(unittest.TestCase):
         assert grad_input.type == input.type, (
             grad_input, grad_input.type, input, input.type)
 
-        # Check grad wrt weights
         grad_filters = conv.AbstractConv2d_gradWeights()(
             constant_tensor, topgrad, out_shape)
         grad_topgrad = theano.grad(grad_filters.sum(), wrt=topgrad)
@@ -523,7 +516,6 @@ class TestConvTypes(unittest.TestCase):
         assert grad_input.type == input.type, (
             grad_input, grad_input.type, input, input.type)
 
-        # Check grad wrt inputs
         grad_input = conv.AbstractConv2d_gradInputs()(
             constant_tensor, topgrad, out_shape)
         grad_topgrad = theano.grad(grad_input.sum(), wrt=topgrad)
@@ -538,8 +530,6 @@ class TestConvTypes(unittest.TestCase):
 
 
 class TestBilinearUpsampling(unittest.TestCase):
-    # If BLAS is not available on CPU, then we accept the fallback to the
-    # slow Python implementation for that test.
     compile_mode = theano.compile.mode.get_default_mode()
     if not theano.config.blas.ldflags:
         compile_mode = compile_mode.excluding('AbstractConvCheck')
@@ -564,13 +554,11 @@ class TestBilinearUpsampling(unittest.TestCase):
 
         """
         for ratio in [2, 3, 4, 5, 6, 7, 8, 9]:
-            # getting the un-normalized kernel
             kernel = bilinear_kernel_2D(ratio=ratio, normalize=False)
             f = theano.function([], kernel)
             kernel_2D = self.numerical_kernel_2D(ratio)
             utt.assert_allclose(kernel_2D, f())
 
-            # getting the normalized kernel
             kernel = bilinear_kernel_2D(ratio=ratio, normalize=True)
             f = theano.function([], kernel)
             kernel_2D = kernel_2D / float(ratio**2)
@@ -592,14 +580,12 @@ class TestBilinearUpsampling(unittest.TestCase):
         f_ten_norm = theano.function([rat], kernel_ten_norm)
 
         for ratio in [2, 3, 4, 5, 6, 7, 8, 9]:
-            # getting the un-normalized kernel
             kernel = bilinear_kernel_1D(ratio=ratio, normalize=False)
             f = theano.function([], kernel)
             kernel_1D = self.numerical_kernel_1D(ratio)
             utt.assert_allclose(kernel_1D, f())
             utt.assert_allclose(kernel_1D, f_ten(ratio))
 
-            # getting the normalized kernel
             kernel = bilinear_kernel_1D(ratio=ratio, normalize=True)
             f = theano.function([], kernel)
             kernel_1D = kernel_1D / float(ratio)
@@ -676,7 +662,6 @@ class TestBilinearUpsampling(unittest.TestCase):
         when using 1D kernels for some upsampling ratios.
 
         """
-        # upsampling for a ratio of two
         input_x = np.array([[[[1, 2], [3, 4]]]], dtype=theano.config.floatX)
 
         for ratio in [2, 3, 4, 5, 6, 7, 8, 9]:
@@ -694,7 +679,6 @@ class TestBilinearUpsampling(unittest.TestCase):
         1D and 2D kernels will generate the same result.
 
         """
-        # checking upsampling with ratio 5
         input_x = np.random.rand(5, 4, 6, 7).astype(theano.config.floatX)
         mat_1D = bilinear_upsampling(input=input_x, ratio=5,
                                      batch_size=5, num_input_channels=4,
@@ -706,7 +690,6 @@ class TestBilinearUpsampling(unittest.TestCase):
         f_2D = theano.function([], mat_2D, mode=self.compile_mode)
         utt.assert_allclose(f_1D(), f_2D(), rtol=1e-06)
 
-        # checking upsampling with ratio 8
         input_x = np.random.rand(12, 11, 10, 7).astype(theano.config.floatX)
         mat_1D = bilinear_upsampling(input=input_x, ratio=8,
                                      batch_size=12, num_input_channels=11,

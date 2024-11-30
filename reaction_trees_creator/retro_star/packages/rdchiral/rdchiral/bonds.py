@@ -73,11 +73,9 @@ def enumerate_possible_cistrans_defs(template_r, \
         if b.GetBondType() != BondType.DOUBLE:
             continue
 
-        # Define begin and end atoms of the double bond
         ba = b.GetBeginAtom()
         bb = b.GetEndAtom()
 
-        # Now check if it is even possible to specify
         if ba.GetDegree() == 1 or bb.GetDegree() == 1:
             continue
 
@@ -89,11 +87,9 @@ def enumerate_possible_cistrans_defs(template_r, \
                                b.GetSmarts(),
                                bb_label))
 
-        # Save core atoms so we know that cis/trans was POSSIBLE to specify
         required_bond_defs_coreatoms.add((ba_label, bb_label))
         required_bond_defs_coreatoms.add((bb_label, ba_label))
             
-        # Define heaviest mapnum neighbor for each atom, excluding the other side of the double bond
         ba_neighbor_labels = [labeling_func(a) for a in ba.GetNeighbors()]
         ba_neighbor_labels.remove(bb_label) # remove other side of =
         ba_neighbor_labels_max = max(ba_neighbor_labels)
@@ -101,26 +97,17 @@ def enumerate_possible_cistrans_defs(template_r, \
         bb_neighbor_labels.remove(ba_label) # remove other side of =
         bb_neighbor_labels_max = max(bb_neighbor_labels)
 
-        # The direction of the bond being observed might need to be flipped,
-        # based on
-        #     (a) if it is the heaviest atom on this side, and 
-        #     (b) if the begin/end atoms for the directional bond are 
-        #         in the wrong order (i.e., if the double-bonded atom 
-        #         is the begin atom)
         front_spec = None
         back_spec = None
         for bab in ba.GetBonds():
             if bab.GetBondDir() != BondDir.NONE:
                 if labeling_func(bab.GetBeginAtom()) == ba_label:
-                    # Bond is in wrong order - flip
                     if labeling_func(bab.GetEndAtom()) != ba_neighbor_labels_max:
-                        # Defined atom is not the heaviest - flip
                         front_spec = bab.GetBondDir()
                         break
                     front_spec = BondDirOpposite[bab.GetBondDir()]
                     break
                 if labeling_func(bab.GetBeginAtom()) != ba_neighbor_labels_max:
-                    # Defined atom is not heaviest
                     front_spec = BondDirOpposite[bab.GetBondDir()]
                     break
                 front_spec = bab.GetBondDir()
@@ -132,17 +119,13 @@ def enumerate_possible_cistrans_defs(template_r, \
             
             for bbb in bb.GetBonds():
                 if bbb.GetBondDir() != BondDir.NONE:
-                    # For the "back" specification, the double-bonded atom *should* be the BeginAtom
                     if labeling_func(bbb.GetEndAtom()) == bb_label:
-                        # Bond is in wrong order - flip
                         if labeling_func(bbb.GetBeginAtom()) != bb_neighbor_labels_max:
-                            # Defined atom is not the heaviest - flip
                             back_spec = bbb.GetBondDir()
                             break
                         back_spec = BondDirOpposite[bbb.GetBondDir()]
                         break
                     if labeling_func(bbb.GetEndAtom()) != bb_neighbor_labels_max:
-                        # Defined atom is not heaviest - flip
                         back_spec = BondDirOpposite[bbb.GetBondDir()]
                         break
                     back_spec = bbb.GetBondDir()
@@ -152,10 +135,7 @@ def enumerate_possible_cistrans_defs(template_r, \
         else:
             if PLEVEL >= 10: print('Back specification: {}'.format(back_spec))
 
-        # Is this an overall unspecified bond? Put it in the dictionary anyway, 
-        # so there is something to match
         if front_spec is None or back_spec is None:
-            # Create a definition over this bond so that reactant MUST be unspecified, too
             for start_atom in ba_neighbor_labels:
                 for end_atom in bb_neighbor_labels:
                     required_bond_defs[(start_atom, ba_label, bb_label, end_atom)] = (BondDir.NONE, BondDir.NONE)
@@ -181,18 +161,11 @@ def enumerate_possible_cistrans_defs(template_r, \
                 needs_inversion = (start_atom != ba_neighbor_labels_max) != \
                     (end_atom != bb_neighbor_labels_max)
                 for start_atom_dir in [BondDir.ENDUPRIGHT, BondDir.ENDDOWNRIGHT]:
-                    # When locally trans, BondDir of start shold be same as end, 
-                    # unless we need inversion
                     if (front_spec != back_spec) != needs_inversion: 
-                        # locally cis and does not need inversion (True, False)
-                        # or locally trans and does need inversion (False, True)
                         end_atom_dir = BondDirOpposite[start_atom_dir]
                     else:
-                        # locally cis and does need inversion (True, True)
-                        # or locally trans and does not need inversion (False, False)
                         end_atom_dir = start_atom_dir
 
-                    # Enumerate all combinations of atom orders...
                     possible_defs[(start_atom, ba_label, bb_label, end_atom)] = (start_atom_dir, end_atom_dir)
                     possible_defs[(ba_label, start_atom, bb_label, end_atom)] = (BondDirOpposite[start_atom_dir], end_atom_dir)
                     possible_defs[(start_atom, ba_label, end_atom, bb_label)] = (start_atom_dir, BondDirOpposite[end_atom_dir])
@@ -203,7 +176,6 @@ def enumerate_possible_cistrans_defs(template_r, \
                     possible_defs[(end_atom, bb_label, start_atom, ba_label)] = (BondDirOpposite[end_atom_dir], start_atom_dir)
                     possible_defs[(end_atom, bb_label, ba_label, start_atom)] = (BondDirOpposite[end_atom_dir], BondDirOpposite[start_atom_dir])
 
-        # Save to the definition of this bond (in either direction)
         required_bond_defs.update(possible_defs)
         
     if PLEVEL >= 10: print('All bond specs for this template:' )
@@ -241,11 +213,9 @@ def get_atoms_across_double_bonds(mol, labeling_func=lambda a:a.GetAtomMapNum())
         if b.GetBondType() != BondType.DOUBLE:
             continue
 
-        # Define begin and end atoms of the double bond
         ba = b.GetBeginAtom()
         bb = b.GetEndAtom()
 
-        # Now check if it is even possible to specify
         if ba.GetDegree() == 1 or bb.GetDegree() == 1:
             continue
 
@@ -257,7 +227,6 @@ def get_atoms_across_double_bonds(mol, labeling_func=lambda a:a.GetAtomMapNum())
                                b.GetSmarts(),
                                bb_label))
         
-        # Try to specify front and back direction separately
         front_mapnums = None 
         front_dir = None 
         back_mapnums = None 
@@ -275,15 +244,12 @@ def get_atoms_across_double_bonds(mol, labeling_func=lambda a:a.GetAtomMapNum())
                 back_dir = bbb.GetBondDir()
                 break 
 
-        # If impossible to spec, just continue
         if (bab is None or bbb is None):
             continue
 
-        # Did we actually get a specification out?
         if (front_dir is None or back_dir is None):
 
             if b.IsInRing(): 
-                # Implicit cis! Now to figure out right definitions...
                 if atomrings is None:
                     atomrings = mol.GetRingInfo().AtomRings() # tuple of tuples of atomIdx
                 for atomring in atomrings:
@@ -292,7 +258,6 @@ def get_atoms_across_double_bonds(mol, labeling_func=lambda a:a.GetAtomMapNum())
                         back_mapnums = (bb_label, labeling_func(bbb.GetOtherAtom(bb)))
                         if (bab.GetOtherAtomIdx(ba.GetIdx()) in atomring) != \
                                 (bbb.GetOtherAtomIdx(bb.GetIdx()) in atomring):
-                            # one of these atoms are in the ring, one is outside -> trans
                             if PLEVEL >= 10: print('Implicit trans found')
                             front_dir = BondDir.ENDUPRIGHT
                             back_dir = BondDir.ENDUPRIGHT
@@ -304,16 +269,11 @@ def get_atoms_across_double_bonds(mol, labeling_func=lambda a:a.GetAtomMapNum())
                         break
 
             else:
-                # Okay no, actually unspecified
-                # Specify direction as BondDir.NONE using whatever bab and bbb were at the end fo the loop
-                # note: this is why we use "for bab in ___generator___", so that we know the current
-                #       value of bab and bbb correspond to a single bond we can def. by
                 front_mapnums = (labeling_func(bab.GetBeginAtom()), labeling_func(bab.GetEndAtom()))
                 front_dir = BondDir.NONE
                 back_mapnums = (labeling_func(bbb.GetBeginAtom()), labeling_func(bbb.GetEndAtom()))
                 back_dir = BondDir.NONE
 
-        # Save this (a1, a2, a3, a4) -> (d1, d2) spec
         atoms_across_double_bonds.append(
             (
                 front_mapnums + back_mapnums,
@@ -356,21 +316,16 @@ def restore_bond_stereo_to_sp2_atom(a, bond_dirs_by_mapnum):
             ))
             return True
     
-    # Weird case, like C=C/O >> C=C/Br
     if PLEVEL >= 2: print('Bond stereo could not be restored to sp2 atom, missing the branch that was used to define before...')
     
     if a.GetDegree() == 2:
-        # Either the branch used to define was replaced with H (deg 3 -> deg 2)
-        # or the branch used to define was reacted (deg 2 -> deg 2)
         for bond_to_spec in a.GetBonds():
             if bond_to_spec.GetBondType() == BondType.DOUBLE:
                 continue
             if not bond_to_spec.GetOtherAtom(a).HasProp('old_mapno'): 
-                # new atom, deg2->deg2, assume direction preserved
                 if PLEVEL >= 5: print('Only single-bond attachment to atom {} is new, try to reproduce chirality'.format(a.GetAtomMapNum()))
                 needs_inversion = False 
             else:
-                # old atom, just was not used in chirality definition - set opposite
                 if PLEVEL >= 5: print('Only single-bond attachment to atom {} is old, try to reproduce chirality'.format(a.GetAtomMapNum()))
                 needs_inversion = True
 
@@ -384,16 +339,13 @@ def restore_bond_stereo_to_sp2_atom(a, bond_dirs_by_mapnum):
                         return True 
 
     if a.GetDegree() == 3:
-        # If we lost the branch defining stereochem, it must have been replaced
         for bond_to_spec in a.GetBonds():
             if bond_to_spec.GetBondType() == BondType.DOUBLE:
                 continue
             oa = bond_to_spec.GetOtherAtom(a)
             if oa.HasProp('old_mapno') or oa.HasProp('react_atom_idx'):
-                # looking at an old atom, which should have opposite direction as removed atom
                 needs_inversion = True 
             else:
-                # looking at a new atom, assume same as removed atom
                 needs_inversion = False 
 
             for (i, j), bond_dir in bond_dirs_by_mapnum.items():

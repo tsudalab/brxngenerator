@@ -14,8 +14,6 @@ from theano.compile import as_op
 import pickle
 
 
-# This is for test_pickle, since the function still has to be
-# reachable from pickle (as in it cannot be defined inline)
 @as_op([dmatrix, dmatrix], dmatrix)
 def mul(a, b):
     return a * b

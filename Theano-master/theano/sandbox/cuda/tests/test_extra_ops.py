@@ -1,4 +1,3 @@
-# Skip test if cuda_ndarray is not available.
 from __future__ import absolute_import, print_function, division
 import itertools
 
@@ -30,7 +29,6 @@ class TestGpuCumsum(theano.tensor.tests.test_extra_ops.TestCumsumOp):
     def setUp(self):
         super(TestGpuCumsum, self).setUp()
 
-        # Fetch some useful properties on the device
         cuda = theano.sandbox.cuda
         device_id = cuda.use.device_number
         if device_id is None:
@@ -59,7 +57,6 @@ class TestGpuCumsum(theano.tensor.tests.test_extra_ops.TestCumsumOp):
                         slice(None, None, -1),      # Negative strides
                         ]
 
-            # Cartesian product of all slicings to test.
             for slicing in itertools.product(slicings, repeat=x.ndim):
                 f = theano.function([x], cumsum(x[slicing], axis=axis),
                                     mode=self.mode)
@@ -82,7 +79,6 @@ class TestGpuCumsum(theano.tensor.tests.test_extra_ops.TestCumsumOp):
                         slice(None, None, -1),      # Negative strides
                         ]
 
-            # Cartesian product of all slicings to test.
             for slicing in itertools.product(slicings, repeat=x.ndim):
                 f = theano.function([x], cumsum(x[slicing], axis=axis),
                                     mode=self.mode)
@@ -105,7 +101,6 @@ class TestGpuCumsum(theano.tensor.tests.test_extra_ops.TestCumsumOp):
                         slice(None, None, -1),      # Negative strides
                         ]
 
-            # Cartesian product of all slicings to test.
             for slicing in itertools.product(slicings, repeat=x.ndim):
                 f = theano.function([x], cumsum(x[slicing], axis=axis),
                                     mode=self.mode)
@@ -123,16 +118,13 @@ class TestGpuCumsum(theano.tensor.tests.test_extra_ops.TestCumsumOp):
         assert [n for n in f.maker.fgraph.toposort()
                 if isinstance(n.op, GpuCumsum)]
 
-        # Extensive testing for the first 1025 sizes
         a = np.random.random(1025).astype("float32")
         for i in xrange(a.shape[0]):
             utt.assert_allclose(np.cumsum(a[:i]), f(a[:i]))
 
-        # Use multiple GPU threadblocks
         a = np.random.random((block_max_size+2,)).astype("float32")
         utt.assert_allclose(np.cumsum(a), f(a))
 
-        # Use recursive cumsum
         a = np.ones((block_max_size*(block_max_size+1)+2,),
                     dtype="float32")
         utt.assert_allclose(np.cumsum(a), f(a))
@@ -146,7 +138,6 @@ class TestGpuCumsum(theano.tensor.tests.test_extra_ops.TestCumsumOp):
             assert [n for n in f.maker.fgraph.toposort()
                     if isinstance(n.op, GpuCumsum)]
 
-            # Extensive testing for the first 1025 sizes
             a_shape = [5, 5]
             a_shape[shape_axis] = 1025
             a = np.random.random(a_shape).astype("float32")
@@ -157,19 +148,16 @@ class TestGpuCumsum(theano.tensor.tests.test_extra_ops.TestCumsumOp):
                 npa = np.cumsum(a[slices], axis=axis)
                 utt.assert_allclose(npa, fa)
 
-            # Use multiple GPU threadblocks
             a_shape = [5, 5]
             a_shape[shape_axis] = block_max_size+2
             a = np.random.random(a_shape).astype("float32")
             utt.assert_allclose(np.cumsum(a, axis=axis), f(a))
 
-            # Use multiple GPU gridblocks
             a_shape = [4, 4]
             a_shape[1-shape_axis] = self.max_grid_size1+1
             a = np.random.random(a_shape).astype("float32")
             utt.assert_allclose(np.cumsum(a, axis=axis), f(a), rtol=5e-5)
 
-            # Use recursive cumsum
             a_shape = [3, 3]
             a_shape[shape_axis] = block_max_size*(block_max_size+1)+2
             a = np.random.random(a_shape).astype("float32")
@@ -185,7 +173,6 @@ class TestGpuCumsum(theano.tensor.tests.test_extra_ops.TestCumsumOp):
             assert [n for n in f.maker.fgraph.toposort()
                     if isinstance(n.op, GpuCumsum)]
 
-            # Extensive testing for the first 1025 sizes
             a_shape = [5, 5, 5]
             a_shape[shape_axis] = 1025
             a = np.random.rand(*a_shape).astype("float32")
@@ -196,18 +183,15 @@ class TestGpuCumsum(theano.tensor.tests.test_extra_ops.TestCumsumOp):
                 npa = np.cumsum(a[slices], axis=axis)
                 utt.assert_allclose(npa, fa)
 
-            # Use multiple GPU threadblocks (along accumulation axis)
             a_shape = [2, 2, 2]
             a_shape[shape_axis] = block_max_size+2
             a = np.random.random(a_shape).astype("float32")
             utt.assert_allclose(np.cumsum(a, axis=axis), f(a))
 
-            # Use multiple GPU gridblocks (not along accumulation axis)
             a_shape = [5, 5, 5]
             a_shape[(shape_axis+1) % 3] = self.max_grid_size1+1
             a = np.random.random(a_shape).astype("float32")
             if axis is None:
-                # Avoid floating point error
                 a = np.sign(a-0.5).astype("float32")
             utt.assert_allclose(np.cumsum(a, axis=axis), f(a))
 
@@ -215,11 +199,9 @@ class TestGpuCumsum(theano.tensor.tests.test_extra_ops.TestCumsumOp):
             a_shape[(shape_axis+2) % 3] = self.max_grid_size1+1
             a = np.random.random(a_shape).astype("float32")
             if axis is None:
-                # Avoid floating point error
                 a = np.sign(a-0.5).astype("float32")
             utt.assert_allclose(np.cumsum(a, axis=axis), f(a))
 
-            # Use recursive cumsum (along accumulation axis)
             a_shape = [3, 3, 3]
             a_shape[shape_axis] = block_max_size*(block_max_size+1)+2
             a = np.random.random(a_shape).astype("float32")
@@ -227,7 +209,6 @@ class TestGpuCumsum(theano.tensor.tests.test_extra_ops.TestCumsumOp):
             utt.assert_allclose(np.cumsum(a, axis=axis), f(a))
 
     def test_GpuCumsum4D(self):
-        # Should not use the GPU version.
         x = T.ftensor4('x')
         f = theano.function([x], cumsum(x, axis=1), mode=self.mode)
         assert [n for n in f.maker.fgraph.toposort()

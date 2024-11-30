@@ -32,29 +32,24 @@ class T_scipy(unittest.TestCase):
 
     def test_scipy_paper_example2(self):
         ''' This just sees if things compile well and if they run '''
-        # PREAMPBLE
         T = theano.tensor
         shared = theano.shared
         function = theano.function
         rng = numpy.random
         theano.config.floatX = 'float64'
 
-        #
-        # ACTUAL SCRIPT FROM PAPER
 
         x = T.matrix()
         y = T.vector()
         w = shared(rng.randn(100))
         b = shared(numpy.zeros(()))
 
-        # Construct Theano expression graph
         p_1 = 1 / (1 + T.exp(-T.dot(x, w) - b))
         xent = -y * T.log(p_1) - (1 - y) * T.log(1 - p_1)
         prediction = p_1 > 0.5
         cost = xent.mean() + 0.01 * (w ** 2).sum()
         gw, gb = T.grad(cost, [w, b])
 
-        # Compile expressions to functions
         train = function(
             inputs=[x, y],
             outputs=[prediction, xent],

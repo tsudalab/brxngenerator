@@ -60,17 +60,10 @@ class FTEncoder(nn.Module):
 				pad_len = MAX_NB - len(h_nei)
 				h_nei.extend([padding]*pad_len)
 				cur_h_nei.extend(h_nei)
-				#print(len(h_nei))
-			#print(cur_h_nei[0].size(), len(cur_h_nei), MAX_NB)
 
 			cur_x = create_var(torch.LongTensor(cur_x))
-			#print(cur_x)
 			cur_x = self.embedding(cur_x)
-			#cur_h_nei = create_var(torch.LongTensor(cur_h_nei))
 			cur_h_nei = torch.cat(cur_h_nei, dim=0).view(-1, MAX_NB, self.hidden_size)
-			#cur_x = self.D1(cur_x)
-			#cur_h_nei = self.D2(cur_h_nei)
-			#cur_h_nei = cur_h_nei.to(device)
 			new_h = GRU(cur_x, cur_h_nei, self.W_z, self.W_r, self.U_r, self.W_h)
 			for i, m in enumerate(prop_list):
 				x,y = m[0].idx, m[1].idx

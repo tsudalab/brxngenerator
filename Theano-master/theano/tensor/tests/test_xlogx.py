@@ -22,9 +22,6 @@ class T_XlogX(unittest.TestCase):
         f = theano.function([], [y])
         self.assertTrue(numpy.all(f() == numpy.asarray([0, 0.])))
     def test1(self):
-#        class Dummy(object):
-#            def make_node(self, a):
-#                return [xlogx(a)[:,2]]
         utt.verify_grad(xlogx, [numpy.random.rand(3, 4)])
 
 

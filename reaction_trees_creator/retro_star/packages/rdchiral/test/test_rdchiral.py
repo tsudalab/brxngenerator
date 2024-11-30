@@ -11,7 +11,6 @@ for i, test_case in enumerate(test_cases):
 
     print('\n# Test {:2d}/{}'.format(i+1, len(test_cases)))
 
-    # Directly use SMILES/SMARTS
     reaction_smarts = test_case['smarts']
     reactant_smiles = test_case['smiles']
     if rdchiralRunText(reaction_smarts, reactant_smiles) == test_case['expected']:
@@ -20,7 +19,6 @@ for i, test_case in enumerate(test_cases):
         print('    from text: failed')
         all_passed = False
 
-    # Pre-initialize & repeat
     rxn = rdchiralReaction(reaction_smarts)
     reactants = rdchiralReactants(reactant_smiles)
     if all(rdchiralRun(rxn, reactants) == test_case['expected'] for j in range(3)):

@@ -30,12 +30,9 @@ def checkfor(testcase, fn, E):
         fn()
     except Exception as e:
         if isinstance(e, E):
-            # we got the exception we wanted
             return
         else:
-            # we did not get the exception we wanted
             raise
-    # fn worked, but it shouldn't have
     testcase.fail()
 
 
@@ -67,7 +64,6 @@ class T_function(unittest.TestCase):
 
         def fn():
             x, s = T.scalars('xs')
-            # Ignore unused input s, as it hides the other error
             function([s], [x], on_unused_input='ignore')
         checkfor(self, fn, MissingInputError)
 
@@ -78,7 +74,6 @@ class T_function(unittest.TestCase):
 
         def fn():
             x, s = T.scalars('xs')
-            # Ignore unused input s, as it hides the other error
             function([s], x, on_unused_input='ignore')
         checkfor(self, fn, MissingInputError)
 
@@ -89,7 +84,6 @@ class T_function(unittest.TestCase):
 
         def fn():
             x, s = T.scalars('xs')
-            # Ignore unused input s, as it hides the other error
             function([s], Out(x), on_unused_input='ignore')
         checkfor(self, fn, MissingInputError)
 
@@ -112,7 +106,6 @@ class T_function(unittest.TestCase):
         x, s = T.scalars('xs')
         fn = function([s, x], [x + s])
         self.assertTrue(fn(2, 3) == [5])
-        # no state
         self.assertTrue(fn(2, 3) == [5])
 
     def test_input_anon_unpack(self):
@@ -146,8 +139,6 @@ class T_function(unittest.TestCase):
         a = T.scalar()  # the a is for 'anonymous' (un-named).
         x, s = T.scalars('xs')
 
-        # x's name is ignored because it is followed by anonymous parameter a.
-        # Ignore unused input x, as it hides the other error
         f = function([x, a, s], a / s, on_unused_input='ignore')
         self.assertTrue(f(9, 1, 2) == 0.5)
         self.assertTrue(f(9, 2, 1) == 2.0)
@@ -159,7 +150,6 @@ class T_function(unittest.TestCase):
         a = T.scalar()  # the a is for 'anonymous' (un-named).
         x, s = T.scalars('xs')
 
-        # x's name is not ignored (as in test_naming_rule2) because a has a default value.
         f = function([x, In(a, value=1.0), s], a / s + x)
         self.assertTrue(f(9, 2, 4) == 9.5)  # can specify all args in order
         self.assertTrue(f(9, 2, s=4) == 9.5)  # can give s as kwarg
@@ -206,7 +196,6 @@ class T_function(unittest.TestCase):
 
     def test_same_names(self):
         a, x, s = T.scalars('xxx')
-        # implicit names would cause error.  What do we do?
         f = function([a, x, s], a + x + s)
         self.assertTrue(f(1, 2, 3) == 6)
         checkfor(self, lambda: f(1, 2, x=3), TypeError)
@@ -232,7 +221,6 @@ class T_function(unittest.TestCase):
                      s + a * x)
 
         g = copy.copy(f)
-        # if they both return, assume  that they return equivalent things.
 
         self.assertFalse(g.container[x].storage is f.container[x].storage)
         self.assertFalse(g.container[a].storage is f.container[a].storage)
@@ -249,23 +237,18 @@ class T_function(unittest.TestCase):
 
     def test_copy_share_memory(self):
         x = T.fscalar('x')
-        # SharedVariable for tests, one of them has update
         y = theano.shared(value=1)
         z = theano.shared(value=2)
         out = T.tanh((x + y + 2) / (x + z - 0.2)**2)
 
-        # Test for different linkers
         for mode in ["FAST_RUN", "FAST_COMPILE"]:
             ori = theano.function([x], [out], mode=mode, updates={z: z + 1})
             cpy = ori.copy(share_memory=True)
 
-            # Test if memories shared
             storage_map_ori = ori.fn.storage_map
             storage_map_cpy = cpy.fn.storage_map
             fgraph_cpy = cpy.maker.fgraph
 
-            # Assert intermediate and Constants storages are shared.
-            # and output stoarges are not shared
             i_o_variables = fgraph_cpy.inputs + fgraph_cpy.outputs
             ori_storages = storage_map_ori.values()
             l = [val for key, val in storage_map_cpy.items()
@@ -273,7 +256,6 @@ class T_function(unittest.TestCase):
             for storage in l:
                 self.assertTrue(any([storage is s for s in ori_storages]))
 
-            # Assert storages of SharedVariable without updates are shared
             for (input, _1, _2), here, there in zip(ori.indices,
                                                     ori.input_storage,
                                                     cpy.input_storage):
@@ -284,12 +266,10 @@ class T_function(unittest.TestCase):
         x_list = theano.shared(value=numpy.random.rand(10).astype(config.floatX))
 
         x = T.scalar('x')
-        # SharedVariable for tests, one of them has update
         y = theano.shared(value=1, name='y')
         z = theano.shared(value=2, name='z')
         m = theano.shared(value=0, name='m')
 
-        # SharedVariable to replace
         y_rpl = theano.shared(value=3, name='y_rpl')
         z_rpl = theano.shared(value=4, name='z_rpl')
         swap = {y: y_rpl, z: z_rpl}
@@ -297,8 +277,6 @@ class T_function(unittest.TestCase):
 
         out = x + y + z + m
 
-        # Test for different linkers
-        # for mode in ["FAST_RUN","FAST_COMPILE"]:
         second_time = False
         for mode in ["FAST_RUN", "FAST_COMPILE"]:
             ori = theano.function([i], [out], mode=mode,
@@ -306,30 +284,20 @@ class T_function(unittest.TestCase):
                                   givens={x: x_list[i]})
             cpy = ori.copy(swap=swap)
 
-            # run fuction several time
             ori(1), cpy(1), cpy(2)
 
-            # assert same SharedVariable are update in different function
             if not second_time:
-                # m should be updated 3 times
                 assert m.get_value() == 6
-                # z should be updated once
                 assert z.get_value() == 3
-                # z_rpl should be updated twice
                 assert z_rpl.get_value() == 6
-                # y and y_rpl should not be updated
                 assert y_rpl.get_value() == 3
                 assert y.get_value() == 1
             elif second_time:
-                # doule update for sharedvariable
                 assert m.get_value() == 12
                 assert z.get_value() == 4
                 assert z_rpl.get_value() == 8
                 assert y_rpl.get_value() == 3
 
-            # test cpy function:
-            # 2. SharedVariable is updatable -> values did update(z == 5)
-            # 1. sharedvariable is swap ->  Rpl sharedvariables share storage
             names = map_SV.keys()
             for key in cpy.fn.storage_map:
                 if key.name in names:
@@ -352,7 +320,6 @@ class T_function(unittest.TestCase):
         i = T.iscalar('index')
         x = T.vector('x')
         y = T.vector('y')
-        # this formular has no sense but for a test
         out = (T.sum(x) - y) ** 2
         train = theano.function([i], out,
                                 givens={x: train_x[i], y: train_y[i]},
@@ -367,14 +334,10 @@ class T_function(unittest.TestCase):
 
     def test_copy_delete_updates(self):
         x = T.fscalar('x')
-        # SharedVariable for tests, one of them has update
         y = theano.shared(value=1, name='y')
         z = theano.shared(value=2, name='z')
         out = x + y + z
 
-        # Test for different linkers
-        # for mode in ["FAST_RUN","FAST_COMPILE"]:
-        # second_time = False
         for mode in ["FAST_RUN", "FAST_COMPILE"]:
             ori = theano.function([x], out, mode=mode, updates={z: z * 2})
             cpy = ori.copy(delete_updates=True)
@@ -437,10 +400,6 @@ class T_function(unittest.TestCase):
         self.assertTrue(g[s] == 4)
 
     def test_shared_state_not_implicit(self):
-        # This test is taken from the documentation in
-        # doc/topics/function.txt. If it does not pass anymore and yet the
-        # behavior is still intended the doc and the test should both be
-        # updated accordingly.
         x, s = T.scalars('xs')
         inc = function([x, In(s, update=(s + x), value=10.0)], [])
         dec = function([x, In(s, update=(s - x), value=inc.container[s],
@@ -455,20 +414,15 @@ class T_function(unittest.TestCase):
         self.assertTrue(dec[s] == -1)
 
     def test_constant_output(self):
-        # Test that if the output is a constant, we respect the theano memory interface
         f = theano.function([], theano.tensor.constant([4]))
-        # print f.maker.fgraph.toposort()
         out = f()
         assert (out == 4).all()
         out[0] = 3
         out2 = f()
-        # If the following 2 asserts fail it mean Theano broke it's memory contract.
         assert out2 is not out
         assert (out2 == 4).all()
 
-        # Test that if the output is a constant and borrow, we respect the theano memory interface
         f = theano.function([], Out(theano.tensor.constant([4]), borrow=True))
-        # print f.maker.fgraph.toposort()
         out = f()
         assert (out == 4).all()
         out[0] = 3
@@ -476,7 +430,6 @@ class T_function(unittest.TestCase):
 
         if isinstance(theano.compile.mode.get_default_mode(),
                       theano.compile.DebugMode):
-            # In DebugMode, we don't implement optimization based on borrow on the output.
             assert (out2 == 4).all()
         else:
             assert out2 is out
@@ -492,12 +445,10 @@ class T_function(unittest.TestCase):
         a = T.dmatrix()
         aval = numpy.random.rand(3, 3)
 
-        # when borrow=False, test that a destroy map cannot alias output to input
         f = theano.function([In(a, borrow=False)], Out(a + 1, borrow=True))
         assert numpy.all(f(aval) == aval + 1)
         assert not numpy.may_share_memory(aval, f(aval))
 
-        # when borrow=False, test that a viewmap cannot alias output to input
         f = theano.function([In(a, borrow=False)], Out(a[0, :], borrow=True))
         assert numpy.all(f(aval) == aval[0, :])
         assert not numpy.may_share_memory(aval, f(aval))
@@ -523,8 +474,6 @@ class T_function(unittest.TestCase):
         if theano.config.cxx:
             assert not numpy.all(four == 4)
         else:
-            # The Elemwise.perform method don't reuse memory
-            # as some numpy version don't support that correctly.
             assert numpy.all(four == 4)
 
     def test_disconnected_input(self):
@@ -586,9 +535,6 @@ class T_picklefunction(unittest.TestCase):
                 return
             else:
                 raise
-        # if they both return, assume  that they return equivalent things.
-        # print [(k,id(k)) for k in f.finder.keys()]
-        # print [(k,id(k)) for k in g.finder.keys()]
 
         self.assertFalse(g.container[0].storage is f.container[0].storage)
         self.assertFalse(g.container[1].storage is f.container[1].storage)
@@ -596,8 +542,6 @@ class T_picklefunction(unittest.TestCase):
         self.assertFalse(x in g.container)
         self.assertFalse(x in g.value)
         self.assertTrue(len(f.defaults) == len(g.defaults))
-        # print 'f.defaults = %s' % (f.defaults, )
-        # print 'g.defaults = %s' % (g.defaults, )
         self.assertTrue(all([f_req == g_req and f_feed == g_feed and
                         f_val == g_val
                         for ((f_req, f_feed, f_val), (g_req, g_feed, g_val)) in zip(
@@ -615,7 +559,6 @@ class T_picklefunction(unittest.TestCase):
         self.assertTrue(f(3) == g(3))  # They should be in sync again.
 
     def test_deepcopy_shared_container(self):
-        # Ensure that shared containers remain shared after a deep copy.
         a, x = T.scalars('ax')
 
         h = function([In(a, value=0.0)], a)
@@ -646,8 +589,6 @@ class T_picklefunction(unittest.TestCase):
                       In(s, value=0.0, update=s + a * x, mutable=True)], s + a * x)
 
         try:
-            # Note that here we also test protocol 0 on purpose, since it
-            # should work (even though one should not use it).
             g = pickle.loads(pickle.dumps(f, protocol=0))
             g = pickle.loads(pickle.dumps(f, protocol=-1))
         except NotImplementedError as e:
@@ -655,9 +596,6 @@ class T_picklefunction(unittest.TestCase):
                 return
             else:
                 raise
-        # if they both return, assume  that they return equivalent things.
-        # print [(k,id(k)) for k in f.finder.keys()]
-        # print [(k,id(k)) for k in g.finder.keys()]
 
         self.assertFalse(g.container[0].storage is f.container[0].storage)
         self.assertFalse(g.container[1].storage is f.container[1].storage)
@@ -692,8 +630,6 @@ class T_picklefunction(unittest.TestCase):
                 config.linker = 'py'
                 config.optimizer = 'None'
                 g = pickle.loads(str_f)
-                # print g.maker.mode
-                # print compile.mode.default_mode
             except NotImplementedError as e:
                 if e[0].startswith('DebugMode is not pickl'):
                     g = 'ok'
@@ -722,10 +658,8 @@ class T_picklefunction(unittest.TestCase):
         x, s = T.scalars('xs')
         v = T.vector('v')
 
-        # put in some inputs
         list_of_things = [s, x, v]
 
-        # some derived thing, whose inputs aren't all in the list
         list_of_things.append(a * x + s)
 
         f1 = function([x, In(a, value=1.0, name='a'),
@@ -733,7 +667,6 @@ class T_picklefunction(unittest.TestCase):
                       s + a * x)
         list_of_things.append(f1)
 
-        # now put in a function sharing container with the previous one
         f2 = function([x, In(a, value=1.0, name='a'),
                        In(s, value=f1.container[s], update=s + a * x, mutable=True)],
                       s + a * x)
@@ -742,12 +675,10 @@ class T_picklefunction(unittest.TestCase):
         assert isinstance(f2.container[s].storage, list)
         assert f2.container[s].storage is f1.container[s].storage
 
-        # now put in a function with non-scalar
         v_value = numpy.asarray([2, 3, 4.], dtype=config.floatX)
         f3 = function([x, In(v, value=v_value)], x + v)
         list_of_things.append(f3)
 
-        # try to pickle the entire things
         try:
             saved_format = pickle.dumps(list_of_things, protocol=-1)
             new_list_of_things = pickle.loads(saved_format)
@@ -757,9 +688,6 @@ class T_picklefunction(unittest.TestCase):
             else:
                 raise
 
-        # now test our recovered new_list_of_things
-        # it should be totally unrelated to the original
-        # it should be interdependent in the same way as the original
 
         ol = list_of_things
         nl = new_list_of_things
@@ -769,22 +697,17 @@ class T_picklefunction(unittest.TestCase):
             assert nl[i].type == ol[i].type
             assert nl[i].type is not ol[i].type
 
-        # see if the implicit input got stored
         assert ol[3].owner.inputs[1] is s
         assert nl[3].owner.inputs[1] is not s
         assert nl[3].owner.inputs[1].type == s.type
 
-        # moving on to the functions...
         for i in range(4, 7):
             assert nl[i] != ol[i]
 
-        # looking at function number 1, input 's'
         assert nl[4][nl[0]] is not ol[4][ol[0]]
         assert nl[4][nl[0]] == ol[4][ol[0]]
         assert nl[4](3) == ol[4](3)
 
-        # looking at function number 2, input 's'
-        # make sure it's shared with the first function
         assert ol[4].container[ol[0]].storage is ol[5].container[ol[0]].storage
         assert nl[4].container[nl[0]].storage is nl[5].container[nl[0]].storage
         assert nl[5](3) == ol[5](3)
@@ -877,8 +800,6 @@ def test_empty_givens_updates():
     """
     Regression test for bug fixed in 8625e03.
     """
-    # Empty givens / updates dictionaries were not properly detected before,
-    # triggering useless crashes at compile time.
     x = T.scalar()
     y = x * 2
     function([theano.In(x)], y, givens={})
@@ -893,13 +814,11 @@ if __name__ == '__main__':
         testcases = []
         testcases.append(T_function)
 
-        # <testsuite boilerplate>
         testloader = unittest.TestLoader()
         suite = unittest.TestSuite()
         for testcase in testcases:
             suite.addTest(testloader.loadTestsFromTestCase(testcase))
         unittest.TextTestRunner(verbosity=2).run(suite)
-        # </boilerplate>
     elif 0:
         theano.config.mode = 'FAST_COMPILE'
         t = T_picklefunction()

@@ -25,9 +25,6 @@ GpuGemvTester = makeTester(
     op=gemv_inplace, gpu_op=gpugemv_inplace,
     cases=dict(dot_vv=[rand(1), 1, rand(1, 2), rand(2), 0],
                dot_vm=[rand(3), 1, rand(3, 2), rand(2), 0],
-               # test_02=[rand(0), 1, rand(0, 2), rand(2), 0],
-               # test_30=[rand(3), 1, rand(3, 0), rand(0), 0],
-               # test_00=[rand(0), 1, rand(0, 0), rand(0), 0],
                test_stride=[rand(3)[::-1], 1, rand(3, 2)[::-1], rand(2)[::-1], 0],
                )
     )
@@ -60,10 +57,6 @@ GpuGemmTester = makeTester(
                test7=[rand(3, 4), -1.0, rand(3, 5), rand(5, 4), 0.0],
                test8=[rand(3, 4), -1.0, rand(3, 5), rand(5, 4), 1.1],
                test9=[rand(3, 4), -1.0, rand(3, 5), rand(5, 4), -1.1],
-               # test10=[rand(0, 4), -1.0, rand(0, 5), rand(5, 4), 0.0],
-               # test11=[rand(3, 0), -1.0, rand(3, 5), rand(5, 0), 1.1],
-               # test12=[rand(3, 4), -1.0, rand(3, 0), rand(0, 4), -1.1],
-               # test13=[rand(0, 0), -1.0, rand(0, 0), rand(0, 0), -1.1],
                )
     )
 
@@ -78,7 +71,6 @@ class TestGpuSger(TestGer):
         self.y = tensor.tensor(dtype=dtype, broadcastable=(False,))
         self.ger_destructive = gpuger_inplace
 
-        # data on the gpu make the op always inplace
         self.ger = gpuger_inplace
         self.gemm = gpugemm_inplace
 
@@ -112,11 +104,6 @@ GpuDot22Tester = makeTester(
         test2=[rand(1, 4), rand(4, 5)],
         test3=[rand(3, 1), rand(1, 5)],
         test4=[rand(3, 4), rand(4, 1)],
-        # test5=[rand(0, 4), rand(4, 5)],
-        # test6=[rand(3, 0), rand(0, 5)],
-        # test7=[rand(3, 4), rand(4, 0)],
-        # test8=[rand(0, 4), rand(4, 0)],
-        # test9=[rand(0, 0), rand(0, 0)],
     )
 )
 
@@ -131,7 +118,6 @@ def test_hgemm_swap():
     m2 = tensor.matrix(dtype='float16')
     m32 = tensor.matrix(dtype='float32')
 
-    # test that we don't try to replace anything but matrix x matrix in float16
     f = theano.function([v, m], tensor.dot(v, m), mode=mode_with_gpu)
     assert len([node for node in f.maker.fgraph.apply_nodes
                 if isinstance(node.op, GpuGemm)]) == 0
@@ -166,5 +152,4 @@ def test_hgemm_alpha_output_merge():
     hgemm = numpy.asarray(0.05, dtype='float16') * (tensor.dot(m1, m2) + b)
 
     f = theano.function([m1, m2, b], hgemm, mode=mode_with_gpu)
-    # there should be 3 gpu_from_host, 1 hgemm and 1 host_from_gpu
     assert len(f.maker.fgraph.apply_nodes) == 5

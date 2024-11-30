@@ -80,7 +80,6 @@ class SymPyCCode(ScalarOp):
         return [theano_dtype(self.expr)]
 
     def make_node(self, *inputs):
-        # TODO: assert input types are correct use get_default_datatype
 
         if len(inputs) != len(self.inputs):
             raise TypeError("Wrong number of inputs for %s.make_node (got %i(%s), expected %i)" % (self, len(inputs), str(inputs), self.nin))

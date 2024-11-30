@@ -70,8 +70,6 @@ class IfElse(PureOp):
     """
     def __init__(self, n_outs, as_view=False, gpu=False, name=None):
         if as_view:
-            # check destroyhandler and others to ensure that a view_map with
-            # multiple inputs can work
             view_map = {}
             for idx in xrange(n_outs):
                 view_map[idx] = [idx + 1]
@@ -110,20 +108,14 @@ class IfElse(PureOp):
         return 'if{%s}' % ','.join(args)
 
     def infer_shape(self, node, inputs_shapes):
-        # By construction, corresponding then/else pairs have the same number
-        # of dimensions
 
         ts_shapes = inputs_shapes[1:][:self.n_outs]
         fs_shapes = inputs_shapes[1:][self.n_outs:]
-        # All elements of all shape tuples for the true and false outputs are
-        # unpacked into the inputs of a separate ifelse, and then the outputs
-        # of that ifelse are packed back into shape tuples.
         new_ts_inputs = []
         for ts_shape in ts_shapes:
             if isinstance(ts_shape, (list, tuple)):
                 new_ts_inputs += list(ts_shape)
             else:
-                # It can be None for generic objects
                 return [None] * self.n_outs
 
         new_fs_inputs = []
@@ -131,7 +123,6 @@ class IfElse(PureOp):
             if isinstance(fs_shape, (list, tuple)):
                 new_fs_inputs += list(fs_shape)
             else:
-                # It can be None for generic objects
                 return [None] * self.n_outs
 
         assert len(new_ts_inputs) == len(new_fs_inputs)
@@ -151,13 +142,11 @@ class IfElse(PureOp):
         else:
             new_outs = []
 
-        # generate pairs of shapes
         out_shapes = []
         for out in node.outputs:
             out_shapes.append(tuple(new_outs[:out.ndim]))
             new_outs = new_outs[out.ndim:]
 
-        # new_outs should be an empty list after last iteration
         assert len(new_outs) == 0
 
         return out_shapes
@@ -168,8 +157,6 @@ class IfElse(PureOp):
             "expected %d, got %d" % (2 * self.n_outs, len(args))
         )
         if not self.gpu:
-            # When gpu is true, we are given only cuda ndarrays, and we want
-            # to keep them be cuda ndarrays
             c = theano.tensor.as_tensor_variable(c)
             nw_args = []
             for x in args:
@@ -219,9 +206,6 @@ class IfElse(PureOp):
                                 for f in fs] + grads)
 
         condition = ins[0]
-        # condition does affect the elements of the output so it is connected.
-        # For the sake of making the gradient convenient we assume that
-        # condition + epsilon always triggers the same branch as condition
         condition_grad = condition.zeros_like().astype(theano.config.floatX)
 
         return ([condition_grad] +
@@ -250,7 +234,6 @@ class IfElse(PureOp):
                             val = storage_map[t][0]
                             if self.as_view:
                                 storage_map[out][0] = val
-                            # Work around broken numpy deepcopy
                             elif type(val) in (numpy.ndarray, numpy.memmap):
                                 storage_map[out][0] = val.copy()
                             else:
@@ -264,9 +247,6 @@ class IfElse(PureOp):
                     else:
                         for out, f in izip(outputs, fs):
                             compute_map[out][0] = 1
-                            # can't view both outputs unless destroyhandler
-                            # improves
-                            # Work around broken numpy deepcopy
                             val = storage_map[f][0]
                             if type(val) in (numpy.ndarray, numpy.memmap):
                                 storage_map[out][0] = val.copy()
@@ -329,8 +309,6 @@ def ifelse(condition, then_branch, else_branch, name=None):
     if type(else_branch) not in (list, tuple):
         else_branch = [else_branch]
 
-    # Some of the elements might be converted into another type,
-    # we will store them in these new_... lists.
     new_then_branch = []
     new_else_branch = []
     for then_branch_elem, else_branch_elem in izip(then_branch, else_branch):
@@ -342,10 +320,6 @@ def ifelse(condition, then_branch, else_branch, name=None):
                 else_branch_elem)
 
         if then_branch_elem.type != else_branch_elem.type:
-            # If one of them is a TensorType, and the other one can be
-            # converted into one, then we try to do that.
-            # This case happens when one of the elements has a GPU type,
-            # for instance a shared variable that was silently moved to GPU.
             if (isinstance(then_branch_elem.type, TensorType) and not
                     isinstance(else_branch_elem.type, TensorType)):
                 else_branch_elem = then_branch_elem.type.filter_variable(
@@ -357,7 +331,6 @@ def ifelse(condition, then_branch, else_branch, name=None):
                     then_branch_elem)
 
             if then_branch_elem.type != else_branch_elem.type:
-                # If the types still don't match, there is a problem.
                 raise TypeError(
                     'The two branches should have identical types, but '
                     'they are %s and %s respectively. This error could be '
@@ -397,8 +370,6 @@ def cond_make_inplace(node):
     op = node.op
     if (isinstance(op, IfElse) and
         not op.as_view and
-        # For big graph, do not make inplace scalar to speed up
-        # optimization.
         (len(node.fgraph.apply_nodes) < 500 or
          not all([getattr(o.type, 'ndim', -1) == 0
                   for o in node.outputs]))):
@@ -412,13 +383,6 @@ def cond_make_inplace(node):
 optdb.register('cond_make_inplace', opt.in2out(cond_make_inplace,
                ignore_newtrees=True), 95, 'fast_run', 'inplace')
 
-# XXX: Optimizations commented pending further debugging (certain optimizations
-# make computation less lazy than it should be currently).
-#
-# ifelse_equilibrium = gof.EquilibriumDB()
-# ifelse_seqopt = gof.SequenceDB()
-# ifelse_equilibrium.register('seq_ifelse', ifelse_seqopt, 'fast_run',
-#                             'ifelse')
 ''' Comments:
 I've wrote this comments to explain how the optimization of ifelse function
 (for future developers that need to parse this part of code. Please try to
@@ -443,8 +407,6 @@ where, each of the optimization do the following things:
     `ifelse_lift` (def cond_lift_single_if):
 
 '''
-# optdb.register('ifelse_equilibriumOpt', ifelse_equilibrium, .5, 'fast_run',
-#                'ifelse')
 
 acceptable_ops = (theano.tensor.basic.Dot,
                   theano.tensor.basic.Reshape,
@@ -475,8 +437,6 @@ def ifelse_lift_single_if_through_acceptable_ops(main_node):
         all_inp_nodes.add(inp.owner)
     ifnodes = [x for x in list(all_inp_nodes)
                if x and isinstance(x.op, IfElse)]
-    # if we have multiple ifs as inputs .. it all becomes quite complicated
-    # :)
     if len(ifnodes) != 1:
         return False
     node = ifnodes[0]
@@ -485,7 +445,6 @@ def ifelse_lift_single_if_through_acceptable_ops(main_node):
     ts = node.inputs[1:][:op.n_outs]
     fs = node.inputs[1:][op.n_outs:]
 
-    # outs = main_node.outputs
     mop = main_node.op
     true_ins = []
     false_ins = []
@@ -500,8 +459,6 @@ def ifelse_lift_single_if_through_acceptable_ops(main_node):
             false_ins.append(x)
     true_eval = mop(*true_ins, **dict(return_list=True))
     false_eval = mop(*false_ins, **dict(return_list=True))
-    # true_eval  = clone(outs, replace = dict(zip(node.outputs, ts)))
-    # false_eval = clone(outs, replace = dict(zip(node.outputs, fs)))
 
     nw_outs = ifelse(node.inputs[0], true_eval, false_eval, return_list=True)
     return nw_outs
@@ -570,7 +527,6 @@ class CondMerge(gof.Optimizer):
         for proposal in cond_nodes[1:]:
             if (proposal.inputs[0] == merging_node.inputs[0] and
                     not find_up(proposal, merging_node)):
-                # Create a list of replacements for proposal
                 mn_ts = merging_node.inputs[1:][:merging_node.op.n_outs]
                 mn_fs = merging_node.inputs[1:][merging_node.op.n_outs:]
                 pl_ts = proposal.inputs[1:][:proposal.op.n_outs]
@@ -581,8 +537,6 @@ class CondMerge(gof.Optimizer):
                 if merging_node.op.name:
                     mn_name = merging_node.op.name
                 pl_name = '?'
-                # mn_n_ts = len(mn_ts)
-                # mn_n_fs = len(mn_fs)
                 if proposal.op.name:
                     pl_name = proposal.op.name
                 new_ifelse = IfElse(
@@ -615,7 +569,6 @@ def cond_remove_identical(node):
     ts = node.inputs[1:][:op.n_outs]
     fs = node.inputs[1:][op.n_outs:]
 
-    # sync outs
     out_map = {}
     for idx in xrange(len(node.outputs)):
         if idx not in out_map:
@@ -676,7 +629,6 @@ def cond_merge_random_op(main_node):
         if (proposal.inputs[0] == merging_node.inputs[0] and
                 not find_up(proposal, merging_node) and
                 not find_up(merging_node, proposal)):
-            # Create a list of replacements for proposal
             mn_ts = merging_node.inputs[1:][:merging_node.op.n_outs]
             mn_fs = merging_node.inputs[1:][merging_node.op.n_outs:]
             pl_ts = proposal.inputs[1:][:proposal.op.n_outs]
@@ -687,8 +639,6 @@ def cond_merge_random_op(main_node):
             if merging_node.op.name:
                 mn_name = merging_node.op.name
             pl_name = '?'
-            # mn_n_ts = len(mn_ts)
-            # mn_n_fs = len(mn_fs)
             if proposal.op.name:
                 pl_name = proposal.op.name
             new_ifelse = IfElse(
@@ -711,64 +661,3 @@ def cond_merge_random_op(main_node):
             return main_outs
 
 
-# XXX: Optimizations commented pending further debugging (certain optimizations
-# make computation less lazy than it should be currently).
-#
-# pushout_equilibrium = gof.EquilibriumDB()
-#
-# XXX: This optimization doesn't seem to exist anymore?
-# pushout_equilibrium.register("cond_lift_single_if",
-#                              opt.in2out(cond_lift_single_if,
-#                                         ignore_newtrees=True),
-#                              'fast_run', 'ifelse')
-#
-# pushout_equilibrium.register("cond_merge_random_op",
-#                              opt.in2out(cond_merge_random_op,
-#                                         ignore_newtrees=True),
-#                              'fast_run', 'ifelse')
-#
-#
-# pushout_equilibrium.register("ifelse_merge",
-#                              gof.MergeOptimizer(skip_const_merge=False),
-#                              'fast_run', 'ifelse')
-#
-# pushout_equilibrium.register("ifelse_remove_identical_inside",
-#                              opt.in2out(cond_remove_identical,
-#                                         ignore_newtrees=True),
-#                              'fast_run', 'ifelse')
-#
-# pushout_equilibrium.register('ifelse_sameCondTrue_inside',
-#                              opt.in2out(cond_merge_ifs_true,
-#                                         ignore_newtrees=True),
-#                              'fast_run', 'ifelse')
-#
-# pushout_equilibrium.register('ifelse_sameCondFalse_inside',
-#                              opt.in2out(cond_merge_ifs_false,
-#                                         ignore_newtrees=True),
-#                              'fast_run', 'ifelse')
-#
-# ifelse_seqopt.register('ifelse_condPushOut_equilibrium',
-#                        pushout_equilibrium,
-#                        1, 'fast_run', 'ifelse')
-#
-# ifelse_seqopt.register('merge_nodes_1',
-#                        gof.MergeOptimizer(skip_const_merge=False),
-#                        2, 'fast_run', 'ifelse')
-#
-#
-# ifelse_seqopt.register('ifelse_sameCondTrue',
-#                        opt.in2out(cond_merge_ifs_true,
-#                                   ignore_newtrees=True),
-#                        3, 'fast_run', 'ifelse')
-#
-#
-# ifelse_seqopt.register('ifelse_sameCondFalse',
-#                        opt.in2out(cond_merge_ifs_false,
-#                                   ignore_newtrees=True),
-#                        4, 'fast_run', 'ifelse')
-#
-#
-# ifelse_seqopt.register('ifelse_removeIdenetical',
-#                        opt.in2out(cond_remove_identical,
-#                                   ignore_newtrees=True),
-#                        7, 'fast_run', 'ifelse')

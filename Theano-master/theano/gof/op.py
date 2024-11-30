@@ -514,9 +514,6 @@ class PureOp(object):
 
     """
 
-    #############
-    # make_node #
-    #############
 
     def make_node(self, *inputs):
         """
@@ -538,7 +535,6 @@ class PureOp(object):
         For another Variable, it is the content of v.tag.test_value.
 
         """
-        # avoid circular import
         from theano.compile.sharedvalue import SharedVariable
 
         if isinstance(v, graph.Constant):
@@ -546,11 +542,9 @@ class PureOp(object):
         elif isinstance(v, SharedVariable):
             return v.get_value(borrow=True, return_internal_type=True)
         elif isinstance(v, graph.Variable) and hasattr(v.tag, 'test_value'):
-            # ensure that the test value is correct
             try:
                 ret = v.type.filter(v.tag.test_value)
             except Exception as e:
-                # Better error message.
                 detailed_err_msg = (
                     "For compute_test_value, one input test value does not"
                     " have the requested type.\n")
@@ -558,8 +552,6 @@ class PureOp(object):
                 if isinstance(tr, list) and len(tr) > 0:
                     detailed_err_msg += (
                         " \nBacktrace when that variable is created:\n")
-                    # Print separate message for each element in the list
-                    # of batcktraces
                     sio = StringIO()
                     for subtr in tr:
                         traceback.print_list(subtr, sio)
@@ -568,9 +560,6 @@ class PureOp(object):
                 detailed_err_msg += (
                     "\nThe error when converting the test value to that"
                     " variable type:")
-                # We need to only have 1 args and it should be of type
-                # string.  Otherwise, it print the tuple and so the
-                # new line do not get printed.
                 args = (detailed_err_msg,) + tuple(str(arg) for arg in e.args)
                 e.args = ("\n".join(args),)
                 raise
@@ -588,8 +577,6 @@ class PureOp(object):
 
            x = tensor.matrix()
 
-           # tensor.exp is an Op instance, calls
-           # Op.__call__(self=<instance of exp>, inputs=(x,))
            y = tensor.exp(x)
 
         This class implements a convenience function (for graph-building) which
@@ -615,7 +602,6 @@ class PureOp(object):
         if config.compute_test_value != 'off':
             run_perform = True
 
-            # build test input-values
             storage_map = {}
             compute_map = {}
             for i, ins in enumerate(node.inputs):
@@ -623,7 +609,6 @@ class PureOp(object):
                     storage_map[ins] = [self._get_test_value(ins)]
                     compute_map[ins] = [True]
                 except AttributeError:
-                    # no test-value was specified, act accordingly
                     if config.compute_test_value == 'warn':
                         warnings.warn(
                             'Warning, Cannot compute test value: input %i (%s) of Op %s missing default value' %
@@ -634,7 +619,6 @@ class PureOp(object):
                             'Cannot compute test value: input %i (%s) of Op %s missing default value' %
                             (i, ins, node))
                     elif config.compute_test_value == 'ignore':
-                        # silently skip test
                         run_perform = False
                     elif config.compute_test_value == 'pdb':
                         import pdb
@@ -644,10 +628,7 @@ class PureOp(object):
                             '%s is invalid for option config.compute_Test_value' %
                             config.compute_test_value)
 
-            # if all inputs have test-values, run the actual op
             if run_perform:
-                # Original values should not be destroyed:
-                # copy the values of the inputs in destroy_map
                 destroyed_inputs_idx = set()
                 if getattr(node.op, 'destroy_map', None):
                     for i_pos_list in itervalues(node.op.destroy_map):
@@ -656,12 +637,10 @@ class PureOp(object):
                     inp = node.inputs[inp_idx]
                     storage_map[inp] = [storage_map[inp][0].copy()]
 
-                # Prepare storage_map and compute_map for the outputs
                 for o in node.outputs:
                     storage_map[o] = [None]
                     compute_map[o] = [False]
 
-                # compute output value once with test inputs to validate graph
                 thunk = node.op.make_thunk(node, storage_map, compute_map,
                                            no_recycling=[])
                 thunk.inputs = [storage_map[v] for v in node.inputs]
@@ -671,12 +650,9 @@ class PureOp(object):
                 assert not required  # We provided all inputs
 
                 for output in node.outputs:
-                    # Check that the output has been computed
                     assert compute_map[output][
                         0], (output, storage_map[output][0])
 
-                    # add 'test_value' to output tag, so that downstream ops can use these
-                    # numerical values as inputs to their perform method.
                     output.tag.test_value = storage_map[output][0]
 
         if self.default_output is not None:
@@ -695,13 +671,8 @@ class PureOp(object):
     def __ne__(self, other):
         return not (self == other)
 
-    # Convenience so that subclass implementers don't have to import utils
-    # just to self.add_tag_trace
     add_tag_trace = staticmethod(utils.add_tag_trace)
 
-    #########################
-    # Python implementation #
-    #########################
 
     def R_op(self, inputs, eval_points):
         """
@@ -789,8 +760,6 @@ class Op(utils.object2, PureOp, CLinkerOp):
 
     """
     def __new__(cls, *args, **kwargs):
-        # this function exists to silently and transparently ensure that all
-        # existing Ops get a _op_use_c_code attribute
         obj = object.__new__(cls)
         if not hasattr(obj, '_op_use_c_code'):
             obj._op_use_c_code = theano.config.cxx
@@ -858,8 +827,6 @@ class Op(utils.object2, PureOp, CLinkerOp):
         node_input_storage = [storage_map[r] for r in node.inputs]
         node_output_storage = [storage_map[r] for r in node.outputs]
 
-        # float16 gets special treatment since running
-        # unprepared C code will get bad results.
         if not getattr(self, '_f16_ok', False):
             def is_f16(t):
                 return getattr(t, 'dtype', '') == 'float16'
@@ -909,7 +876,6 @@ class Op(utils.object2, PureOp, CLinkerOp):
         params = node.run_params()
 
         if params is graph.NoParams:
-            # default arguments are stored in the closure of `rval`
             def rval(p=p, i=node_input_storage, o=node_output_storage, n=node):
                 r = p(n, [x[0] for x in i], o)
                 for o in node.outputs:
@@ -979,7 +945,6 @@ class Op(utils.object2, PureOp, CLinkerOp):
             except (NotImplementedError, utils.MethodNotDefined):
                 logger.debug('Falling back on perform')
 
-        # condition: either there was no c_code, or it failed
         return self.make_py_thunk(node, storage_map, compute_map, no_recycling)
 
     def make_node(self, *inputs):
@@ -1056,7 +1021,6 @@ def debug_error_message(msg):
     """
     action = config.compute_test_value
 
-    # this message should never be called when the debugger is off
     assert action != 'off'
 
     if action in ['raise', 'ignore']:
@@ -1169,7 +1133,6 @@ class OpenMPOp(Op):
 
     def __setstate__(self, d):
         self.__dict__.update(d)
-        # If we unpickle old op
         if not hasattr(self, "openmp"):
             self.openmp = False
 
@@ -1188,7 +1151,6 @@ class OpenMPOp(Op):
     @staticmethod
     def test_gxx_support():
         code = """
-        #include <omp.h>
 int main( int argc, const char* argv[] )
 {
         int res[10];
@@ -1214,7 +1176,6 @@ int main( int argc, const char* argv[] )
             if OpenMPOp.gxx_support_openmp is None:
                 OpenMPOp.gxx_support_openmp = OpenMPOp.test_gxx_support()
                 if not OpenMPOp.gxx_support_openmp:
-                    # We want to warn only once.
                     warnings.warn(
                         "Your g++ compiler fails to compile OpenMP code. We"
                         " know this happen with some version of the EPD mingw"
@@ -1273,7 +1234,6 @@ class COp(Op):
     backward_re = re.compile(
         r'^THEANO_(APPLY|SUPPORT)_CODE_SECTION$',
         re.MULTILINE)
-    # This is the set of allowed markers
     SECTIONS = set([
         'init_code', 'init_code_apply', 'init_code_struct',
         'support_code', 'support_code_apply', 'support_code_struct',
@@ -1313,11 +1273,9 @@ class COp(Op):
 
         if self.func_name is not None:
             if 'op_code' in self.code_sections:
-                # maybe a warning instead (and clearing the key)
                 raise ValueError('Cannot have an "op_code" section and '
                                  'specify the func_name')
             if 'op_code_cleanup' in self.code_sections:
-                # maybe a warning instead (and clearing the key)
                 raise ValueError('Cannot have an "op_code_cleanup" section '
                                  'and specify the func_name')
 
@@ -1327,8 +1285,6 @@ class COp(Op):
             with open(func_file, 'r') as f:
                 self.func_codes.append(f.read())
 
-        # If both the old section markers and the new section markers are
-        # present, raise an error because we don't know which ones to follow.
         old_markers_present = False
         new_markers_present = False
         for code in self.func_codes:
@@ -1346,9 +1302,7 @@ class COp(Op):
         self.code_sections = dict()
         for i, code in enumerate(self.func_codes):
             if self.backward_re.search(code):
-                # This is backward compat code that will go away in a while
 
-                # Separate the code into the proper sections
                 split = self.backward_re.split(code)
                 n = 1
                 while n < len(split):
@@ -1361,14 +1315,12 @@ class COp(Op):
 
             elif self.section_re.search(code):
 
-                # Check for code outside of the supported sections
                 split = self.section_re.split(code)
                 if split[0].strip() != '':
                     raise ValueError('Stray code before first #section '
                                      'statement (in file %s): %s' %
                                      (self.func_files[i], split[0]))
 
-                # Separate the code into the proper sections
                 n = 1
                 while n < len(split):
                     if split[n] not in self.SECTIONS:
@@ -1413,9 +1365,6 @@ class COp(Op):
     c_cleanup_code_struct = apply_meth('cleanup_code_struct')
 
     def format_c_function_args(self, inp, out):
-        # Generate an string containing the arguments sent to the external C
-        # function. The argstring will be of format :
-        # "input0, input1, input2, &output0, &output1"
         return ", ".join(list(inp) + ["&%s" % o for o in out])
 
     def get_c_macros(self, node, name, check_input=None):
@@ -1428,12 +1377,10 @@ class COp(Op):
             check_input = getattr(self, 'check_input', True)
 
         if check_input:
-            # Extract the various properties of the input and output variables
             variables = node.inputs + node.outputs
             variable_names = (["INPUT_%i" % i for i in range(len(node.inputs))] +
                               ["OUTPUT_%i" % i for i in range(len(node.outputs))])
 
-            # Generate dtype macros
             for i, v in enumerate(variables):
                 if not hasattr(v, 'dtype'):
                     continue
@@ -1465,7 +1412,6 @@ class COp(Op):
                     (macro_name, macro_value))
                 undef_macros.append(undef_template % macro_name)
 
-        # Generate a macro to mark code as being apply-specific
         define_macros.append(define_template % ("APPLY_SPECIFIC(str)",
                                                 "str##_%s" % name))
         undef_macros.append(undef_template % "APPLY_SPECIFIC")
@@ -1533,7 +1479,6 @@ class COp(Op):
             if 'params' in sub:
                 params = ", %s" % (sub['params'],)
 
-            # Generate the C code
             return """
                 %(define_macros)s
                 {

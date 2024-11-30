@@ -29,7 +29,6 @@ for dir in dirs:
         keys[key] += 1
         del f
     except IOError:
-        # print dir, "don't have a key.pkl file"
         pass
     try:
         path = os.path.join(dir, "mod.cpp")

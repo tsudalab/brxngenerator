@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 """
 This file compare the runtime of two independent dot products on one
 and two GPU to measure the speedup.
@@ -39,7 +38,6 @@ def main(dev1, dev2):
     f5 = theano.function([], [gpu_dot22(val1a, val1b)[0, 0].transfer('cpu')])
     f6 = theano.function([], [gpu_dot22(val2a, val2b)[0, 0].transfer('cpu')])
 
-    # pre-execute to load code to GPU.
     r = f1.fn()
     r[0].sync(), r[1].sync()
     r = f2.fn()
@@ -85,7 +83,6 @@ def main(dev1, dev2):
     r = None
     print("two ctx, 2 fct with transfer %f" % (t2 - t,))
 
-    # Multi-thread version
     class myThread (threading.Thread):
         def __init__(self, name, f, sync):
             threading.Thread.__init__(self)
@@ -94,14 +91,10 @@ def main(dev1, dev2):
             self.sync = sync
 
         def run(self):
-            # print "Starting " + self.name
-            # r = self.f.fn(n_calls=10)
             r = self.f()
-            # print "End " + self.name
             if self.sync:
                 r[0].sync()
             self.r = r
-            # print "Exiting " + self.name
 
     thread1 = myThread("Thread-3", f3, True)
     thread2 = myThread("Thread-4", f4, True)

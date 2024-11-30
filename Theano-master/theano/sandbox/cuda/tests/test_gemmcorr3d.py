@@ -6,7 +6,6 @@ import copy
 import theano
 from theano.tests import unittest_tools as utt
 
-# Skip tests if cuda_ndarray is not available.
 from nose.plugins.skip import SkipTest
 import theano.sandbox.cuda as cuda_ndarray
 if not cuda_ndarray.cuda_available:
@@ -127,7 +126,6 @@ class TestCorr3DMM(unittest.TestCase):
         f_ref = theano.function([], conv)
         res_ref = f_ref()
 
-        # Get bottom shape using convTransp3D
         bottom_shape = res_ref.shape
         bottom_val = numpy.random.random(bottom_shape).astype('float32')
         bottom = shared(bottom_val)
@@ -179,7 +177,6 @@ class TestCorr3DMM(unittest.TestCase):
         f_ref = theano.function([], conv, mode="FAST_RUN")
         f_gemm = theano.function([], conv, mode=mode)
 
-        # make sure we inserted the gemm trickery
         topo = f_gemm.maker.fgraph.toposort()
         assert sum(isinstance(n.op, GpuCorr3dMM) for n in topo) > 0
 
@@ -206,7 +203,6 @@ class TestCorr3DMM(unittest.TestCase):
         f_ref = theano.function([], conv)
         f_gemm = theano.function([], conv, mode=mode)
 
-        # make sure we inserted the gemm trickery
         topo = f_gemm.maker.fgraph.toposort()
         assert sum(isinstance(n.op, GpuCorr3dMM_gradWeights) for n in topo) > 0
 
@@ -232,7 +228,6 @@ class TestCorr3DMM(unittest.TestCase):
         f_ref = theano.function([], conv)
         f_gemm = theano.function([], conv, mode=mode)
 
-        # make sure we inserted the gemm trickery
         topo = f_gemm.maker.fgraph.toposort()
         assert sum(isinstance(n.op, GpuCorr3dMM_gradInputs) for n in topo) > 0
 

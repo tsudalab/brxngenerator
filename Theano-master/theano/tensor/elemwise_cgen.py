@@ -11,25 +11,17 @@ def make_declare(loop_orders, dtypes, sub):
     decl = ""
     for i, (loop_order, dtype) in enumerate(zip(loop_orders, dtypes)):
         var = sub['lv%i' % i]  # input name corresponding to ith loop variable
-        # we declare an iteration variable
-        # and an integer for the number of dimensions
         decl += """
         %(dtype)s* %(var)s_iter;
         """ % locals()
         for j, value in enumerate(loop_order):
             if value != 'x':
-                # If the dimension is not broadcasted, we declare
-                # the number of elements in that dimension,
-                # the stride in that dimension,
-                # and the jump from an iteration to the next
                 decl += """
                 npy_intp %(var)s_n%(value)i;
                 ssize_t %(var)s_stride%(value)i;
                 int %(var)s_jump%(value)i_%(j)i;
                 """ % locals()
             else:
-                # if the dimension is broadcasted, we only need
-                # the jump (arbitrary length and stride = 0)
                 decl += """
                 int %(var)s_jump%(value)s_%(j)i;
                 """ % locals()
@@ -41,12 +33,8 @@ def make_checks(loop_orders, dtypes, sub):
     init = ""
     for i, (loop_order, dtype) in enumerate(zip(loop_orders, dtypes)):
         var = "%%(lv%i)s" % i
-        # List of dimensions of var that are not broadcasted
         nonx = [x for x in loop_order if x != 'x']
         if nonx:
-            # If there are dimensions that are not broadcasted
-            # this is a check that the number of dimensions of the
-            # tensor is as expected.
             min_nd = max(nonx) + 1
             init += """
             if (PyArray_NDIM(%(var)s) < %(min_nd)s) {
@@ -55,18 +43,10 @@ def make_checks(loop_orders, dtypes, sub):
             }
             """ % locals()
 
-        # In loop j, adjust represents the difference of values of the
-        # data pointer between the beginning and the end of the
-        # execution of loop j+1 (the loop inside the current one). It
-        # is equal to the stride in loop j+1 times the length of loop
-        # j+1, or 0 for the inner-most loop.
         adjust = "0"
 
-        # We go from the inner loop to the outer loop
         for j, index in reversed(list(enumerate(loop_order))):
             if index != 'x':
-                # Initialize the variables associated to the jth loop
-                # jump = stride - adjust
                 jump = "(%s) - (%s)" % ("%(var)s_stride%(index)s" % locals(), adjust)
                 init += """
                 %(var)s_n%(index)s = PyArray_DIMS(%(var)s)[%(index)s];
@@ -86,13 +66,9 @@ def make_checks(loop_orders, dtypes, sub):
                 adjust = "0"
     check = ""
 
-    # This loop builds multiple if conditions to verify that the
-    # dimensions of the inputs match, and the first one that is true
-    # raises an informative error message
     for matches in zip(*loop_orders):
         to_compare = [(j, x) for j, x in enumerate(matches) if x != "x"]
 
-        # elements of to_compare are pairs ( input_variable_idx, input_variable_dim_idx )
         if len(to_compare) < 2:
             continue
         j0, x0 = to_compare[0]
@@ -131,11 +107,6 @@ def make_alloc(loop_orders, dtype, sub, fortran='0'):
                 type = type.replace('THEANO_COMPLEX', 'NPY_COMPLEX')
     nd = len(loop_orders[0])
     init_dims = ""
-    # For each dimension, the tensors are either all broadcasted, in
-    # which case the output will also be broadcastable (dimension =
-    # 1), or one or more are not broadcasted, in which case the number
-    # of elements of the output in that dimension will be equal to the
-    # number of elements of any of them.
     for i, candidates in enumerate(zip(*loop_orders)):
         for j, candidate in enumerate(candidates):
             if candidate != 'x':
@@ -145,10 +116,6 @@ def make_alloc(loop_orders, dtype, sub, fortran='0'):
         else:
             init_dims += "dims[%(i)s] = 1;\n" % locals()
 
-    # TODO: it would be interesting to allocate the output in such a
-    # way that its contiguous dimensions match one of the input's
-    # contiguous dimensions, or the dimension with the smallest
-    # stride. Right now, it is allocated to be C_CONTIGUOUS.
     return """
     {
         npy_intp dims[%(nd)s];
@@ -260,30 +227,22 @@ def make_reordered_loop(init_loop_orders, olv_index, dtypes, inner_task, sub,
 
     """
 
-    # Number of variables
     nvars = len(init_loop_orders)
-    # Number of loops (dimensionality of the variables)
     nnested = len(init_loop_orders[0])
 
-    # This is the var from which we'll get the loop order
     ovar = sub['lv%i' % olv_index]
 
-    # The loops are ordered by (decreasing) absolute values of ovar's strides.
-    # The first element of each pair is the absolute value of the stride
-    # The second element correspond to the index in the initial loop order
     order_loops = """
     std::vector< std::pair<int, int> > %(ovar)s_loops(%(nnested)i);
     std::vector< std::pair<int, int> >::iterator %(ovar)s_loops_it = %(ovar)s_loops.begin();
     """ % locals()
 
-    # Fill the loop vector with the appropriate <stride, index> pairs
     for i, index in enumerate(init_loop_orders[olv_index]):
         if index != 'x':
             order_loops += """
             %(ovar)s_loops_it->first = abs(PyArray_STRIDES(%(ovar)s)[%(index)i]);
             """ % locals()
         else:
-            # Stride is 0 when dimension is broadcastable
             order_loops += """
             %(ovar)s_loops_it->first = 0;
             """ % locals()
@@ -293,21 +252,11 @@ def make_reordered_loop(init_loop_orders, olv_index, dtypes, inner_task, sub,
         ++%(ovar)s_loops_it;
         """ % locals()
 
-    # We sort in decreasing order so that the outermost loop (loop 0)
-    # has the largest stride, and the innermost loop (nnested - 1) has
-    # the smallest stride.
     order_loops += """
     // rbegin and rend are reversed iterators, so this sorts in decreasing order
     std::sort(%(ovar)s_loops.rbegin(), %(ovar)s_loops.rend());
     """ % locals()
 
-    # Get the (sorted) total number of iterations of each loop
-    # Get totals in the initial order
-    # For each dimension, the tensors are either all broadcasted, in
-    # which case there is only one iteration of the loop, or one or
-    # more are not broadcasted, in which case the number of elements
-    # of any of them will be equal to the number of iterations we have
-    # to do.
     totals = []
     for i, candidates in enumerate(zip(*init_loop_orders)):
         for j, candidate in enumerate(candidates):
@@ -324,8 +273,6 @@ def make_reordered_loop(init_loop_orders, olv_index, dtypes, inner_task, sub,
     """ % dict(nnested=nnested,
                totals=', '.join(totals))
 
-    # Sort totals to match the new order that was computed by sorting
-    # the loop vector. One integer variable per loop is declared.
     declare_totals += """
     %(ovar)s_loops_it = %(ovar)s_loops.begin();
     """ % locals()
@@ -336,8 +283,6 @@ def make_reordered_loop(init_loop_orders, olv_index, dtypes, inner_task, sub,
         ++%(ovar)s_loops_it;
         """ % locals()
 
-    # Get sorted strides
-    # Get strides in the initial order
     def get_loop_strides(loop_order, i):
         """
         Returns a list containing a C expression representing the
@@ -348,14 +293,12 @@ def make_reordered_loop(init_loop_orders, olv_index, dtypes, inner_task, sub,
         var = sub["lv%i" % i]
         r = []
         for index in loop_order:
-            # Note: the stride variable is not declared for broadcasted variables
             if index != 'x':
                 r.append("%(var)s_stride%(index)s" % locals())
             else:
                 r.append('0')
         return r
 
-    # We declare the initial strides as a 2D array, nvars x nnested
     declare_strides = """
     int init_strides[%(nvars)i][%(nnested)i] = {
         %(strides)s
@@ -365,8 +308,6 @@ def make_reordered_loop(init_loop_orders, olv_index, dtypes, inner_task, sub,
                                      for i, lo in enumerate(init_loop_orders)
                                      if len(lo) > 0))
 
-    # Declare (sorted) stride and for each variable
-    # we iterate from innermost loop to outermost loop
     declare_strides += """
     std::vector< std::pair<int, int> >::reverse_iterator %(ovar)s_loops_rit;
     """ % locals()
@@ -402,7 +343,6 @@ def make_reordered_loop(init_loop_orders, olv_index, dtypes, inner_task, sub,
         total = 'TOTAL_%i' % i
         update = ''
         forloop = ''
-        # The pointers are defined only in the most inner loop
         if i == nnested - 1:
             update = pointer_update
         if i == 0:
@@ -427,41 +367,15 @@ def make_reordered_loop(init_loop_orders, olv_index, dtypes, inner_task, sub,
                       loop,
                       '}\n'])
 
-# print make_declare(((0, 1, 2, 3), ('x', 1, 0, 3), ('x', 'x', 'x', 0)),
-#                    ('double', 'int', 'float'),
-#                    dict(lv0='x', lv1='y', lv2='z', fail="FAIL;"))
-
-# print make_checks(((0, 1, 2, 3), ('x', 1, 0, 3), ('x', 'x', 'x', 0)),
-#                   ('double', 'int', 'float'),
-#                   dict(lv0='x', lv1='y', lv2='z', fail="FAIL;"))
-
-# print make_alloc(((0, 1, 2, 3), ('x', 1, 0, 3), ('x', 'x', 'x', 0)),
-#                  'double',
-#                  dict(olv='out', lv0='x', lv1='y', lv2='z', fail="FAIL;"))
-
-# print make_loop(((0, 1, 2, 3), ('x', 1, 0, 3), ('x', 'x', 'x', 0)),
-#                 ('double', 'int', 'float'),
-#                 (("C00;", "C%01;"), ("C10;", "C11;"), ("C20;", "C21;"), ("C30;", "C31;"),"C4;"),
-#                 dict(lv0='x', lv1='y', lv2='z', fail="FAIL;"))
-
-# print make_loop(((0, 1, 2, 3), (3, 'x', 0, 'x'), (0, 'x', 'x', 'x')),
-#                 ('double', 'int', 'float'),
-#                 (("C00;", "C01;"), ("C10;", "C11;"), ("C20;", "C21;"), ("C30;", "C31;"),"C4;"),
-#                 dict(lv0='x', lv1='y', lv2='z', fail="FAIL;"))
 
 
-##################
-#   DimShuffle   #
-##################
-
-#################
-#   Broadcast   #
-#################
 
 
-################
-#   CAReduce   #
-################
+
+
+
+
+
 
 
 def make_loop_careduce(loop_orders, dtypes, loop_tasks, sub):

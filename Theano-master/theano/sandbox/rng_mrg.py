@@ -35,13 +35,11 @@ if theano.sandbox.cuda.cuda_available:
 
 
 def matVecModM(A, s, m):
-    # TODO : need description for method, parameter and return
     assert A.dtype == 'int64'
     return numpy.int32(numpy.sum((A * s) % m, 1) % m)
 
 
 def multMatVect(v, A, m1, B, m2):
-    # TODO : need description for parameter and return
     """
     Multiply the first half of v by A with a modulo of m1 and the second half
     by B with a modulo of m2.
@@ -63,7 +61,6 @@ def multMatVect(v, A, m1, B, m2):
         multMatVect.dot_modulo = function(
             [A_sym, s_sym, m_sym, A2_sym, s2_sym, m2_sym], o, profile=False)
 
-    # This way of calling the Theano fct is done to bypass Theano overhead.
     f = multMatVect.dot_modulo
     f.input_storage[0].storage[0] = A
     f.input_storage[1].storage[0] = v[:3]
@@ -195,8 +192,6 @@ class DotModulo(Op):
         """ % dict(locals(), **sub)
 
 
-# MRG31k3p
-# generator constants :
 M1 = numpy.asarray(numpy.int32(2147483647))    # 2^31 - 1
 M2 = numpy.asarray(numpy.int32(2147462579))    # 2^31 - 21069
 MASK12 = numpy.int32(511)                      # 2^9 - 1
@@ -205,10 +200,6 @@ MASK2 = numpy.int32(65535)                     # 2^16 - 1
 MULT2 = numpy.int32(21069)
 NORM = 4.656612873077392578125e-10  # 1./2^31
 
-# A1p0 = numpy.asarray([[0, 4194304, 129], [1, 0, 0], [0, 1, 0]],
-#                      dtype='int64')
-# A2p0 = numpy.asarray([[32768, 0, 32769], [1, 0, 0], [0, 1, 0]],
-#                      dtype='int64')
 
 A1p72 = numpy.asarray([[1516919229, 758510237, 499121365],
                        [1884998244, 1516919229, 335398200],
@@ -233,22 +224,18 @@ np_int32_vals = [numpy.int32(i) for i in (0, 7, 9, 15, 16, 22, 24)]
 
 
 def ff_2p134(rstate):
-    # TODO : need description for method, parameter and return
     return multMatVect(rstate, A1p134, M1, A2p134, M2)
 
 
 def ff_2p72(rstate):
-    # TODO : need description for method, parameter and return
     return multMatVect(rstate, A1p72, M1, A2p72, M2)
 
 
 def mrg_next_value(rstate, new_rstate):
-    # TODO : need description for method, parameter and return
     x11, x12, x13, x21, x22, x23 = rstate
     assert type(x11) == numpy.int32
 
     i0, i7, i9, i15, i16, i22, i24 = np_int32_vals
-    # first component
     y1 = (((x12 & MASK12) << i22) + (x12 >> i9) +
           ((x13 & MASK13) << i7) + (x13 >> i24))
 
@@ -263,7 +250,6 @@ def mrg_next_value(rstate, new_rstate):
     x12 = x11
     x11 = y1
 
-    # second component
     y1 = ((x21 & MASK2) << i15) + (MULT2 * (x21 >> i16))
     assert type(y1) == numpy.int32
     if (y1 < 0 or y1 >= M2):
@@ -283,7 +269,6 @@ def mrg_next_value(rstate, new_rstate):
     x22 = x21
     x21 = y2
 
-    # Must never return either 0 or M1+1
     new_rstate[...] = [x11, x12, x13, x21, x22, x23]
     assert new_rstate.dtype == numpy.int32
     if (x11 <= x21):
@@ -293,7 +278,6 @@ def mrg_next_value(rstate, new_rstate):
 
 
 class mrg_uniform_base(Op):
-    # TODO : need description for class, parameter
     __props__ = ("output_type", "inplace")
 
     def __init__(self, output_type, inplace=False):
@@ -312,10 +296,6 @@ class mrg_uniform_base(Op):
         return self.__class__.__name__ + "{%s,%s}" % (self.output_type, s)
 
     def make_node(self, rstate, size):
-        # error checking slightly redundant here, since
-        # this op should not be called directly.
-        #
-        # call through MRG_RandomStreams instead.
         return Apply(self,
                      [rstate, size],
                      [rstate.type(), self.output_type()])
@@ -331,7 +311,6 @@ class mrg_uniform_base(Op):
 
 
 class mrg_uniform(mrg_uniform_base):
-    # CPU VERSION
 
     @classmethod
     def new(cls, rstate, ndim, dtype, size):
@@ -348,10 +327,6 @@ class mrg_uniform(mrg_uniform_base):
         for s in size:
             n_elements *= s
         if n_elements > M1:
-            # The limit is on the C and GPU code. This perform don't
-            # have this limit.  But to have all of them behave the
-            # same (and have DebugMode don't use too much memory for
-            # some rng_mrg tests) I also add this limit here.
             raise ValueError("rng_mrg does not support more then (2**31 -1) samples")
 
         rstate = numpy.asarray(rstate)  # bring state from GPU if necessary
@@ -371,15 +346,11 @@ class mrg_uniform(mrg_uniform_base):
         finally:
             numpy.seterr(**err_orig)
 
-        # send to GPU if necessary
         o_rstate[0] = node.outputs[0].type.filter(rstate)
         o_sample[0] = node.outputs[1].type.filter(rval.reshape(size))
 
     def c_code(self, node, name, inp, out, sub):
         rstate, size = inp
-        # If we try to use the C code here with something else than a
-        # TensorType, something is wrong (likely one of the GPU ops
-        # not defining C code correctly).
         assert isinstance(node.inputs[0].type, TensorType)
         o_rstate, o_sample = out
         if self.inplace:
@@ -395,8 +366,6 @@ class mrg_uniform(mrg_uniform_base):
         if self.output_type.dtype == 'float32':
             otype = 'float'
             NORM = '4.6566126e-10f'  # numpy.float32(1.0/(2**31+65))
-            # this was determined by finding the biggest number such that
-            # numpy.float32(number * M1) < 1.0
         else:
             otype = 'double'
             NORM = '4.656612873077392578125e-10'
@@ -553,7 +522,6 @@ class mrg_uniform(mrg_uniform_base):
 
 
 class GPU_mrg_uniform(mrg_uniform_base, GpuOp):
-    # GPU VERSION
 
     @classmethod
     def new(cls, rstate, ndim, dtype, size):
@@ -567,8 +535,6 @@ class GPU_mrg_uniform(mrg_uniform_base, GpuOp):
         if self.output_type.dtype == 'float32':
             otype = 'float'
             NORM = '4.6566126e-10f'  # numpy.float32(1.0/(2**31+65))
-            # this was determined by finding the biggest number such that
-            # numpy.float32(number * M1) < 1.0
         else:
             otype = 'double'
             NORM = '4.656612873077392578125e-10'
@@ -797,7 +763,6 @@ class GPU_mrg_uniform(mrg_uniform_base, GpuOp):
 
 
 class GPUA_mrg_uniform(GpuKernelBase, mrg_uniform_base):
-    # GpuArray version
     _f16_ok = True
 
     def get_params(self, node):
@@ -818,17 +783,12 @@ class GPUA_mrg_uniform(GpuKernelBase, mrg_uniform_base):
         write = write_w(self.output_type.dtype)
         if self.output_type.dtype == 'float16':
             otype = 'ga_half'
-            # limit the values of the state that we use.
             mask = '& 0x7fff'
             NORM = '3.0518e-05f'  # numpy.float16(1.0/(2**15+8))
-            # this was determined by finding the biggest number such that
-            # numpy.float16(number * (M1 & 0x7fff)) < 1.0
         elif self.output_type.dtype == 'float32':
             otype = 'float'
             mask = ''
             NORM = '4.6566126e-10f'  # numpy.float32(1.0/(2**31+65))
-            # this was determined by finding the biggest number such that
-            # numpy.float32(number * M1) < 1.0
         elif self.output_type.dtype == 'float64':
             otype = 'double'
             mask = ''
@@ -917,7 +877,6 @@ class GPUA_mrg_uniform(GpuKernelBase, mrg_uniform_base):
 
         """ % locals()
 
-        # we shouldn't get to this line if it's about to fail
         from pygpu import gpuarray
 
         return [Kernel(code=code, name="mrg_uniform",
@@ -1054,7 +1013,6 @@ class GPUA_mrg_uniform(GpuKernelBase, mrg_uniform_base):
 
 
 def guess_n_streams(size, warn=False):
-    # TODO : need description for parameter 'size'
     """
     Return a guess at a good number of streams.
 
@@ -1065,26 +1023,14 @@ def guess_n_streams(size, warn=False):
         return 60 * 256).
 
     """
-    # TODO: a smart way of choosing the number of streams, see #612.
-    # Note that this code was moved out of `MRG_RandomStreams` so that it can
-    # be easily accessed from tests, where we want to disable the warning.
     if (isinstance(size, (tuple, list)) and
             all([isinstance(i, integer_types) for i in size])):
-        # We can make a guess.
         r = 1
         for s in size:
             r *= s
         if r > 6:
             r = r // 6  # chosen as fastest for rbm_benchmark
 
-        # The purpose of sampling from many streams is to be able to use
-        # the GPU to its full capacity. It just wastes RAM and
-        # stream-initialization time to allocate more streams than necessary
-        # for the GPU.
-        # XXX: This number is chosen to be good for 280 and 480 architectures,
-        #      Better would be to use pycuda to query the number of
-        #      processors on the GPU device,
-        #      rather than guessing 60.
         return min(r, 60 * 256)
     else:
         if warn:
@@ -1096,7 +1042,6 @@ def guess_n_streams(size, warn=False):
 
 
 class MRG_RandomStreams(object):
-    # TODO : need description for parameter 'use_cuda'
     """
     Module component with similar interface to numpy.random
     (numpy.random.RandomState).
@@ -1113,18 +1058,13 @@ class MRG_RandomStreams(object):
     """
 
     def updates(self):
-        # TODO : need description for method and return
         return list(self.state_updates)
 
     def __init__(self, seed=12345, use_cuda=None):
-        # A list of pairs of the form (input_r, output_r), representing the
-        # update rules of all the random states generated
-        # by this RandomStreams.
         self.state_updates = []
 
         super(MRG_RandomStreams, self).__init__()
 
-        # Needed to reset the streams.
         self.default_instance_seed = seed
 
         self.set_rstate(seed)
@@ -1135,7 +1075,6 @@ class MRG_RandomStreams(object):
             self.use_cuda = use_cuda
 
     def set_rstate(self, seed):
-        # TODO : need description for method, parameter
         if isinstance(seed, integer_types):
             if seed == 0:
                 raise ValueError('seed should not be 0', seed)
@@ -1197,12 +1136,10 @@ class MRG_RandomStreams(object):
         start.
 
         """
-        # self.rstate = ff_2p134(self.rstate)
         self.rstate = multMatVect(self.rstate, A1p134, M1, A2p134, M2)
         assert self.rstate.dtype == numpy.int32
 
     def get_substream_rstates(self, n_streams, dtype, inc_rstate=True):
-        # TODO : need description for parameter and return
         """
         Initialize a matrix in which each row is a MRG stream state,
         and they are spaced by 2**72 samples.
@@ -1214,19 +1151,15 @@ class MRG_RandomStreams(object):
         rval = numpy.zeros((n_streams, 6), dtype='int32')
         rval[0] = self.rstate
 
-        # If multMatVect.dot_modulo isn't compiled, compile it.
         if multMatVect.dot_modulo is None:
             multMatVect(rval[0], A1p72, M1, A2p72, M2)
 
-        # This way of calling the Theano fct is done to bypass Theano overhead.
         f = multMatVect.dot_modulo
         f.input_storage[0].storage[0] = A1p72
         f.input_storage[2].storage[0] = M1
         f.input_storage[3].storage[0] = A2p72
         f.input_storage[5].storage[0] = M2
         for i in xrange(1, n_streams):
-            # Inline the following call to bypass Python overhead
-            # rval[i] = ff_2p72(rval[i - 1])
             v = rval[i - 1]
             f.input_storage[1].storage[0] = v[:3]
             f.input_storage[4].storage[0] = v[3:]
@@ -1237,9 +1170,6 @@ class MRG_RandomStreams(object):
             self.inc_rstate()
         if self.use_cuda and dtype == 'float32':
             rval = rval.flatten()
-            # HACK - we use fact that int32 and float32 have same size to
-            # sneak ints into the CudaNdarray type.
-            # these *SHOULD NEVER BE USED AS FLOATS*
             tmp_float_buf = numpy.frombuffer(rval.data, dtype='float32')
             assert tmp_float_buf.shape == rval.shape
             assert (tmp_float_buf.view('int32') == rval).all()
@@ -1248,11 +1178,9 @@ class MRG_RandomStreams(object):
         return rval
 
     def n_streams(self, size):
-        # TODO : need description for method, parameter and return
         return guess_n_streams(size)
 
     def pretty_return(self, node_rstate, new_rstate, sample, size, nstreams):
-        # TODO : need description for method, parameter and return
         sample.rstate = node_rstate
         sample.update = (node_rstate, new_rstate)
         self.state_updates.append((node_rstate, new_rstate, size, nstreams))
@@ -1261,7 +1189,6 @@ class MRG_RandomStreams(object):
 
     def uniform(self, size, low=0.0, high=1.0, ndim=None, dtype=None,
                 nstreams=None):
-        # TODO : need description for parameter 'size', 'ndim', 'nstreams'
         """
         Sample a tensor of given size whose element from a uniform
         distribution between low and high.
@@ -1320,11 +1247,6 @@ class MRG_RandomStreams(object):
             node_rstate = float32_shared_constructor(rstates)
             assert isinstance(node_rstate.type, CudaNdarrayType)
 
-            # we can't use the normal mrg_uniform constructor + later
-            # optimization
-            # because of the tmp_float_buf hack above.  There is
-            # currently no Theano node that will do a frombuffer
-            # reinterpretation.
             u = self.pretty_return(node_rstate,
                                    *GPU_mrg_uniform.new(node_rstate,
                                                         ndim, dtype, size),
@@ -1335,7 +1257,6 @@ class MRG_RandomStreams(object):
                                    *mrg_uniform.new(node_rstate,
                                                     ndim, dtype, size),
                                    size=size, nstreams=orig_nstreams)
-        # Add a reference to distinguish from other shared variables
         node_rstate.tag.is_rng = True
         r = u * (high - low) + low
 
@@ -1349,7 +1270,6 @@ class MRG_RandomStreams(object):
 
     def binomial(self, size=None, n=1, p=0.5, ndim=None, dtype='int64',
                  nstreams=None):
-        # TODO : need description for method, parameter and return
         if n == 1:
             if dtype == 'float32' and self.use_cuda:
                 x = self.uniform(size=size, dtype=dtype, nstreams=nstreams)
@@ -1361,7 +1281,6 @@ class MRG_RandomStreams(object):
 
     def multinomial(self, size=None, n=1, pvals=None, ndim=None, dtype='int64',
                     nstreams=None):
-        # TODO : need description for parameter and return
         """
         Sample `n` (`n` needs to be >= 1, default 1) times from a multinomial
         distribution defined by probabilities pvals.
@@ -1411,7 +1330,6 @@ class MRG_RandomStreams(object):
 
     def multinomial_wo_replacement(self, size=None, n=1, pvals=None,
                                    ndim=None, dtype='int64', nstreams=None):
-        # TODO : need description for parameter
         """
         Sample `n` times *WITHOUT replacement* from a multinomial distribution
         defined by probabilities pvals, and returns the indices of the sampled
@@ -1448,7 +1366,6 @@ class MRG_RandomStreams(object):
                              "MRG_RandomStreams.multinomial_wo_replacement, "
                              "which does not use the ndim argument.")
         if pvals.ndim == 2:
-            # size = [pvals.shape[0], as_tensor_variable(n)]
             size = pvals[:, 0].shape * n
             unis = self.uniform(size=size, ndim=1, nstreams=nstreams)
             op = multinomial.MultinomialWOReplacementFromUniform(dtype)
@@ -1461,7 +1378,6 @@ class MRG_RandomStreams(object):
 
     def normal(self, size, avg=0.0, std=1.0, ndim=None,
                dtype=None, nstreams=None):
-        # TODO : need description for method
         """
         Parameters
         ----------
@@ -1476,10 +1392,6 @@ class MRG_RandomStreams(object):
             Number of streams.
 
         """
-        # We need an even number of ]0,1[ samples. Then we split them
-        # in two halves. First half becomes our U1's for Box-Muller,
-        # second half our U2's. See Wikipedia page:
-        # http://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform
         avg = as_tensor_variable(avg)
         std = as_tensor_variable(std)
 
@@ -1494,14 +1406,12 @@ class MRG_RandomStreams(object):
         if (isinstance(size, tuple) and
                 all([isinstance(i, (numpy.integer, integer_types)) for i in size])):
             constant = True
-            # Force dtype because it defaults to float when size is empty
             n_samples = numpy.prod(size, dtype='int64')
 
             if n_samples % 2 == 1:
                 n_samples += 1
                 evened = True
         else:
-            # if even, don't change, if odd, +1
             n_samples = prod(size) + (prod(size) % 2)
         flattened = self.uniform(size=(n_samples,), dtype=dtype,
                                  nstreams=nstreams)
@@ -1513,14 +1423,8 @@ class MRG_RandomStreams(object):
             U1 = flattened[:prod(flattened.shape) // 2]
             U2 = flattened[prod(flattened.shape) // 2:]
 
-        # normal_samples = zeros_like(flattened)
         sqrt_ln_U1 = sqrt(-2.0 * log(U1))
-        # TypeError: 'TensorVariable' object does not support item assignment
-        # so this doesn't work...
-        # normal_samples[:n_samples/2] = sqrt_ln_U1 * cos(2.0*numpy.pi*U2)
-        # normal_samples[n_samples/2:] = sqrt_ln_U1 * sin(2.0*numpy.pi*U2)
 
-        # so trying this instead
         first_half = sqrt_ln_U1 * cos(
             numpy.array(2.0 * numpy.pi, dtype=dtype) * U2)
         second_half = sqrt_ln_U1 * sin(
@@ -1536,7 +1440,6 @@ class MRG_RandomStreams(object):
             final_samples = normal_samples[:prod(size)]
 
         if not size:
-            # Force the dtype to be int64, otherwise reshape complains
             size = tensor.constant(size, dtype='int64')
         final_samples = final_samples.reshape(size)
 
@@ -1549,7 +1452,6 @@ class MRG_RandomStreams(object):
 @register_gpua('fast_compile')
 @local_optimizer([mrg_uniform])
 def local_gpua_mrg(node):
-    # TODO : need description for function
     if (type(node.op) == mrg_uniform and
             isinstance(node.inputs[0].type, GpuArrayType)):
         outs = GPUA_mrg_uniform.new(node.inputs[0],
@@ -1567,7 +1469,6 @@ def mrg_random_make_inplace(node):
 
     op = node.op
     if isinstance(op, MRG_RNGs) and not op.inplace:
-        # op might be gpu version
         new_op = op.__class__(op.output_type, inplace=True)
         return new_op.make_node(*node.inputs).outputs
     return False

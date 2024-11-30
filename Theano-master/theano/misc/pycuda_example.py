@@ -13,7 +13,6 @@ don't support that, but we make sure we don't introduce problem.
   If the memory is non-contiguous, we create a new copy that is contiguous.
   If their is broadcasted dimensions, we raise an error.
 
-#The following is commented as it work only with old pycuda version
 The PycudaElemwiseKernelOp op use pycuda code generated with
 pycuda.elementwise.ElementwiseKernel. It must be wrapper by
 TheanoElementwiseKernel.
@@ -138,8 +137,6 @@ class PycudaElemwiseKernelOp(GpuOp):
             raise Exception("pycuda don't support broadcasted dimensions")
         assert len(inputs) == 2  # TODO remove
 
-        # output is broadcastable only along dimensions where all inputs are
-        # broadcastable
         broadcastable = []
         for d in xrange(_inputs[0].type.ndim):
             bcast_d = True
@@ -171,7 +168,6 @@ class PycudaElemwiseKernelOp(GpuOp):
         return out_node
 
     def perform(self, node, inputs, out):
-        #TODO assert all input have the same shape
         z, = out
         if z[0] is None or z[0].shape != inputs[0].shape:
             z[0] = theano.sandbox.cuda.CudaNdarray.zeros(inputs[0].shape)
@@ -253,8 +249,6 @@ class PycudaElemwiseSourceModuleOp(GpuOp):
         return out_node
 
     def perform(self, node, inputs, out):
-        # TODO support broadcast!
-        # TODO assert all input have the same shape
         z, = out
         if (z[0] is None or
                 z[0].shape != inputs[0].shape or
@@ -286,7 +280,6 @@ class PycudaElemwiseSourceModuleMakeThunkOp(Op):
         self.scalar_op = scalar_op
         self.inplace_pattern = inplace_pattern
 
-    # As we have a dict in props, we need to implement __hash__
     def __hash__(self):
         return hash((type(self), hash(self.scalar_op),
                     hash_from_dict(self.inplace_pattern)))
@@ -321,8 +314,6 @@ class PycudaElemwiseSourceModuleMakeThunkOp(Op):
         return out_node
 
     def make_thunk(self, node, storage_map, _, _2):
-        # TODO support broadcast!
-        # TODO assert all input have the same shape
         fct_name = "pycuda_elemwise_%s" % str(self.scalar_op)
         in_name = ["i" + str(id) for id in range(len(node.inputs))]
         out_name = ["o" + str(id) for id in range(self.nout)]

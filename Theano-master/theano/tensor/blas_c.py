@@ -26,9 +26,6 @@ class BaseBLAS(object):
         return blas_header_text()
 
 
-# ##### ####### #######
-# GER
-# ##### ####### #######
 
 def ger_c_code(A, a, x, y, Z, destructive, fail):
     return """
@@ -329,7 +326,6 @@ cger_no_inplace = CGer(False)
 def use_c_ger(node):
     if not config.blas.ldflags:
         return
-    # Only float32 and float64 are supported for now.
     if (node.op == ger and
             node.outputs[0].dtype in ['float32', 'float64']):
         return [CGer(False)(*node.inputs)]
@@ -344,9 +340,6 @@ def make_c_ger_destructive(node):
         return [cger_inplace(*node.inputs)]
 
 
-# ##### ####### #######
-# GEMV
-# ##### ####### #######
 
 
 def gemv_c_code(y, A, x, z, alpha, beta, destructive, fail,
@@ -636,7 +629,6 @@ def check_force_gemv_init():
         zeros.
         """
         test_code = """
-#include <math.h>
 extern "C" void dgemv_(char*, const int*, const int*, const double *, const double *, const int*, const double *, const int*, const double *, double *, const int *);
 int main() {
   double A[2][2] = {{1., 1.}, {1., 1.}};
@@ -673,7 +665,6 @@ check_force_gemv_init._force_init_beta = None
 def use_c_gemv(node):
     if not config.blas.ldflags:
         return
-    # Only float32 and float64 are supported for now.
     if (node.op == gemv_no_inplace and
             node.outputs[0].dtype in ['float32', 'float64']):
         return [cgemv_no_inplace(*node.inputs)]
@@ -695,15 +686,11 @@ def make_c_gemv_destructive(node):
         return [cgemv_inplace(*inputs)]
 
 
-# ##### ####### #######
-# Optimizers
-# ##### ####### #######
 
 blas_optdb.register('use_c_blas',
                     in2out(use_c_ger, use_c_gemv),
                     20, 'fast_run', 'c_blas')
 
-# this matches the InplaceBlasOpt defined in blas.py
 optdb.register('c_blas_destructive',
                in2out(make_c_ger_destructive,
                       make_c_gemv_destructive,

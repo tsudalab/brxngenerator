@@ -42,8 +42,6 @@ def ensure_allocated(storage, shape, dtype, ctx):
     odat = storage[0]
     if odat is not None:
         if odat.shape != shape:
-            # It is unsafe to try to resize odat,
-            # we have to allocate output storage.
             odat = None
     if odat is None:
         odat = pygpu.empty(shape, dtype=dtype, context=ctx)
@@ -82,7 +80,6 @@ class GpuElemwise(GpuKernelBase, HideC, Elemwise):
         inputs = [as_gpuarray_variable(i, ctx_name) for i in inputs]
         node = Apply(self, inputs, outputs)
 
-        # Try to generate the kernel to catch SupportCodeErrors
         try:
             scal_ins = [scalar.get_scalar_type(i.dtype) for i in node.inputs]
 
@@ -99,7 +96,6 @@ class GpuElemwise(GpuKernelBase, HideC, Elemwise):
             support_code = self.scalar_op.c_support_code()
             if (support_code.strip() != "#define THEANO_MACRO_MOD(x,y) (x % y)" and
                     support_code.strip() != ""):
-                # The macro is fine, the C++ struct is not.
                 raise SupportCodeError(support_code)
         except MethodNotDefined:
             pass
@@ -144,14 +140,9 @@ class GpuElemwise(GpuKernelBase, HideC, Elemwise):
                                     dict(fail='return;'))
 
         if scal_f16:
-            # if we have float16 scalars on output we have to wrap
-            # them and insert a stand-in float32 variable since
-            # float16 arithemtic is not available
             code = ["{"]
             for f in scal_f16:
                 code.append('ga_float %s;' % (f[0],))
-            # XXX: The replace is an ugly hack to make sure temp
-            # variables inthe middle are float32
             code.append(kop.replace('npy_float16', 'ga_float'))
             for f in scal_f16:
                 code.append('%s[i] = __float2half_rn(%s);' % (f[1].name, f[0]))
@@ -160,8 +151,6 @@ class GpuElemwise(GpuKernelBase, HideC, Elemwise):
 
         support_code = ""
         try:
-            # We accept only some c_support_code().
-            # This filter is done in the make_node()
             support_code += self.scalar_op.c_support_code()
         except MethodNotDefined:
             pass
@@ -188,8 +177,6 @@ class GpuElemwise(GpuKernelBase, HideC, Elemwise):
         return self.scalar_op.c_support_code()
 
     def _gpu_kernel_code(self, node, nodename):
-        # This is useless by itself, but will serve an eventual c_code
-        # implementation
         k = self.generate_kernel(node, nodename)
         nd = node.inputs[0].type.ndim
         res = []
@@ -229,7 +216,6 @@ class GpuElemwise(GpuKernelBase, HideC, Elemwise):
         opname = str(self.scalar_op)
         ctx = sub['params']
 
-        # check that all inputs have valid dimensions
         emitted_inames = {}
         num_kernel_params = 1 + nd + len(inputs + outputs) * (2 + nd)
         code = """
@@ -266,7 +252,6 @@ class GpuElemwise(GpuKernelBase, HideC, Elemwise):
                 """ % locals()
             emitted_inames[iname] = node.inputs[idx]
 
-        # check that all inputs have valid dimensions
         emitted_inames = {}
         for idx, iname in enumerate(inputs):
             if iname in emitted_inames:
@@ -299,7 +284,6 @@ class GpuElemwise(GpuKernelBase, HideC, Elemwise):
         }
             """ % locals()
             emitted_inames[iname] = True
-        # check that all outputs have valid dimensions
         for idx, oname in enumerate(outputs):
             typecode = dtype_to_typecode(node.outputs[idx].dtype)
             if idx not in self.inplace_pattern.keys():
@@ -407,15 +391,12 @@ class GpuElemwise(GpuKernelBase, HideC, Elemwise):
         return str(code)
 
     def perform(self, node, inputs, output_storage, ctx):
-        # Try to reuse the kernel from a previous call to hopefully
-        # avoid recompiling
         if not hasattr(node, '_cache_elemwise_k'):
             node._cache_elemwise_k = self.generate_kernel(node, "kcode")
 
         out_shape = []
         for values in izip(*[input.shape for input in inputs]):
             if any(v == 0 for v in values):
-                # All non-broadcasted dimensions should be zero
                 assert max(values) <= 1
                 out_shape.append(0)
             else:
@@ -604,8 +585,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             reduce_mask = tuple(reduce_mask)
         self.reduce_mask = reduce_mask
 
-        # used to make sure that calls to scalar op
-        # have unique name arguments
         self._n_scalar_op_calls = 0
         CAReduceDtype.__init__(self, scalar_op, axis=axis,
                                dtype=dtype, acc_dtype=acc_dtype)
@@ -624,7 +603,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
 
     def __setstate__(self, d):
         self.__dict__.update(d)
-        # For unpickling of old ops.
         if not hasattr(self, "pre_scalar_op"):
             self.pre_scalar_op = None
 
@@ -636,8 +614,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
         self = copy.copy(self)
         self.axis = ret.op.axis
         if self.pre_scalar_op:
-            # Currently we only tested pre_scalar_op that don't cause
-            # upcast.
             assert Elemwise(self.pre_scalar_op)(x).dtype == x.dtype
         if self.reduce_mask is None:
             if self.axis is None:
@@ -670,20 +646,10 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
         Returns True if the current op and reduce pattern has functioning C code.
 
         """
-        # If we don't even have the right method, we certainly
-        # don't support the C code
-        # (This is the test that used to be implemented by
-        # local_gpu_sum)
         pattern = (''.join(str(i) for i in self.reduce_mask))
         if not hasattr(self, 'c_code_reduce_%s' % pattern):
             return False
 
-        # Now that this is a general reduction op, we might
-        # have a method for a pattern, but that pattern
-        # might not be implemented for the current scalar op.
-        # To detect this more complicated situation, we
-        # make fake arguments to c_code, try to run them,
-        # and see if NotImplementedError gets raised.
 
         node = self.make_node(*inputs)
 
@@ -710,8 +676,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
 
         nd_in = node.inputs[0].type.ndim
         nd_out = node.outputs[0].type.ndim
-        # For complex, we need to use theano_complex* in the c code to
-        # have it run. But libgpuarray don't understand it.
         in_dtype = node.inputs[0].type.dtype_specs()[1]
         out_dtype = node.outputs[0].type.dtype_specs()[1]
         gin_dtype = "npy_" + node.inputs[0].dtype
@@ -722,7 +686,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
         fail = sub['fail']
         ctx = sub['params']
 
-        # check input
         print("""
         if (PyGpuArray_NDIM(%(x)s) != %(nd_in)s)
         {
@@ -732,9 +695,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
         }
         """ % locals(), file=sio)
 
-        # It might be nice to use a property of the op class to do this,
-        # but tensor.elemwise.CAReduce has this exact same check so I guess
-        # this is OK to do
         if self.scalar_op in [scal.minimum, scal.maximum]:
             conds = ["(PyGpuArray_DIMS(%s)[%d] == 0)" % (x, i)
                      for i in xrange(nd_in)
@@ -749,17 +709,12 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             }
             """ % locals(), file=sio)
 
-        #
-        # alloc an output if we need one
-        #
 
-        # check the basics of out output
         print("""
         if (  !%(z)s
            || (PyGpuArray_NDIM(%(z)s) != %(nd_out)s)
         """ % locals(), file=sio)
 
-        # ensure that the output has the right non-reduced dimensions
         j = 0
         for i in xrange(nd_in):
             if not self.reduce_mask[i]:
@@ -794,11 +749,8 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
         }
         """ % locals(), file=sio)
 
-        # \begin bracket the reduction in a check that there is
-        # actually work to do
         if getattr(self.scalar_op, 'identity', None) == 0:
             zero_shp = "GpuArray_memset(&%(z)s->ga, 0)" % locals()
-        # TODO: elif getattr(self.scalar_op, 'identity', None) == 1:
         else:
             scalar_op = self.scalar_op
             zero_shp = """
@@ -815,14 +767,8 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
         {
         """ % locals(), file=sio)
 
-        #
-        # Now perform the reduction
-        #
 
         if all(i == 1 for i in self.reduce_mask):
-            # check if the tensor is ccontiguous, if true, use the c_code_reduce_ccontig code.
-            # TODO: check if we are ccontiguous when we un-dimshuffle
-            # TODO: if only some dims are ccontiguous, call version with less dims.
             print('if(%(x)s->ga.flags & GA_C_CONTIGUOUS){' % locals(),
                   file=sio)
             self.c_code_reduce_ccontig(sio, node, name, x, z, fail)
@@ -835,7 +781,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             getattr(self, 'c_code_reduce_%s' % (''.join(
                 str(i) for i in self.reduce_mask)))(sio, node, name, x, z, fail)
 
-        # \end bracket the reduction ...
         print("""
         }
         """ % locals(), file=sio)
@@ -1023,7 +968,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
         in_dtype = node.inputs[0].dtype
         out_dtype = node.outputs[0].dtype
         acc_dtype = self._acc_dtype(node.inputs[0].dtype)
-        # We need to use theano_complex* and not npy_complex*
         in_type = gpuarray.dtype_to_ctype(in_dtype)
         out_type = gpuarray.dtype_to_ctype(out_dtype)
         acc_type = gpuarray.dtype_to_ctype(acc_dtype)
@@ -1063,7 +1007,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             assert isinstance(self.scalar_op, (scal.Maximum,
                                                scal.Minimum))
             if self.pre_scalar_op:  # TODO: multiple dtypes
-                # dtype = node.inputs[0].dtype
                 dtype = 'float32'
 
                 dummy_var = scal.Scalar(dtype=dtype)()
@@ -1148,10 +1091,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
         acc_dtype = "npy_" + self._acc_dtype(node.inputs[0].dtype)
         write_out = write_w(node.outputs[0].dtype)
 
-        # This code (the code in new_version) is currently ignored.
-        # Code produced later in this function is returned instead.
-        # The code here works with all nvidia driver
-        # But only for powers or multiples of 2!
         new_version = """
         __syncthreads(); // some kernel do multiple reduction.
         buf[threadNum] = myresult;
@@ -1263,8 +1202,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
 
         return current_version
 
-    # Threads must be organized as: threadNum%nb_reduce correspond to the same sum
-    # nb_reduce<=warpSize
     def _k_reduce_buf_multiple(self, z_pos, node, name, nb_reduce):
         reduce_fct = self._assign_reduce(node, name, 'myresult', 'buf[i]', {}, False)
         write_out = write_w(node.outputs[0].dtype)
@@ -1291,7 +1228,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
         out_dtype = "npy_" + node.outputs[0].dtype
         if getattr(self.scalar_op, 'identity', None) == 0:
             zero_shp = "GpuArray_memset(&%(z)s->ga, 0)" % locals()
-        # TODO: elif getattr(self.scalar_op, 'identity', None) == 1:
         else:
             zero_shp = """
             PyErr_Format(PyExc_NotImplementedError,
@@ -1693,9 +1629,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             err = GpuArray_sync(&%(z)s->ga);
             %(err_check)s
             """ % locals()
-        # use threadIdx.x for i0
-        # use blockIdx.x for i1
-        # use blockIdx.y for i2
         print("""
         {
             int verbose = 0;
@@ -1933,7 +1866,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
     def c_code_cache_version_apply(self, node):
         version = [18]  # the version corresponding to the c code in this Op
 
-        # now we insert versions for the ops on which we depend...
         scalar_node = Apply(
             self.scalar_op,
             [Scalar(dtype=input.type.dtype)() for input in node.inputs],
@@ -1961,8 +1893,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
         kernels = []
 
         if all(i == 1 for i in self.reduce_mask):
-            # this kernel is ok for up to a few thousand elements, but
-            # it only runs on ONE multiprocessor
             reducebuf = self._k_reduce_buf('Z[0]', node, nodename, sub={})
             reduce_fct = self._assign_reduce(node, nodename, "myresult",
                                              load_in + "(A[i0])",
@@ -2004,8 +1934,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             kernels.append(Kernel(code=sio.getvalue(), name=kname,
                                   params=params, flags=flags, objvar=k_var))
         if self.reduce_mask == (1,):
-            # this kernel is ok for up to a few thousand elements, but
-            # it only runs on ONE multiprocessor
             reducebuf = self._k_reduce_buf('Z[0]', node, nodename, sub={})
             reduce_fct = self._assign_reduce(node, nodename, "myresult",
                                              load_in + "(A[i0 * sA0])",
@@ -2049,8 +1977,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             kernels.append(Kernel(code=sio.getvalue(), name=kname,
                                   params=params, flags=flags, objvar=k_var))
         if self.reduce_mask == (1, 1):
-            # this kernel is ok for up to a few thousand elements, but
-            # it only runs on ONE multiprocessor
             reducebuf = self._k_reduce_buf('Z[0]', node, nodename, sub={})
             reduce_fct = self._assign_reduce(node, nodename, "myresult",
                                              load_in + "(A[i0 * sA0 + i1 * sA1])",
@@ -2096,17 +2022,11 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
                 ]
             kernels.append(Kernel(code=sio.getvalue(), name=kname,
                                   params=params, flags=flags, objvar=k_var))
-        # 01, 011, 0111
         if (0 == self.reduce_mask[0] and
                 all(self.reduce_mask[1:]) and
                 nd_in in[2, 3, 4]):
-            # this kernel uses one block for each row.
-            # threads per block for each element per row.
 
             N_pattern = ''.join(['1'] * (nd_in - 1))
-            # TODO: is it faster to hardcode sA3, etc. in the later
-            # code, rather than have the for_* variables declare them
-            # and the later code use their names?
             if nd_in == 2:
                 for_i1 = "for (int i1 = threadIdx.x; i1 < d1; i1 += blockDim.x)"
                 first_i1 = 'threadIdx.x'
@@ -2171,12 +2091,7 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             kernels.append(Kernel(code=sio.getvalue(), name=kname,
                                   params=params, flags=flags, objvar=k_var))
         if self.reduce_mask == (0, 1, 0) or self.reduce_mask == (1, 0):
-            # this kernel uses one block for each column,
-            # threads per block for each element per column.
 
-            # TODO: This kernel is pretty inefficient in terms of reading, because if A is
-            #      c_contiguous (typical case) then each warp is accessing non-contigous
-            #      memory (a segment of a column).
             reducebuf = self._k_reduce_buf('Z[i0 * sZ0 + i2*sZ1]',
                                            node, nodename, sub={})
             reduce_fct = self._assign_reduce(node, nodename, "myresult",
@@ -2286,17 +2201,8 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             kernels.append(Kernel(code=sio.getvalue(), name=kname,
                                   params=params, flags=flags, objvar=k_var))
         if self.reduce_mask == (0, 1, 0):
-            #
-            # This kernel is optimized when the inner most dimensions
-            # have the smallest stride.
 
-            # this kernel uses one block for multiple column(up to 32TODO),
-            # threads per block for each element per column.
 
-            # thread.x = dim 2 contiguous
-            # thread.y = dim 1
-            # block.x = dim 0
-            # block.y = dim 1 rest
             init = self._k_init(node, nodename)
             decl, kname, params, k_var = self._k_decl(node, nodename, pattern="010_inner")
             reducebuf = self._k_reduce_buf_multiple('Z[i0 * sZ0 + i2*sZ1]',
@@ -2334,12 +2240,7 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             kernels.append(Kernel(code=sio.getvalue(), name=kname,
                                   params=params, flags=flags, objvar=k_var))
         if self.reduce_mask == (1, 1, 0):
-            # this kernel uses one block for each column,
-            # threads per block for each element per column.
 
-            # TODO: This kernel is pretty inefficient in terms of reading, because if A is
-            #      c_contiguous (typical case) then each warp is accessing non-contigous
-            #      memory (a segment of a column).
             reducebuf = self._k_reduce_buf('Z[blockIdx.x * sZ0]', node, nodename, sub={})
             reduce_fct = self._assign_reduce(node, nodename, "myresult",
                                              load_in + "(A[i0 * sA0 + i1 * sA1 + blockIdx.x * sA2])",
@@ -2451,8 +2352,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             kernels.append(Kernel(code=sio.getvalue(), name=kname,
                                   params=params, flags=flags, objvar=k_var))
         if self.reduce_mask == (0, 0, 1):
-            # this kernel uses one block for each row,
-            # threads per block for each element per row.
             reducebuf = self._k_reduce_buf('Z[i0 * sZ0 + i1 * sZ1]',
                                            node, nodename, sub={})
             reduce_fct = self._assign_reduce(node, nodename, "myresult",
@@ -2505,8 +2404,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             kernels.append(Kernel(code=sio.getvalue(), name=kname,
                                   params=params, flags=flags, objvar=k_var))
         if self.reduce_mask == (0, 0, 1, 1):
-            # this kernel uses one block for each row,
-            # threads per block for each element per row.
             reducebuf = self._k_reduce_buf('Z[i0 * sZ0 + i1 * sZ1]',
                                            node, nodename, sub={})
             decl, kname, params, k_var = self._k_decl(node, nodename)
@@ -2541,8 +2438,6 @@ class GpuCAReduceCuda(GpuKernelBase, HideC, CAReduceDtype):
             kernels.append(Kernel(code=sio.getvalue(), name=kname,
                                   params=params, flags=flags, objvar=k_var))
         if self.reduce_mask == (0, 1, 0, 1):
-            # this kernel uses one block for each row,
-            # threads per block for each element per row.
             reducebuf = self._k_reduce_buf('Z[i0 * sZ0 + i2 * sZ1]',
                                            node, nodename, sub={})
             decl, kname, params, k_var = self._k_decl(node, nodename)
@@ -2691,8 +2586,6 @@ class GpuCAReduceCPY(GpuKernelBase, HideC, CAReduceDtype):
             redux = []
             for i in range(len(input.type.broadcastable)):
                 redux.append(i in res.op.axis)
-                # since redux is just another way to describe what is in axis
-                # it doesn't need to be compared in __eq__ or __hash__
             res.op.redux = redux
 
         return Apply(res.op, [input], [otype()])
@@ -2701,7 +2594,6 @@ class GpuCAReduceCPY(GpuKernelBase, HideC, CAReduceDtype):
         return node.outputs[0].type.context
 
     def make_thunk(self, node, storage_map, compute_map, no_recycling):
-        # cache the kernel object
         self.get_kernel_cache(node)
         return super(GpuCAReduceCPY, self).make_thunk(
             node, storage_map, compute_map, no_recycling)
@@ -2725,7 +2617,6 @@ class GpuCAReduceCPY(GpuKernelBase, HideC, CAReduceDtype):
 
     def gpu_kernels(self, node, name):
         if not any(getattr(self, 'redux', [node.inputs[0].ndim != 0])):
-            # Some OpenCL compilers do not accept no-arguments kernels
             src = "KERNEL void reduk(GLOBAL_MEM float *a) {}"
             params = ['float32']
         else:
@@ -2749,8 +2640,6 @@ class GpuCAReduceCPY(GpuKernelBase, HideC, CAReduceDtype):
 
     def c_code(self, node, name, inp, out, sub):
         if not any(getattr(self, 'redux', [node.inputs[0].ndim != 0])):
-            # We special case the no-reduction case since the gpu
-            # kernel has trouble handling it.
             return """
         Py_XDECREF(%(out)s);
         %(out)s = pygpu_copy(%(inp)s, GA_ANY_ORDER);
@@ -2837,9 +2726,6 @@ class GpuCAReduceCPY(GpuKernelBase, HideC, CAReduceDtype):
         Py_INCREF(tmp);
         """ % dict(output=output)
 
-        # We need the proxies since we are passing a pointer to the
-        # data into the call and therefore we need a real copy of the
-        # data in the proper type.
         code += """
         args[0] = &n;
         args[1] = tmp->ga.data;
@@ -2941,5 +2827,4 @@ class GpuCAReduceCPY(GpuKernelBase, HideC, CAReduceDtype):
             output[0] = pygpu.gpuarray.array(input, copy=True,
                                              dtype=node.outputs[0].type.dtype,
                                              context=ctx)
-# To allow reloading old pickled files
 GpuCAReduce = GpuCAReduceCPY

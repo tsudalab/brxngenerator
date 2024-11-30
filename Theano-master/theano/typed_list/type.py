@@ -90,9 +90,6 @@ class TypedListType(gof.Type):
     def may_share_memory(self, a, b):
         if a is b:
             return True
-        # As a list contain other element, if a or b isn't a list, we
-        # still need to check if that element is contained in the
-        # other list.
         if not isinstance(a, list):
             a = [a]
         if not isinstance(b, list):

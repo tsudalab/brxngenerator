@@ -12,7 +12,6 @@ from theano.typed_list.basic import (Insert,
 from theano import In
 
 
-# took from tensors/tests/test_basic.py
 def rand_ranged_matrix(minimum, maximum, shape):
     return numpy.asarray(numpy.random.rand(*shape) * (maximum - minimum) +
                          minimum, dtype=theano.config.floatX)

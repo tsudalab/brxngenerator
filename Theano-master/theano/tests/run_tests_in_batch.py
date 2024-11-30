@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from __future__ import absolute_import, print_function, division
 
 import datetime
@@ -93,8 +92,6 @@ def main(stdout=None, stderr=None, argv=None, theano_nose=None,
     if argv is None:
         argv = sys.argv
     if theano_nose is None:
-        # If Theano is installed with pip/easy_install, it can be in the
-        # */lib/python2.7/site-packages/theano, but theano-nose in */bin
         for i in range(1, 5):
             path = theano.__path__[0]
             for _ in range(i):
@@ -122,26 +119,16 @@ def main(stdout=None, stderr=None, argv=None, theano_nose=None,
 def run(stdout, stderr, argv, theano_nose, batch_size, time_profile,
         display_batch_output):
 
-    # Setting aside current working directory for later saving
     sav_dir = os.getcwd()
-    # The first argument is the called script.
     argv = argv[1:]
 
-    # It seems safer to fully regenerate the list of tests on each call.
     if os.path.isfile('.noseids'):
         os.remove('.noseids')
 
-    # Collect test IDs.
     print("""\
-####################
-# COLLECTING TESTS #
-####################""")
     stdout.flush()
     stderr.flush()
     dummy_in = open(os.devnull)
-    # We need to call 'python' on Windows, because theano-nose is not a
-    # native Windows app; and it does not hurt to call it on Unix.
-    # Using sys.executable, so that the same Python version is used.
     python = sys.executable
     rval = subprocess.call(
         ([python, theano_nose, '--collect-only', '--with-id'] + argv),
@@ -162,16 +149,9 @@ def run(stdout, stderr, argv, theano_nose, batch_size, time_profile,
         raise Exception("0 test selected")
     assert n_tests == max(ids)
 
-    # Standard batch testing is called for
     if not time_profile:
         failed = set()
         print("""\
-###################################
-# RUNNING TESTS IN BATCHES OF %s #
-###################################""" % batch_size)
-        # When `display_batch_output` is False, we suppress all output because
-        # we want the user to focus only on the failed tests, which are re-run
-        # (with output) below.
         dummy_out = open(os.devnull, 'w')
         for test_id in xrange(1, n_tests + 1, batch_size):
             stdout.flush()
@@ -183,33 +163,21 @@ def run(stdout, stderr, argv, theano_nose, batch_size, time_profile,
                    argv)
             subprocess_extra_args = dict(stdin=dummy_in.fileno())
             if not display_batch_output:
-                # Use quiet mode in nosetests.
                 cmd.append('-q')
-                # Suppress all output.
                 subprocess_extra_args.update(dict(
                     stdout=dummy_out.fileno(),
                     stderr=dummy_out.fileno()))
             t0 = time.time()
             subprocess.call(cmd, **subprocess_extra_args)
             t1 = time.time()
-            # Recover failed test indices from the 'failed' field of the
-            # '.noseids' file. We need to do it after each batch because
-            # otherwise this field may get erased. We use a set because it
-            # seems like it is not systematically erased though, and we want
-            # to avoid duplicates.
             with open(noseids_file, 'rb') as f:
                 failed = failed.union(pickle.load(f)['failed'])
 
             print('%s%% done in %.3fs (failed: %s)' % (
                 (test_range[-1] * 100) // n_tests, t1 - t0, len(failed)))
-        # Sort for cosmetic purpose only.
         failed = sorted(failed)
         if failed:
-            # Re-run only failed tests
             print("""\
-################################
-# RE-RUNNING FAILED TESTS ONLY #
-################################""")
             stdout.flush()
             stderr.flush()
             subprocess.call(
@@ -222,31 +190,20 @@ def run(stdout, stderr, argv, theano_nose, batch_size, time_profile,
             return 0
         else:
             print("""\
-####################
-# ALL TESTS PASSED #
-####################""")
 
-    # Time-profiling is called for
     else:
         print("""\
-########################################
-# RUNNING TESTS IN TIME-PROFILING MODE #
-########################################""")
 
-        # finds first word of list l containing string s
         def getIndexOfFirst(l, s):
             for pos, word in enumerate(l):
                 if s in word:
                     return pos
 
-        # finds last word of list l containing string s
         def getIndexOfLast(l, s):
             for pos, word in enumerate(reversed(l)):
                 if s in word:
                     return (len(l) - pos - 1)
 
-        # iterating through tests
-        # initializing master profiling list and raw log
         prof_master_nosort = []
         dummy_out = open(os.devnull, 'w')
         path_rawlog = os.path.join(sav_dir, 'timeprof_rawlog')
@@ -260,17 +217,13 @@ def run(stdout, stderr, argv, theano_nose, batch_size, time_profile,
         fields = ('Fields: computation time; nosetests sequential id;'
                   ' test name; parent class (if any); outcome\n\n')
         path_nosort = os.path.join(sav_dir, 'timeprof_nosort')
-        # probably this part can be extracted for function with many args
         with open(path_nosort, 'w') as f_nosort:
-            # begin of saving nosort
             f_nosort.write('TIME-PROFILING OF THEANO\'S NOSETESTS'
                            ' (by sequential id)\n\n' + stamp + fields)
             f_nosort.flush()
             for test_floor in xrange(1, n_tests + 1, batch_size):
                 for test_id in xrange(test_floor, min(test_floor + batch_size,
                                                       n_tests + 1)):
-                    # Print the test we will start in the raw log to help
-                    # debug tests that are too long.
                     f_rawlog.write("\n%s Will run test #%d %s\n" % (
                         time.ctime(), test_id, data["ids"][test_id]))
                     f_rawlog.flush()
@@ -279,18 +232,11 @@ def run(stdout, stderr, argv, theano_nose, batch_size, time_profile,
                                                      [str(test_id)] +
                                                      argv +
                                                      ['--disabdocstring']))
-                    # the previous option calls a custom Nosetests plugin
-                    # precluding automatic sustitution of doc. string for
-                    # test name in display
-                    # (see class 'DisabDocString' in file theano-nose)
 
-                    # recovering and processing data from pipe
                     err = p_out[1]
-                    # print the raw log
                     f_rawlog.write(err)
                     f_rawlog.flush()
 
-                    # parsing the output
                     l_err = err.split()
                     try:
                         pos_id = getIndexOfFirst(l_err, '#')
@@ -324,10 +270,8 @@ def run(stdout, stderr, argv, theano_nose, batch_size, time_profile,
                         prof_pass = ''
                     prof_tuple = (prof_time, prof_id, prof_test, prof_pass)
 
-                    # appending tuple to master list
                     prof_master_nosort.append(prof_tuple)
 
-                    # write the no sort file
                     s_nosort = ((str(prof_tuple[0]) + 's').ljust(10) +
                                 " " + prof_tuple[1].ljust(7) + " " +
                                 prof_tuple[2] + prof_tuple[3] +
@@ -338,11 +282,9 @@ def run(stdout, stderr, argv, theano_nose, batch_size, time_profile,
                 print('%s%% time-profiled' % ((test_id * 100) // n_tests))
             f_rawlog.close()
 
-            # sorting tests according to running-time
             prof_master_sort = sorted(prof_master_nosort,
                                       key=lambda test: test[0], reverse=True)
 
-            # saving results to readable files
             path_sort = os.path.join(sav_dir, 'timeprof_sort')
             with open(path_sort, 'w') as f_sort:
                 f_sort.write('TIME-PROFILING OF THEANO\'S NOSETESTS'
@@ -354,7 +296,6 @@ def run(stdout, stderr, argv, theano_nose, batch_size, time_profile,
                               "\n")
                     f_sort.write(s_sort)
 
-            # end of saving nosort
 
 
 if __name__ == '__main__':

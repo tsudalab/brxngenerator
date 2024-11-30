@@ -108,8 +108,6 @@ def Env(inputs, outputs, validate=True):
 
 
 class FailureWatch:
-    # when passed to OpSubOptimizer or PatternOptimizer, counts the
-    # number of failures
     def __init__(self):
         self.failures = 0
 
@@ -119,27 +117,20 @@ class FailureWatch:
 
 
 def consistent(g):
-    # print "Testing consistent:", g
     try:
         assert g.consistent()
     except AssertionError:
         print("Test failed! The graph was marked as NOT consistent.")
         raise
-    # print "Test OK"
 
 
 def inconsistent(g):
-    # print "Testing NOT consistent:", g
     try:
         assert not g.consistent()
     except AssertionError:
         print("Test failed! The graph was marked as consistent.")
         raise
-    # print "Test OK"
 
-#################
-# Test protocol #
-#################
 
 
 def test_misc():
@@ -157,9 +148,6 @@ def test_misc():
     inconsistent(g)
 
 
-######################
-# Test protocol skip #
-######################
 
 
 def test_aliased_inputs_replacement():
@@ -184,7 +172,6 @@ def test_indestructible():
     x, y, z = inputs()
     x.tag.indestructible = True
     x = copy(x)
-    # checking if indestructible survives the copy!
     assert x.tag.indestructible
     e = add_in_place(x, y)
     g = Env([x, y, z], [e], False)
@@ -204,7 +191,6 @@ def test_usage_loop_through_views_2():
 
 
 def test_destroyers_loop():
-    # AddInPlace(x, y) and AddInPlace(y, x) should not coexist
     x, y, z = inputs()
     e1 = add(x, y)
     e2 = add(y, x)
@@ -234,9 +220,6 @@ def test_destroyers_loop():
     consistent(g)
 
 
-########
-# Misc #
-########
 
 def test_aliased_inputs():
     x, y, z = inputs()
@@ -278,9 +261,6 @@ def test_different_aliased_inputs_ignored():
     e = add_in_place_3(x, transpose_view(x))
     g = Env([x], [e], False)
     consistent(g)
-    # warning - don't run this because it would produce the wrong answer
-    # add_in_place_3 is actually not correct when aliasing of inputs
-    # is ignored.
 
 
 def test_indestructible_through_views():
@@ -327,7 +307,6 @@ def test_long_destroyers_loop():
     consistent(g)
     OpSubOptimizer(add, add_in_place).optimize(g)
     consistent(g)
-    # we don't want to see that!
     assert str(g) != "[Dot(Dot(AddInPlace(x, y), AddInPlace(y, z)), AddInPlace(z, x))]"
     e2 = dot(dot(add_in_place(x, y),
                  add_in_place(y, z)),
@@ -386,7 +365,6 @@ def test_usage_loop():
     x, y, z = inputs()
     g = Env([x, y, z], [dot(add_in_place(x, z), x)], False)
     inconsistent(g)
-    # replace add_in_place with add
     OpSubOptimizer(add_in_place, add).optimize(g)
     consistent(g)
 
@@ -410,7 +388,6 @@ def test_usage_loop_insert_views():
     fail = FailureWatch()
     OpSubOptimizer(sigmoid, transpose_view, fail).optimize(g)
     consistent(g)
-    # it must keep one sigmoid in the long sigmoid chain
     assert fail.failures == 1
 
 

@@ -27,7 +27,6 @@ def template_atom_could_have_been_tetra(a, strip_if_spec=False, cache=True):
 
 def copy_chirality(a_src, a_new):
 
-    # Not possible to be a tetrahedral center anymore?
     if a_new.GetDegree() < 3:
         return 
     if a_new.GetDegree() == 3 and \
@@ -57,17 +56,10 @@ def atom_chirality_matches(a_tmp, a_mol):
         if a_tmp.GetChiralTag() == ChiralType.CHI_UNSPECIFIED:
             if PLEVEL >= 3: print('atom {} is achiral & achiral -> match'.format(a_mol.GetAtomMapNum()))
             return 2 # achiral template, achiral molecule -> match
-        # What if the template was chiral, but the reactant isn't just due to symmetry?
         if not a_mol.HasProp('_ChiralityPossible'):
-            # It's okay to make a match, as long as the product is achiral (even
-            # though the product template will try to impose chirality)
             if PLEVEL >= 3: print('atom {} is specified in template, but cant possibly be chiral in mol'.format(a_mol.GetAtomMapNum()))
             return 2
 
-        # Discussion: figure out if we want this behavior - should a chiral template
-        # be applied to an achiral molecule? For the retro case, if we have
-        # a retro reaction that requires a specific stereochem, return False;
-        # however, there will be many cases where the reaction would probably work
         if PLEVEL >= 3: print('atom {} is achiral in mol, but specified in template'.format(a_mol.GetAtomMapNum()))
         return 0
     if a_tmp.GetChiralTag() == ChiralType.CHI_UNSPECIFIED:
@@ -81,11 +73,9 @@ def atom_chirality_matches(a_tmp, a_mol):
     mapnums_tmp = [a.GetAtomMapNum() for a in a_tmp.GetNeighbors()]    
     mapnums_mol = [a.GetAtomMapNum() for a in a_mol.GetNeighbors()]
 
-    # When there are fewer than 3 heavy neighbors, chirality is ambiguous...
     if len(mapnums_tmp) < 3 or len(mapnums_mol) < 3:
         return 2
 
-    # Degree of 3 -> remaining atom is a hydrogen, add to list
     if len(mapnums_tmp) < 4:
         mapnums_tmp.append(-1) # H
     if len(mapnums_mol) < 4:

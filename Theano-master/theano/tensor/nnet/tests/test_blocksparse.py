@@ -105,10 +105,6 @@ class BlockSparse_Gemv_and_Outer(utt.InferShapeTester):
         from numpy import ix_
         for b in range(o.shape[0]):
             w = W[ix_(iIdx[b], oIdx[b])]
-            # The next three lines do the same operation. The last one is the
-            # fastest
-            # o[b] += (h[b][:, None, :, None] * w).sum(axis=(0, 2))
-            # o[b] += numpy.tensordot(h[b], w, [(0,1),(0,2)])
             o[b] += numpy.einsum('ik,ijkl', h[b], w)
         return o
 
@@ -252,7 +248,6 @@ class BlockSparse_Gemv_and_Outer(utt.InferShapeTester):
         W_val, h_val, iIdx_val, b_val, oIdx_val = \
             BlockSparse_Gemv_and_Outer.gemv_data()
 
-        # just make sure that it runs correcly and all the shapes are ok.
         b_g, W_g, h_g = f(W_val, h_val, iIdx_val, b_val, oIdx_val)
 
         assert b_g.shape == b_val.shape

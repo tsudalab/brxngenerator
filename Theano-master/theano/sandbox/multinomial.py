@@ -17,7 +17,6 @@ if cuda_available:
 
 
 class MultinomialFromUniform(Op):
-    # TODO : need description for parameter 'odtype'
     """
     Converts samples from a uniform into sample from a multinomial.
 
@@ -62,7 +61,6 @@ class MultinomialFromUniform(Op):
         return (8,)
 
     def c_code(self, node, name, ins, outs, sub):
-        # support old pickled graphs
         if len(ins) == 2:
             (pvals, unis) = ins
             n = 1
@@ -160,7 +158,6 @@ class MultinomialFromUniform(Op):
         """ % locals()
 
     def perform(self, node, ins, outs):
-        # support old pickled graphs
         if len(ins) == 2:
             (pvals, unis) = ins
             n_samples = 1
@@ -176,7 +173,6 @@ class MultinomialFromUniform(Op):
 
         nb_multi = pvals.shape[0]
         nb_outcomes = pvals.shape[1]
-        # For each multinomial, loop over each possible outcome
         for c in range(n_samples):
             for n in range(nb_multi):
                 waiting = True
@@ -345,7 +341,6 @@ class MultinomialWOReplacementFromUniform(MultinomialFromUniform):
 
     def perform(self, node, ins, outs):
         (pvals, unis, n_samples) = ins
-        # make a copy so we do not overwrite the input
         pvals = copy.copy(pvals)
         (z,) = outs
 
@@ -368,8 +363,6 @@ class MultinomialWOReplacementFromUniform(MultinomialFromUniform):
         nb_multi = pvals.shape[0]
         nb_outcomes = pvals.shape[1]
 
-        # For each multinomial, loop over each possible outcome,
-        # and set selected pval to 0 after being selected
         for c in range(n_samples):
             for n in range(nb_multi):
                 cummul = 0
@@ -378,8 +371,6 @@ class MultinomialWOReplacementFromUniform(MultinomialFromUniform):
                     cummul += pvals[n, m]
                     if (cummul > unis_n):
                         z[0][n, c] = m
-                        # set to zero and re-normalize so that it's not
-                        # selected again
                         pvals[n, m] = 0.
                         pvals[n] /= pvals[n].sum()
                         break
@@ -414,9 +405,6 @@ class GpuMultinomialFromUniform(MultinomialFromUniform, GpuOp):
         return Apply(self, [pvals, unis], [out])
 
     def perform(self, node, ins, outs):
-        # The perform from parent don't work with CudaNdarray.  We
-        # don't need it as DebugMode will test again it as an
-        # optimization insert the GPU op.
         return Op.perform(self, node, ins, outs)
 
     def c_code_cache_version(self):
@@ -567,7 +555,6 @@ class GpuMultinomialFromUniform(MultinomialFromUniform, GpuOp):
 
 @local_optimizer([MultinomialFromUniform])
 def local_gpu_multinomial(node):
-    # TODO : need description for function
     if type(node.op) is MultinomialFromUniform:
         if len(node.inputs) == 2:
             p, u = node.inputs
@@ -605,8 +592,6 @@ def local_gpu_multinomial(node):
         if (p.dtype == u.dtype == m.dtype == 'float32'):
             gpu_op = GpuMultinomialFromUniform(multi.op.odtype)
             ret = gpu_op(*[gpu_from_host(i) for i in [p, u]]).T
-            # The dimshuffle is on the cpu, but will be moved to the
-            # gpu by an opt.
             return [gpu_from_host(ret)]
 
 if cuda_available:

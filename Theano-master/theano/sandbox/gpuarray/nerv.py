@@ -57,7 +57,6 @@ class Gemm16(COp):
     def __init__(self, relu=False, inplace=False):
         COp.__init__(self, ["gemm16.c"], "gemm16")
         self.relu = relu
-        # relu = True will require more work in optimizations.
         assert self.relu is False
         self.inplace = inplace
         if self.inplace:

@@ -14,7 +14,6 @@ try:
     def _is_sparse(a):
         return scipy.sparse.issparse(a)
 except ImportError:
-    # scipy not imported, their can be only ndarray and cudandarray
     def _is_sparse(a):
         return False
 

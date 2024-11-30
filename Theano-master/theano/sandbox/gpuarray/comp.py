@@ -6,7 +6,6 @@ import numpy
 import theano
 from theano import config
 
-# This is a big hack to avoid creating a second context on the card.
 from theano.sandbox.cuda.nvcc_compiler import (NVCC_compiler as NVCC_base,
                                                hash_from_file)
 
@@ -27,8 +26,6 @@ class NVCC_compiler(NVCC_base):
                          'cuda_ndarray.cuh'))
         flags.append('-DCUDA_NDARRAY_CUH=' + cuda_ndarray_cuh_hash)
 
-        # numpy 1.7 deprecated the following macros but they didn't
-        # exist in the past
         numpy_ver = [int(n) for n in numpy.__version__.split('.')[:2]]
         if bool(numpy_ver < [1, 7]):
             flags.append("-DNPY_ARRAY_ENSURECOPY=NPY_ENSURECOPY")
@@ -38,7 +35,6 @@ class NVCC_compiler(NVCC_base):
             flags.append("-DNPY_ARRAY_C_CONTIGUOUS=NPY_C_CONTIGUOUS")
             flags.append("-DNPY_ARRAY_F_CONTIGUOUS=NPY_F_CONTIGUOUS")
 
-        # If the user didn't specify architecture flags add them
         if not any(['-arch=sm_' in f for f in flags]):
             dev = theano.sandbox.gpuarray.init_dev.device
             if dev is None:

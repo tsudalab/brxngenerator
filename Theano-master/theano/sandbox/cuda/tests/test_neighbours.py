@@ -1,4 +1,3 @@
-# Skip test if cuda_ndarray is not available.
 from __future__ import absolute_import, print_function, division
 from nose.plugins.skip import SkipTest
 

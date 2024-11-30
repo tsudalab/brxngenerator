@@ -48,11 +48,8 @@ class TestCorr2D(utt.InferShapeTester):
         if filters is None:
             filters = self.filters
 
-        # THEANO IMPLEMENTATION
 
-        # we create a symbolic function so that verify_grad can work
         def sym_CorrMM(input, filters):
-            # define theano graph and function
             input.name = 'input'
             filters.name = 'filters'
             rval = corr.CorrMM(border_mode, subsample)(input, filters)
@@ -63,7 +60,6 @@ class TestCorr2D(utt.InferShapeTester):
         output.name = 'CorrMM()(%s,%s)' % (input.name, filters.name)
         theano_corr = theano.function([input, filters], output, mode=self.mode)
 
-        # initialize input and compute result
         image_data = numpy.random.random(N_image_shape).astype(self.dtype)
         filter_data = numpy.random.random(N_filter_shape).astype(self.dtype)
         if non_contiguous:
@@ -78,8 +74,6 @@ class TestCorr2D(utt.InferShapeTester):
 
         theano_output = theano_corr(image_data, filter_data)
 
-        # REFERENCE IMPLEMENTATION
-        # Testing correlation, not convolution. Reverse filters.
         filter_data_corr = numpy.array(filter_data[:, :, ::-1, ::-1],
                                        copy=True,
                                        order='C')
@@ -100,12 +94,10 @@ class TestCorr2D(utt.InferShapeTester):
         else:
             raise NotImplementedError('Unsupported border_mode {}'.format(border_mode))
         out_shape2d = numpy.floor((img_shape2d + 2 * (padHW) - fil_shape2d) / subsample2d) + 1
-        # avoid numpy deprecation
         out_shape2d = out_shape2d.astype('int32')
         out_shape = (N_image_shape[0], N_filter_shape[0]) + tuple(out_shape2d)
         ref_output = numpy.zeros(out_shape)
 
-        # loop over output feature maps
         ref_output.fill(0)
         image_data2 = numpy.zeros((N_image_shape[0], N_image_shape[1],
                                    N_image_shape[2] + 2 * padHW[0],
@@ -130,7 +122,6 @@ class TestCorr2D(utt.InferShapeTester):
 
         self.assertTrue(_allclose(theano_output, ref_output))
 
-        # TEST GRADIENT
         if verify_grad:
             utt.verify_grad(sym_CorrMM, [orig_image_data, filter_data])
 
@@ -152,7 +143,6 @@ class TestCorr2D(utt.InferShapeTester):
             for img, fil in zip(img_shapes, fil_shapes):
                 self.validate(img, fil, border_mode, verify_grad=False)
 
-        # Very slow on with 'full' or 'half'
         self.validate((1, 10, 213, 129), (46, 10, 212, 1), 'valid', verify_grad=False)
 
     def test_img_kernel_same_shape(self):
@@ -255,7 +245,6 @@ class TestCorr2D(utt.InferShapeTester):
             bdtens_val = rand(*bivec_val)
             for mode in modes:
                 for subsample in subsamples:
-                    # CorrMM
                     cdtens = corrMM(border_mode=mode, subsample=subsample)(adtens, bdtens)
                     self._compile_and_check([adtens, bdtens],
                                             [cdtens],
@@ -285,11 +274,9 @@ class TestCorr2D(utt.InferShapeTester):
             bdtens_val = rand(*bivec_val)
             for mode in modes:
                 for subsample in subsamples:
-                    # CorrMM
                     cdtens = corrMM(border_mode=mode, subsample=subsample)(adtens, bdtens)
                     f = theano.function([adtens, bdtens], cdtens)
                     cdtens_val = f(adtens_val, bdtens_val)
-                    # CorrMM_gradWeights
                     shape = (theano.shared(bivec_val[2]), theano.shared(bivec_val[3]))
                     bdtens_g = gradW(border_mode=mode,
                                      subsample=subsample)(adtens, cdtens, shape=shape)
@@ -321,11 +308,9 @@ class TestCorr2D(utt.InferShapeTester):
             bdtens_val = rand(*bivec_val)
             for mode in modes:
                 for subsample in subsamples:
-                    # CorrMM
                     cdtens = corrMM(border_mode=mode, subsample=subsample)(adtens, bdtens)
                     f = theano.function([adtens, bdtens], cdtens)
                     cdtens_val = f(adtens_val, bdtens_val)
-                    # CorrMM_gradInputs
                     shape = (theano.shared(aivec_val[2]), theano.shared(aivec_val[3]))
                     adtens_g = gradI(border_mode=mode,
                                      subsample=subsample)(bdtens, cdtens, shape=shape)

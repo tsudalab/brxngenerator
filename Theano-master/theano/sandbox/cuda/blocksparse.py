@@ -86,7 +86,6 @@ __global__ void _sgemvBH_N_a1_b1_small(const float *A[], int lda,
       float yi = 0.0f;
       const float *Ap = A[p] + i;
       const float *xp = x[p];
-      #pragma unroll 32
       for (int j = 0; j < n; j++) {
         yi += Ap[0] * xp[0];
         Ap += lda;
@@ -107,7 +106,6 @@ __global__ void _sgemvBH_T_a1_b1_small(const float *A[], int lda,
   float yi = 0.0f;
   const float *Ap = A[p] + i * lda;
   const float *xp = x[p];
-  # pragma unroll 32
   for (int j = 0; j < n; j++) {
     yi += Ap[j] * xp[0];
     xp += incx;

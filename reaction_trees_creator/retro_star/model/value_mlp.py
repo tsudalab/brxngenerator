@@ -17,14 +17,10 @@ class ValueMLP(nn.Module):
 
         layers = []
         layers.append(nn.Linear(fp_dim, latent_dim))
-        # layers.append(nn.BatchNorm1d(latent_dim,
-        #                              track_running_stats=False))
         layers.append(nn.ReLU())
         layers.append(nn.Dropout(self.dropout_rate))
         for _ in range(self.n_layers - 1):
             layers.append(nn.Linear(latent_dim, latent_dim))
-            # layers.append(nn.BatchNorm1d(latent_dim,
-            #                              track_running_stats=False))
             layers.append(nn.ReLU())
             layers.append(nn.Dropout(self.dropout_rate))
         layers.append(nn.Linear(latent_dim, 1))

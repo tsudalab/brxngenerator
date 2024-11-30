@@ -49,11 +49,9 @@ def test_optimizer():
     mode = mode.excluding('fusion')
     f = theano.function([x], [theano.tensor.log(x) * x],
                         mode=mode)
-    # Test that the fusion wasn't done
     assert len(f.maker.fgraph.apply_nodes) == 2
     f(0)  # log(0) * 0 = -inf * 0 = NaN
 
-    # Test that we still detect the nan
     assert nan_detected[0]
 
 
@@ -75,7 +73,6 @@ def test_not_inplace():
 
     x = theano.tensor.vector('x')
     mode = theano.compile.MonitorMode(post_func=detect_nan)
-    # mode = mode.excluding('fusion', 'inplace')
     mode = mode.excluding('local_elemwise_fusion',
                           'inplace_elemwise_optimizer')
     o = theano.tensor.outer(x, x)
@@ -83,10 +80,8 @@ def test_not_inplace():
     f = theano.function([x], [out],
                         mode=mode)
 
-    # Test that the fusion wasn't done
     assert len(f.maker.fgraph.apply_nodes) == 5
     assert not f.maker.fgraph.toposort()[-1].op.destroy_map
     f([0, 0])  # log(0) * 0 = -inf * 0 = NaN
 
-    # Test that we still detect the nan
     assert nan_detected[0]

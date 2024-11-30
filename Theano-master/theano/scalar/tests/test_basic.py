@@ -44,13 +44,6 @@ class test_ScalarOps(unittest.TestCase):
         fn = gof.DualLinker().accept(g).make_function()
         assert fn(1.0, 2.0) == 1.5
 
-    # This test is moved to theano.tensor.tests.test_basic.py:test_mod
-    # We move it their as under ubuntu the c_extract call of theano.scalar
-    # call PyInt_check and it fail under some os. If work in other case.
-    # As we use theano.scalar normally, but we use theano.tensor.scalar
-    # that is not important. Also this make the theano fct fail at call time
-    # so this is not a silent bug.
-    # --> This is why it is purposedly named 'tes_mod' instead of 'test_mod'.
     def tes_mod(self):
         """
         We add this test as not all language and C implementation give the same
@@ -73,21 +66,17 @@ class test_composite(unittest.TestCase):
         e = mul(add(x, y), div_proxy(x, y))
         C = Composite([x, y], [e])
         c = C.make_node(x, y)
-        # print c.c_code(['x', 'y'], ['z'], dict(id = 0))
         g = FunctionGraph([x, y], [c.out])
         fn = gof.DualLinker().accept(g).make_function()
         assert fn(1.0, 2.0) == 1.5
 
     def test_flatten(self):
-        # Test that we flatten multiple Composite.
         x, y, z = inputs()
         C = Composite([x, y], [x + y])
         CC = Composite([x, y], [C(x * y, y)])
         assert not isinstance(CC.outputs[0].owner.op, Composite)
 
-        # Test with multiple outputs
         CC = Composite([x, y, z], [C(x * y, y), C(x * z, y)])
-        # We don't flatten that case.
         assert isinstance(CC.outputs[0].owner.op, Composite)
 
     def test_with_constants(self):
@@ -96,7 +85,6 @@ class test_composite(unittest.TestCase):
         C = Composite([x, y], [e])
         c = C.make_node(x, y)
         assert "70.0" in c.op.c_code(c, 'dummy', ['x', 'y'], ['z'], dict(id=0))
-        # print c.c_code(['x', 'y'], ['z'], dict(id = 0))
         g = FunctionGraph([x, y], [c.out])
         fn = gof.DualLinker().accept(g).make_function()
         assert fn(1.0, 2.0) == 36.0
@@ -108,7 +96,6 @@ class test_composite(unittest.TestCase):
         e2 = x / y
         C = Composite([x, y, z], [e0, e1, e2])
         c = C.make_node(x, y, z)
-        # print c.c_code(['x', 'y', 'z'], ['out0', 'out1', 'out2'], dict(id = 0))
         g = FunctionGraph([x, y, z], c.outputs)
         fn = gof.DualLinker().accept(g).make_function()
         assert fn(1.0, 2.0, 3.0) == [6.0, 7.0, 0.5]
@@ -136,12 +123,7 @@ class test_composite(unittest.TestCase):
                           '*1::1, *1::2, *1::3, *1::4, *1::5, *1::6, *1::7]')
 
     def test_make_node_continue_graph(self):
-        # This is a test for a bug (now fixed) that disabled the
-        # local_gpu_elemwise_0 optimization and printed an
-        # optimization warning on the terminal.
 
-        # We test that Composite.make_node accept as inputs Variable
-        # some that represent existing computation.
 
         si0 = theano.scalar.int8()
         si1 = theano.scalar.int8()
@@ -156,9 +138,6 @@ class test_composite(unittest.TestCase):
         sop.make_node(si0 * si3, si1, si2)
 
     def test_composite_neg_bool(self):
-        # Check that taking the negation of a Boolean intermediate value
-        # works correctly with Python code. It used to be an issue because
-        # `-numpy.bool_(True)` is False and `-numpy.bool_(False)` is True.
         x = floats('x')
         y = - (x > 0)
         z = Composite([x], [y]).make_node(x).outputs[0]
@@ -239,16 +218,7 @@ class test_logical(unittest.TestCase):
             self.assertTrue(fn(a, b) == ~a, (a,))
 
 
-# This class does not inherit from unittest.TestCase, because it would
-# interfere with the "yield" mechanism that automatically generates test, see
-# http://stackoverflow.com/questions/6689537/nose-test-generators-inside-class
-# Therefore, it needs to be named "test_..." or "Test_...", so nose can pick
-# it up by name, otherwise the tests would not be executed.
 class test_upgrade_to_float(object):
-    # Test for Ops whose output has to be floating point, even when all
-    # inputs are ints.
-    # In particular, when the inputs are int8, the output should be
-    # at least float32, not float16.
 
     unary_ops_vals = [
         (inv, list(range(-127, 0)) + list(range(1, 127))),
@@ -318,8 +288,6 @@ class test_upgrade_to_float(object):
                 assert np.allclose(outi, outf), 'insufficient precision'
 
     def test_true_div(self):
-        # true_div's upcast policy is not exactly "upgrade_to_float",
-        # so the test is a little bit different
         x_range = list(range(-127, 128))
         y_range = list(range(-127, 0)) + list(range(1, 127))
 
@@ -343,19 +311,15 @@ class test_upgrade_to_float(object):
                 assert np.allclose(outi, outf), 'insufficient precision'
 
     def test_unary(self):
-        # Automatically define all individual unary tests
         for unary_op, x_range in self.unary_ops_vals:
             test_name = 'test_%s' % unary_op.name
-            # Make a lambda function so we can name the test
             test = lambda: self._test_unary(unary_op, x_range)
             test.description = test_name
             yield test
 
     def test_binary(self):
-        # Automatically define all individual binary tests
         for binary_op, x_range, y_range in self.binary_ops_vals:
             test_name = 'test_%s' % binary_op.name
-            # Make a lambda function so we can name the test
             test = lambda: self._test_binary(binary_op, x_range, y_range)
             test.description = test_name
             yield test
@@ -382,7 +346,6 @@ class test_div(unittest.TestCase):
         d = float64()
         f = float32()
 
-        #print (a//b).owner.op
         assert isinstance((a//b).owner.op, IntDiv)
         assert isinstance((b//a).owner.op, IntDiv)
         assert isinstance((b/d).owner.op, TrueDiv)
@@ -404,10 +367,6 @@ def test_grad_gt():
 
 def test_grad_switch():
 
-    # This is a code snippet from the mailing list
-    # It caused an assert to be raised due to the
-    # switch op's grad method not handling integer
-    # inputs correctly
 
     x = theano.tensor.matrix()
     c = theano.tensor.matrix()
@@ -419,9 +378,7 @@ def test_grad_switch():
 
 
 def test_grad_identity():
-    # Check that the grad method of Identity correctly handles int dytpes
     x = theano.tensor.imatrix('x')
-    # tensor_copy is Elemwise{Identity}
     y = theano.tensor.tensor_copy(x)
     l = y.sum(dtype=theano.config.floatX)
     theano.gradient.grad(l, x)
@@ -429,7 +386,6 @@ def test_grad_identity():
 
 def test_grad_inrange():
     for bound_definition in [(True, True), (False, False)]:
-        # Instantiate op, and then take the gradient
         op = InRange(*bound_definition)
         x = theano.tensor.fscalar('x')
         low = theano.tensor.fscalar('low')
@@ -437,14 +393,6 @@ def test_grad_inrange():
         out = op(x, low, high)
         gx, glow, ghigh = theano.tensor.grad(out, [x, low, high])
 
-        # We look if the gradient are equal to zero
-        # if x is lower than the lower bound,
-        # equal to the lower bound, between lower and higher bound,
-        # equal to the higher bound and higher than the higher
-        # bound.
-        # Mathematically we should have an infinite gradient when
-        # x is equal to the lower or higher bound but in that case
-        # Theano defines the gradient to be zero for stability.
         f = theano.function([x, low, high], [gx, glow, ghigh])
         utt.assert_allclose(f(0, 1, 5), [0, 0, 0])
         utt.assert_allclose(f(1, 1, 5), [0, 0, 0])
@@ -453,8 +401,6 @@ def test_grad_inrange():
         utt.assert_allclose(f(7, 1, 5), [0, 0, 0])
 
 
-# Testing of Composite is done in tensor/tests/test_opt.py
-# in test_fusion, TestCompositeCodegen
 
 
 if __name__ == '__main__':

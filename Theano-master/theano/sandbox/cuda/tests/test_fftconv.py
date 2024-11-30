@@ -5,7 +5,6 @@ import numpy
 import theano
 from theano.tests import unittest_tools as utt
 
-# Skip tests if cuda_ndarray is not available.
 from nose.plugins.skip import SkipTest
 import theano.sandbox.cuda as cuda_ndarray
 if not cuda_ndarray.cuda_available:  # noqa
@@ -81,7 +80,6 @@ class TestConv2dFFT(unittest.TestCase):
         f_ref = theano.function([], conv)
         f_fft = theano.function([], conv, mode=mode)
 
-        # make sure we inserted the fft trickery
         topo = f_fft.maker.fgraph.toposort()
         assert sum(isinstance(n.op, theano.sandbox.cuda.fftconv.CuFFTOp)
                    for n in topo) == 2, topo
@@ -109,7 +107,6 @@ class TestConv2dFFT(unittest.TestCase):
         f_ref = theano.function([], conv)
         f_fft = theano.function([], conv, mode=mode)
 
-        # make sure we inserted the fft trickery
         topo = f_fft.maker.fgraph.toposort()
         assert sum(isinstance(n.op, theano.sandbox.cuda.fftconv.CuFFTOp)
                    for n in topo) == 2, topo
@@ -136,7 +133,6 @@ class TestConv2dFFT(unittest.TestCase):
 
         f_fft = theano.function([], conv, mode=mode)
 
-        # make sure we that no CuFFTOp has been inserted
         topo = f_fft.maker.fgraph.toposort()
         assert sum(isinstance(n.op, theano.sandbox.cuda.fftconv.CuFFTOp)
                    for n in topo) == 0
@@ -159,7 +155,6 @@ class TestConv2dFFT(unittest.TestCase):
 
         f_fft = theano.function([], conv, mode=mode)
 
-        # make sure we that no CuFFTOp has been inserted
         topo = f_fft.maker.fgraph.toposort()
         assert sum(isinstance(n.op, theano.sandbox.cuda.fftconv.CuFFTOp)
                    for n in topo) == 0
@@ -175,9 +170,7 @@ class TestConv3dFFT(unittest.TestCase):
         filters = shared(filters_val)
         bias = shared(numpy.zeros(filters_shape[0]).astype('float32'))
 
-        # Flip filter as conv3D compute correlation
         filters_flip = filters[:, ::-1, ::-1, ::-1, :]
-        # filters_flip = filters
         conv_ref = theano.tensor.nnet.conv3D(V=inputs, W=filters_flip,
                                              b=bias, d=(1, 1, 1))
 
@@ -258,7 +251,6 @@ class TestConv3dFFT(unittest.TestCase):
         f_ref = theano.function([], conv, mode="FAST_RUN")
         f_fft = theano.function([], conv, mode=mode)
 
-        # make sure we inserted the fft trickery
         topo = f_fft.maker.fgraph.toposort()
         assert sum(isinstance(n.op, theano.sandbox.cuda.fftconv.CuFFTOp)
                    for n in topo) == 2
@@ -292,7 +284,6 @@ class TestConv3dFFT(unittest.TestCase):
         f_ref = theano.function([], conv, mode="FAST_RUN")
         f_fft = theano.function([], conv, mode=mode)
 
-        # make sure we inserted the fft trickery
         topo = f_fft.maker.fgraph.toposort()
         assert sum(isinstance(n.op, theano.sandbox.cuda.fftconv.CuFFTOp)
                    for n in topo) == 2
@@ -320,7 +311,6 @@ class TestConv3dFFT(unittest.TestCase):
         f_ref = theano.function([], conv)
         f_fft = theano.function([], conv, mode=mode)
 
-        # make sure we inserted the fft trickery
         topo = f_fft.maker.fgraph.toposort()
         assert sum(isinstance(n.op, theano.sandbox.cuda.fftconv.CuFFTOp)
                    for n in topo) == 2

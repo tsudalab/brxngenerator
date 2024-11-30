@@ -25,24 +25,17 @@ class Record(object):
     match a mismatch exception is raised.
 
     Example:
-       # Create a Record object and store 'hello world' inside it
        output = cStringIO.StringIO()
        recorder = Record(file_object=output, replay=False)
        recorder.handle_line('hello world \n')
 
-       # Store the previous output
        output_value = output.getvalue()
        output = cStringIO.StringIO(output_value)
 
-       # Create another Record object, now in playback mode, and set
-       # it to the previous sequence of strings
        playback_checker = Record(file_object=output,  replay=True)
 
-       # Check if it matches the previous one
        playback_checker.handle_line('hello world \n')
 
-       # Now check if it the next item matches something else. This will
-       # throw an exception because there is no next item
        playback_checker.handle_line('hello new world \n')
     """
 
@@ -116,30 +109,20 @@ class RecordMode(Mode):
     numpy ndarrays it receives as inputs and produces as output.
 
     Example:
-       # We use RecordMode to test that the computation of a function is
        identical. Create a Record object and use it to initialize a
        RecordMode object.
        output = cStringIO.StringIO()
        record = Record(file_object=output, replay=False)
        record_mode = RecordMode(record)
 
-       # Then compile and call the function you wish to test, which uses
-       # Apply nodes with record_mode as first parameter to record all the
-       # computations to file. For example, call a Theano function with the
-       # RecordMode object.
        x = theano.tensor.dscalar()
        f = theano.function([x], 2*x, mode=record_mode)
        print f(4)
 
-       # Create another RecordMode object and initialize it with the previous
-       # record.
        output = cStringIO.StringIO(output.getvalue())
        playback = Record(file_object=output, replay=True)
        playback_mode = RecordMode(playback)
 
-       # Compile and call the function to test again with record_mode as
-       # first parameter. An exception will be thrown if the recorded
-       # computations are not identical between the two runs.
        x = theano.tensor.dscalar()
        f = theano.function([x], 2*x, mode=playback_mode)
        print f(4)
@@ -249,7 +232,6 @@ class RecordMode(Mode):
             line = 'Outputs: ' + outputs_digest + '\n'
             handle_line(line, i, node, fn)
 
-        # linker = theano.gof.OpWiseCLinker()
         linker = theano.gof.vm.VM_Linker(use_cloop=bool(theano.config.cxx))
 
         wrap_linker = theano.gof.WrapLinkerMany([linker], [callback])

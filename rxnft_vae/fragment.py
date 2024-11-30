@@ -8,12 +8,10 @@ from chemutils import get_mol, decode_stereo, tree_decomp, get_clique_mol, get_s
 
 def get_slots(smiles):
 	mol = Chem.MolFromSmiles(smiles)
-	#print(smiles, mol)
 	results = [(atom.GetSymbol(), atom.GetFormalCharge(), atom.GetTotalNumHs()) for atom in mol.GetAtoms()]
 	return results
 
 
-# definition for FragmentVocab
 class FragmentVocab(object):
 	def __init__(self, smiles_list, filename=None):
 		if filename is not None:
@@ -137,13 +135,8 @@ def can_be_decomposed(smiles):
 	mol = Chem.MolFromSmiles(smiles)
 	if mol is None:
 		return False
-	#smiles3D = Chem.MolToSmiles(mol, isomericSmiles = True)
-	#smiles2D = Chem.MolToSmiles(mol)
-	#stereo_cands = decode_stereo(smiles2D)
 	cliques, edges = tree_decomp(mol)
-	#print(cliques, edges)
 	for i,c in enumerate(cliques):
-		#print(smiles, i, c)
 		cmol = get_clique_mol(mol, c)
 		if cmol is None:
 			return False
@@ -153,12 +146,6 @@ def can_be_decomposed(smiles):
 			return False
 	return True
 
-#smiles = "CN1CCC(CCCN(C(=O)OC(C)(C)C)C(=NC(=O)OC(C)(C)C)NC(=O)OC(C)(C)C)CC1"
-#smiles = "COc1cccc(C(=O)OC[C@@H]2CCCN(C(=O)c3ccc(C)o3)C2)n1"
-#result = can_be_decomposed(smiles)
-#tree = FragmentTree(smiles)
-#tree.print()
-#tree.assemble()
 
 '''
 cset=set()

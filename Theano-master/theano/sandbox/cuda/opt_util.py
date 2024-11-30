@@ -34,8 +34,6 @@ def grab_cpu_scalar(v, nd):
 
 
 def find_node(v, cls, ignore_clients=False):
-    # This digs through possibly redundant transfers to for the node
-    # that has the op class specified.
     if v.owner is not None and (ignore_clients or len(v.clients) == 1):
         if isinstance(v.owner.op, cls):
             return v.owner
@@ -49,8 +47,6 @@ def find_node(v, cls, ignore_clients=False):
 
 
 def is_equal(var, val):
-    # Returns True if var is always equal to val (python value), False
-    # otherwise (including if var is not constant)
     try:
         v = get_scalar_constant_value(var)
         return v == val
@@ -114,11 +110,8 @@ def output_merge(cls, alpha_in, beta_in, out_in):
                 if targ is None:
                     return None
                 if not is_equal(targ.inputs[beta_in], 0.0):
-                    # other cases are too complex for now
                     return None
                 if W.broadcastable != targ.inputs[out_in].broadcastable:
-                    # May change later to do the broadcast, but it's
-                    # under discussion.
                     return None
                 inputs = list(targ.inputs)
                 inputs[out_in] = W

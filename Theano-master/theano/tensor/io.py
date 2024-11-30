@@ -5,9 +5,6 @@ from theano.gof import Constant, Generic, Op
 from theano.gof.sched import key_to_cmp
 from theano.tensor import tensor
 import theano
-##########################
-# Disk Access
-##########################
 
 
 class LoadFromDisk(Op):
@@ -91,9 +88,6 @@ def load(path, dtype, broadcastable, mmap_mode=None):
 
     return LoadFromDisk(dtype, broadcastable, mmap_mode)(path)
 
-##########################
-# MPI
-##########################
 
 try:
     from mpi4py import MPI
@@ -287,7 +281,6 @@ def recv(shape, dtype, source, tag):
     return MPIRecvWait(tag)(*irecv(shape, dtype, source, tag))
 
 
-# Ordering keys for scheduling
 def mpi_send_wait_key(a):
     """Wait as long as possible on Waits, Start Send/Recvs early."""
     if isinstance(a.op, (MPIRecvWait, MPISendWait)):

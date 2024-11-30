@@ -17,9 +17,6 @@ if not cuda_available:
 else:
     from theano.sandbox.cuda import CudaNdarray
 
-# testfile created on cuda enabled machine using
-# >>> with open('CudaNdarray.pkl', 'wb') as fp:
-# >>> cPickle.dump(theano.sandbox.cuda.CudaNdarray(np.array([-42.0], dtype=np.float32)), fp)
 
 
 def test_unpickle_flag_is_false_by_default():
@@ -46,10 +43,6 @@ def test_unpickle_cudandarray_as_numpy_ndarray_flag0():
                 try:
                     mat = u.load()
                 except ImportError:
-                    # Windows sometimes fail with nonsensical errors like:
-                    #   ImportError: No module named type
-                    #   ImportError: No module named copy_reg
-                    # when "type" and "copy_reg" are builtin modules.
                     if sys.platform == 'win32':
                         exc_type, exc_value, exc_trace = sys.exc_info()
                         reraise(SkipTest, exc_value, exc_trace)
@@ -79,10 +72,6 @@ def test_unpickle_cudandarray_as_numpy_ndarray_flag1():
             try:
                 mat = u.load()
             except ImportError:
-                # Windows sometimes fail with nonsensical errors like:
-                #   ImportError: No module named type
-                #   ImportError: No module named copy_reg
-                # when "type" and "copy_reg" are builtin modules.
                 if sys.platform == 'win32':
                     exc_type, exc_value, exc_trace = sys.exc_info()
                     reraise(SkipTest, exc_value, exc_trace)

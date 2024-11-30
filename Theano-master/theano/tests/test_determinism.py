@@ -18,12 +18,6 @@ def sharedX(x, name=None):
 
 def test_determinism_1():
 
-    # Tests that repeatedly running a script that compiles and
-    # runs a function does exactly the same thing every time it
-    # is run, even when the memory addresses of the objects involved
-    # change.
-    # This specific script is capable of catching a bug where
-    # FunctionGraph.toposort was non-deterministic.
 
     def run(replay, log=None):
 
@@ -76,8 +70,6 @@ def test_determinism_1():
             return log.getvalue()
 
     log = run(0)
-    # Do several trials, since failure doesn't always occur
-    # (Sometimes you sample the same outcome twice in a row)
     for i in xrange(10):
         run(1, log)
 

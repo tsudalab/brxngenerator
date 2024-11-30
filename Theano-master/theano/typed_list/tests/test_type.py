@@ -10,7 +10,6 @@ from theano.typed_list.type import TypedListType
 from theano.tests import unittest_tools as utt
 
 
-# took from tensors/tests/test_basic.py
 def rand_ranged_matrix(minimum, maximum, shape):
     return numpy.asarray(numpy.random.rand(*shape) * (maximum - minimum) +
                          minimum, dtype=theano.config.floatX)
@@ -38,7 +37,6 @@ class test_typed_list_type(unittest.TestCase):
         specified on creation
         """
 
-        # list of matrices
         myType = TypedListType(T.TensorType(theano.config.floatX,
                                             (False, False)))
 
@@ -50,7 +48,6 @@ class test_typed_list_type(unittest.TestCase):
         if no iterable variable is given on input
         """
 
-        # list of matrices
         myType = TypedListType(T.TensorType(theano.config.floatX,
                                             (False, False)))
 
@@ -62,13 +59,10 @@ class test_typed_list_type(unittest.TestCase):
         when they contains the same theano
         variables
         """
-        # list of matrices
         myType1 = TypedListType(T.TensorType(theano.config.floatX,
                                              (False, False)))
-        # list of matrices
         myType2 = TypedListType(T.TensorType(theano.config.floatX,
                                              (False, False)))
-        # list of scalars
         myType3 = TypedListType(T.TensorType(theano.config.floatX,
                                              ()))
 
@@ -99,8 +93,6 @@ class test_typed_list_type(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(myType.filter([x]), [x]))
 
-    # Will fail for unknown reasons
-    # under search
     """
     def test_load(self):
         myType = TypedListType(T.TensorType(theano.config.floatX,

@@ -58,7 +58,6 @@ class SparseType(gof.Type):
                      'float64', 'complex64', 'complex128'])
     ndim = 2
 
-    # Will be set to SparseVariable SparseConstant later.
     Variable = None
     Constant = None
 
@@ -87,7 +86,6 @@ class SparseType(gof.Type):
         if strict:
             raise TypeError("%s is not sparse, or not the right dtype (is %s, "
                             "expected %s)" % (value, value.dtype, self.dtype))
-        # The input format could be converted here
         if allow_downcast:
             sp = self.format_cls[self.format](value, dtype=self.dtype)
         else:
@@ -101,8 +99,6 @@ class SparseType(gof.Type):
 
     @staticmethod
     def may_share_memory(a, b):
-        # This is Fred suggestion for a quick and dirty way of checking
-        # aliasing .. this can potentially be further refined (ticket #374)
         if _is_sparse(a) and _is_sparse(b):
             return (SparseType.may_share_memory(a, b.data) or
                     SparseType.may_share_memory(a, b.indices) or
@@ -113,7 +109,6 @@ class SparseType(gof.Type):
             if (numpy.may_share_memory(a.data, b) or
                     numpy.may_share_memory(a.indices, b) or
                     numpy.may_share_memory(a.indptr, b)):
-                # currently we can't share memory with a.shape as it is a tuple
                 return True
         return False
 
@@ -134,25 +129,14 @@ class SparseType(gof.Type):
         return "Sparse[%s, %s]" % (str(self.dtype), str(self.format))
 
     def values_eq_approx(self, a, b, eps=1e-6):
-        # WARNING: equality comparison of sparse matrices is not fast or easy
-        # we definitely do not want to be doing this un-necessarily during
-        # a FAST_RUN computation..
         if not scipy.sparse.issparse(a) or not scipy.sparse.issparse(b):
             return False
         diff = abs(a - b)
         if diff.nnz == 0:
             return True
-        # Built-in max from python is not implemented for sparse matrix as a
-        # reduction. It returns a sparse matrix wich cannot be compared to a
-        # scalar. When comparing sparse to scalar, no exceptions is raised and
-        # the returning value is not consistent. That is why it is apply to a
-        # numpy.ndarray.
         return max(diff.data) < eps
 
     def values_eq(self, a, b):
-        # WARNING: equality comparison of sparse matrices is not fast or easy
-        # we definitely do not want to be doing this un-necessarily during
-        # a FAST_RUN computation..
         return scipy.sparse.issparse(a) \
             and scipy.sparse.issparse(b) \
             and abs(a - b).sum() == 0.0
@@ -171,7 +155,6 @@ class SparseType(gof.Type):
         return (shape_info[1] * numpy.dtype(self.dtype).itemsize +
                 (shape_info[2] + shape_info[3]) * numpy.dtype('int32').itemsize)
 
-# Register SparseType's C code for ViewOp.
 theano.compile.register_view_op_c_code(
     SparseType,
     """

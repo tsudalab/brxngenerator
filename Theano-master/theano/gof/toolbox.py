@@ -167,9 +167,6 @@ class History(Feature):
             raise AlreadyThere("History feature is already present or in"
                                " conflict with another plugin.")
         self.history[fgraph] = []
-        # Don't call unpickle here, as ReplaceValidate.on_attach()
-        # call to History.on_attach() will call the
-        # ReplaceValidate.unpickle and not History.unpickle
         fgraph.checkpoint = GetCheckpoint(self, fgraph)
         fgraph.revert = partial(self.revert, fgraph)
 
@@ -212,9 +209,6 @@ class Validator(Feature):
             if hasattr(fgraph, attr):
                 raise AlreadyThere("Validator feature is already present or in"
                                    " conflict with another plugin.")
-        # Don't call unpickle here, as ReplaceValidate.on_attach()
-        # call to History.on_attach() will call the
-        # ReplaceValidate.unpickle and not History.unpickle
         fgraph.validate = partial(self.validate_, fgraph)
         fgraph.consistent = partial(self.consistent_, fgraph)
 
@@ -235,10 +229,6 @@ class Validator(Feature):
             uf = cf.f_back
             uf_info = inspect.getframeinfo(uf)
 
-            # If the caller is replace_all_validate, just raise the
-            # exception. replace_all_validate will print out the
-            # verbose output.
-            # Or it has to be done here before raise.
             if uf_info.function == 'replace_all_validate':
                 raise
             else:
@@ -313,9 +303,6 @@ class ReplaceValidate(History, Validator):
                 s2 = 'does not belong to this FunctionGraph'
                 s3 = 'maximum recursion depth exceeded'
                 if s3 in msg:
-                    # There is nothing safe we can do to recover from this.
-                    # So don't revert as this raise a different error
-                    # that isn't helpful.
                     e.args += (
                         "Please, report this to theano-dev mailing list."
                         " As a temporary work around, you can raise Python"
@@ -326,8 +313,6 @@ class ReplaceValidate(History, Validator):
                     out = sys.stderr
                     print("<<!! BUG IN FGRAPH.REPLACE OR A LISTENER !!>>",
                           type(e), e, reason, file=out)
-                # this might fail if the error is in a listener:
-                # (fgraph.replace kinda needs better internal error handling)
                 fgraph.revert(chk)
                 raise
         try:
@@ -339,7 +324,6 @@ class ReplaceValidate(History, Validator):
             raise
         if verbose:
             print(reason, r, new_r)
-        # The return is needed by replace_all_validate_remove
         return chk
 
     def replace_all_validate_remove(self, fgraph, replacements,
@@ -510,8 +494,6 @@ class NoOutputFromInplace(Feature):
             if out.owner is None:
                 continue
 
-            # Validate that the node that produces the output does not produce
-            # it by modifying something else inplace.
             node = out.owner
             op = node.op
             out_idx = node.outputs.index(out)

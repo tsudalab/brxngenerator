@@ -35,12 +35,7 @@ class SortOp(theano.Op):
     def infer_shape(self, node, inputs_shapes):
         if (isinstance(node.inputs[1], theano.Constant) and
                 node.inputs[1].data is None):
-            # That means axis = None,
-            # So the array is flattened before being sorted
             return [(mul(*inputs_shapes[0]),)]
-        # axis should not be None
-        # So there should be the same number of dimensions
-        # in the input and output
         assert node.inputs[0].ndim == node.outputs[0].ndim
         assert inputs_shapes[1] == ()
         return [inputs_shapes[0]]
@@ -58,8 +53,6 @@ class SortOp(theano.Op):
     def __get_expanded_dim(self, a, axis, i):
         index_shape = [1] * a.ndim
         index_shape[i] = a.shape[i]
-        # it's a way to emulate
-        # numpy.ogrid[0: a.shape[0], 0: a.shape[1], 0: a.shape[2]]
         index_val = arange(a.shape[i]).reshape(index_shape)
         return index_val
 
@@ -75,10 +68,7 @@ class SortOp(theano.Op):
 
         """
 
-        # The goal is to get gradient wrt input from gradient
-        # wrt sort(input, axis)
         idx = argsort(a, axis, kind=self.kind, order=self.order)
-        # rev_idx is the reverse of previous argsort operation
         rev_idx = argsort(idx, axis, kind=self.kind, order=self.order)
         indices = []
         axis_data = theano.tensor.switch(theano.tensor.ge(axis.data, 0),
@@ -92,10 +82,6 @@ class SortOp(theano.Op):
         return indices
     """
     def R_op(self, inputs, eval_points):
-        # R_op can receive None as eval_points.
-        # That mean there is no diferientiable path through that input
-        # If this imply that you cannot compute some outputs,
-        # return None for those.
         if eval_points[0] is None:
             return eval_points
         return self.grad(inputs, eval_points)
@@ -165,14 +151,11 @@ class ArgSortOp(theano.Op):
         if (isinstance(node.inputs[1], theano.Constant) and
                 node.inputs[1].data is None):
             return [(mul(*inputs_shapes[0]),)]
-        # axis should not be None, so there should be the same number of
-        # dimensions in the input and output
         assert node.inputs[0].ndim == node.outputs[0].ndim
         assert inputs_shapes[1] == ()
         return [inputs_shapes[0]]
 
     def grad(self, inputs, output_grads):
-        # No grad defined for intergers.
         inp, axis = inputs
         inp_grad = inp.zeros_like()
         axis_grad = theano.gradient.grad_undefined(
@@ -182,10 +165,6 @@ class ArgSortOp(theano.Op):
         return [inp_grad, axis_grad]
     """
     def R_op(self, inputs, eval_points):
-        # R_op can receive None as eval_points.
-        # That mean there is no diferientiable path through that input
-        # If this imply that you cannot compute some outputs,
-        # return None for those.
         if eval_points[0] is None:
             return eval_points
         return self.grad(inputs, eval_points)

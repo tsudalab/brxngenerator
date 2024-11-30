@@ -41,7 +41,6 @@ __global__ void multiply_them(float *dest, float *a, float *b)
 
     multiply_them = mod.get_function("multiply_them")
 
-    # Test with pycuda in/out of numpy.ndarray
     a = numpy.random.randn(100).astype(numpy.float32)
     b = numpy.random.randn(100).astype(numpy.float32)
     dest = numpy.zeros_like(a)
@@ -67,7 +66,6 @@ __global__ void multiply_them(float *dest, float *a, float *b)
     a = numpy.random.randn(100).astype(numpy.float32)
     b = numpy.random.randn(100).astype(numpy.float32)
 
-    # Test with Theano object
     ga = cuda_ndarray.CudaNdarray(a)
     gb = cuda_ndarray.CudaNdarray(b)
     dest = cuda_ndarray.CudaNdarray.zeros(a.shape)
@@ -77,12 +75,8 @@ __global__ void multiply_them(float *dest, float *a, float *b)
 
 
 def test_pycuda_memory_to_theano():
-    # Test that we can use the GpuArray memory space in pycuda in a CudaNdarray
     y = pycuda.gpuarray.zeros((3, 4, 5), 'float32')
     print(sys.getrefcount(y))
-    # This increase the ref count with never pycuda. Do pycuda also
-    # cache ndarray?
-    # print y.get()
     print("gpuarray ref count before creating a CudaNdarray", end=' ')
     print(sys.getrefcount(y))
     assert sys.getrefcount(y) == 2
@@ -96,7 +90,6 @@ def test_pycuda_memory_to_theano():
     print('strides', strides)
     assert cuda_rand._strides == strides, (cuda_rand._strides, strides)
 
-    # in pycuda trunk, y.ptr also works, which is a little cleaner
     y_ptr = int(y.gpudata)
     z = cuda_ndarray.from_gpu_pointer(y_ptr, y.shape, strides, y)
     print("gpuarray ref count after creating a CudaNdarray", sys.getrefcount(y))
@@ -104,7 +97,6 @@ def test_pycuda_memory_to_theano():
     assert (numpy.asarray(z) == 0).all()
     assert z.base is y
 
-    # Test that we can take a view from this cuda view on pycuda memory
     zz = z.view()
     assert sys.getrefcount(y) == 4
     assert zz.base is y
@@ -123,7 +115,6 @@ def test_pycuda_memory_to_theano():
     z += cuda_rand
     assert (numpy.asarray(z) == (rand + 1)).all()
 
-    # Check that the ref count to the gpuarray is right.
     del z
     print("gpuarray ref count after deleting the CudaNdarray", end=' ')
     print(sys.getrefcount(y))

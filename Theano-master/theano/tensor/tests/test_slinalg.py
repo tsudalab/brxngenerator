@@ -32,7 +32,6 @@ try:
     import scipy.linalg
     imported_scipy = True
 except ImportError:
-    # some ops (e.g. Cholesky, Solve, A_Xinv_b) won't work
     imported_scipy = False
 
 
@@ -61,14 +60,11 @@ def test_cholesky():
     pd = numpy.dot(r, r.T)
     x = tensor.matrix()
     chol = cholesky(x)
-    # Check the default.
     ch_f = function([x], chol)
     yield check_lower_triangular, pd, ch_f
-    # Explicit lower-triangular.
     chol = Cholesky(lower=True)(x)
     ch_f = function([x], chol)
     yield check_lower_triangular, pd, ch_f
-    # Explicit upper-triangular.
     chol = Cholesky(lower=False)(x)
     ch_f = function([x], chol)
     yield check_upper_triangular, pd, ch_f
@@ -83,12 +79,9 @@ def test_cholesky_grad():
     eps = None
     if config.floatX == "float64":
         eps = 2e-8
-    # Check the default.
     yield (lambda: utt.verify_grad(cholesky, [pd], 3, rng, eps=eps))
-    # Explicit lower-triangular.
     yield (lambda: utt.verify_grad(Cholesky(lower=True), [pd], 3,
                                    rng, eps=eps))
-    # Explicit upper-triangular.
     yield (lambda: utt.verify_grad(Cholesky(lower=False), [pd], 3,
                                    rng, eps=eps))
 
@@ -134,8 +127,6 @@ def test_eigvalsh():
         refw = scipy.linalg.eigvalsh(a, b)
         numpy.testing.assert_array_almost_equal(w, refw)
 
-    # We need to test None separatly, as otherwise DebugMode will
-    # complain, as this isn't a valid ndarray.
     b = None
     B = theano.tensor.NoneConst
     f = function([A], eigvalsh(A, B))
@@ -171,7 +162,6 @@ class test_Solve(utt.InferShapeTester):
         b = theano.tensor.matrix()
         self._compile_and_check([A, b],  # theano.function inputs
                                 [self.op(A, b)],  # theano.function outputs
-                                # A must be square
                                 [numpy.asarray(rng.rand(5, 5),
                                                dtype=config.floatX),
                                  numpy.asarray(rng.rand(5, 1),
@@ -183,7 +173,6 @@ class test_Solve(utt.InferShapeTester):
         b = theano.tensor.vector()
         self._compile_and_check([A, b],  # theano.function inputs
                                 [self.op(A, b)],  # theano.function outputs
-                                # A must be square
                                 [numpy.asarray(rng.rand(5, 5),
                                                dtype=config.floatX),
                                  numpy.asarray(rng.rand(5),
@@ -212,19 +201,15 @@ class test_Solve(utt.InferShapeTester):
 
         b_val = numpy.asarray(rng.rand(5, 1), dtype=config.floatX)
         
-        # 1-test general case
         A_val = numpy.asarray(rng.rand(5, 5), dtype=config.floatX)
-        # positive definite matrix:
         A_val = numpy.dot(A_val.transpose(), A_val)
         assert numpy.allclose(scipy.linalg.solve(A_val, b_val),
                               gen_solve_func(A_val, b_val))
 
-        # 2-test lower traingular case
         L_val = scipy.linalg.cholesky(A_val, lower=True)
         assert numpy.allclose(scipy.linalg.solve_triangular(L_val, b_val, lower=True),
                               lower_solve_func(L_val, b_val))
 
-        # 3-test upper traingular case
         U_val = scipy.linalg.cholesky(A_val, lower=False)
         assert numpy.allclose(scipy.linalg.solve_triangular(U_val, b_val, lower=False),
                               upper_solve_func(U_val, b_val))
@@ -247,11 +232,9 @@ def test_expm():
 
 
 def test_expm_grad_1():
-    # with symmetric matrix (real eigenvectors)
     if not imported_scipy:
         raise SkipTest("Scipy needed for the expm op.")
     rng = numpy.random.RandomState(utt.fetch_seed())
-    # Always test in float64 for better numerical stability.
     A = rng.randn(5, 5)
     A = A + A.T
 
@@ -259,11 +242,9 @@ def test_expm_grad_1():
 
 
 def test_expm_grad_2():
-    # with non-symmetric matrix with real eigenspecta
     if not imported_scipy:
         raise SkipTest("Scipy needed for the expm op.")
     rng = numpy.random.RandomState(utt.fetch_seed())
-    # Always test in float64 for better numerical stability.
     A = rng.randn(5, 5)
     w = rng.randn(5)**2
     A = (numpy.diag(w**0.5)).dot(A + A.T).dot(numpy.diag(w**(-0.5)))
@@ -273,11 +254,9 @@ def test_expm_grad_2():
 
 
 def test_expm_grad_3():
-    # with non-symmetric matrix (complex eigenvectors)
     if not imported_scipy:
         raise SkipTest("Scipy needed for the expm op.")
     rng = numpy.random.RandomState(utt.fetch_seed())
-    # Always test in float64 for better numerical stability.
     A = rng.randn(5, 5)
 
     tensor.verify_grad(expm, [A], rng=rng)
@@ -307,8 +286,6 @@ class TestKron(utt.InferShapeTester):
                 f = function([x, y], kron(x, y))
                 b = self.rng.rand(*shp1).astype(config.floatX)
                 out = f(a, b)
-                # Newer versions of scipy want 4 dimensions at least,
-                # so we have to add a dimension to a and flatten the result.
                 if len(shp0) + len(shp1) == 3:
                     scipy_val = scipy.linalg.kron(
                         a[numpy.newaxis, :], b).flatten()

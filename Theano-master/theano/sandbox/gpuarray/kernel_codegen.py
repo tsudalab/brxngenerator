@@ -181,7 +181,6 @@ def inline_softmax(N, buf, buf2, threadPos, threadCount, dtype="float32"):
 
     """
     ctype = gpuarray.dtype_to_ctype(dtype)
-    # get max of buf (trashing all but buf[0])
     return [inline_reduce_max(N, buf, threadPos, threadCount),
             '__syncthreads()',
             ('%s row_max = ' + buf + '[0]') % ctype,
@@ -196,7 +195,6 @@ def inline_softmax(N, buf, buf2, threadPos, threadCount, dtype="float32"):
             '__syncthreads()',
             ('%s row_sum = ' + buf + '[0]') % ctype,
             '__syncthreads()',
-            # divide each exp() result by the sum to complete the job.
             'for(int __i=' + threadPos + '; __i<' + N +
             '; __i+=' + threadCount + '){',
             buf + '[__i] = ' + buf2 + '[__i] / row_sum',
@@ -280,7 +278,6 @@ def inline_reduce_fixed_shared(N, buf, x, stride_x, load_x, pos, count,
         // This function trashes buf[1..n_threads],
         // leaving the reduction result in buf[0].
         %(ctype)s red = %(init)s;
-        #pragma unroll 16
         for (int i = %(pos)s + %(count)s; i<%(N)s; i += %(count)s){
           red = %(loop_line)s;
         }
@@ -377,7 +374,6 @@ def inline_softmax_fixed_shared(N, buf, x, stride_x, load_x,
     """
     ctype = gpuarray.dtype_to_ctype(dtype)
     ret = [
-        # get max of buf (trashing all but buf[0])
         inline_reduce_fixed_shared_max(N, buf, x, stride_x, load_x,
                                        threadPos, threadCount,
                                        b, stride_b, load_b,
@@ -395,7 +391,6 @@ def inline_softmax_fixed_shared(N, buf, x, stride_x, load_x,
         '__syncthreads()',
         "for (int tx = threadIdx.x; tx< N; tx += blockDim.x){",
         ]
-    # This set all value correctly
     if b:
         ret += [
             "%(sm)s[tx * %(sm_stride)s] = "

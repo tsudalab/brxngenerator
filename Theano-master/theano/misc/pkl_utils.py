@@ -59,19 +59,16 @@ class StripPickler(Pickler):
         f.close()
     """
     def __init__(self, file, protocol=0, extra_tag_to_remove=None):
-        # Can't use super as Pickler isn't a new style class
         Pickler.__init__(self, file, protocol)
         self.tag_to_remove = ['trace', 'test_value']
         if extra_tag_to_remove:
             self.tag_to_remove.extend(extra_tag_to_remove)
 
     def save(self, obj):
-        # Remove the tag.trace attribute from Variable and Apply nodes
         if isinstance(obj, theano.gof.utils.scratchpad):
             for tag in self.tag_to_remove:
                 if hasattr(obj, tag):
                     del obj.__dict__[tag]
-        # Remove manually-added docstring of Elemwise ops
         elif (isinstance(obj, theano.tensor.Elemwise)):
             if '__doc__' in obj.__dict__:
                 del obj.__dict__['__doc__']
@@ -79,11 +76,6 @@ class StripPickler(Pickler):
         return Pickler.save(self, obj)
 
 
-# Make an unpickler that tries encoding byte streams before raising TypeError.
-# This is useful with python 3, in order to unpickle files created with
-# python 2.
-# This code is taken from Pandas, https://github.com/pydata/pandas,
-# under the same 3-clause BSD license.
 def load_reduce(self):
     stack = self.stack
     args = stack.pop()
@@ -91,7 +83,6 @@ def load_reduce(self):
     try:
         value = func(*args)
     except Exception:
-        # try to reencode the arguments
         if self.encoding is not None:
             new_args = []
             for arg in args:
@@ -106,9 +97,6 @@ def load_reduce(self):
             except Exception:
                 pass
 
-#        if self.is_verbose:
-#            print(sys.exc_info())
-#            print(func, args)
 
         raise
 
@@ -137,7 +125,6 @@ if PY3:
         """
         pass
 
-    # Register `load_reduce` defined above in CompatUnpickler
     CompatUnpickler.dispatch[pickle.REDUCE[0]] = load_reduce
 else:
     class CompatUnpickler(pickle.Unpickler):
@@ -282,7 +269,6 @@ class PersistentNdarrayLoad(object):
         array = numpy.lib.format.read_array(self.zip_file.open(name))
         if array_type == 'cuda_ndarray':
             if config.experimental.unpickle_gpu_on_cpu:
-                # directly return numpy array
                 warnings.warn("config.experimental.unpickle_gpu_on_cpu is set "
                               "to True. Unpickling CudaNdarray as "
                               "numpy.ndarray")

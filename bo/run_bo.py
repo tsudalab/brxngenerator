@@ -60,15 +60,11 @@ def run_bo(X_train, y_train, X_test, y_test, model, parameters, metric, randseed
 
 	filename = "../Results/" + metric + str(random_seed) + ".txt"
 
-	#print("maxmimum score :", np.min(y_train), X_train.shape)
-	#print(y_train)
 	with open(filename, "w") as writer:
 		iteration = 0
 		latents = []
 		min_scores = []
 		while iteration < 5:
-			# fit the GP
-			#print("maxmimum score :", np.min(y_train), X_train.shape)
 			print(iteration)
 			np.random.seed(iteration * random_seed)
 			M = 500
@@ -84,7 +80,6 @@ def run_bo(X_train, y_train, X_test, y_test, model, parameters, metric, randseed
 			error = np.sqrt(np.mean((pred - y_train)**2))
 			trainll = np.mean(sps.norm.logpdf(pred - y_train, scale = np.sqrt(uncert)))
 			print( 'Train RMSE: ', error, 'Train ll: ', trainll)
-			#print( 'Train ll: ', trainll)
 
 			next_inputs, values = sgp.batched_greedy_ei(60, np.min(X_train, 0), np.max(X_train, 0))
 			valid_smiles =[]
@@ -92,24 +87,18 @@ def run_bo(X_train, y_train, X_test, y_test, model, parameters, metric, randseed
 			full_rxn_strs=[]
 			values = values.flatten()
 			for i in range(60):
-				#print(i)
 				latent = next_inputs[i].reshape((1,-1))
-				#res = model.decode_many_times(torch.from_numpy(latent).float(), 50)
 				res= decode_many_times(model, torch.from_numpy(latent).float())
 				if res is not None:
 					smiles_list = [re[0] for re in res]
 					n_reactions = [len(re[1].split(" ")) for re in res]
-					#print(n_reactions)
 					for re in res:
 						smiles = re[0]
 						if len(re[1].split(" ")) > 0 and smiles not in valid_smiles:
-							#print(smiles, re[1].split(" "))
 							valid_smiles.append(smiles)
 							new_features.append(latent)
 							full_rxn_strs.append(re[1])
-				#print(i, res)
 					
-			#new_features = np.vstack(new_features)
 			scores =[]
 			b_valid_smiles=[]
 			b_full_rxn_strs=[]
@@ -157,7 +146,6 @@ def run_bo(X_train, y_train, X_test, y_test, model, parameters, metric, randseed
 			for i in range(len(b_valid_smiles)):
 				line = " ".join([b_valid_smiles[i], b_full_rxn_strs[i], str(scores[i])])
 				writer.write(line + "\n")
-			#print(iteration, min(scores))
 
 
 
@@ -173,7 +161,6 @@ parser.add_option("-m", "--metric", dest="metric")
 parser.add_option("-r", "--seed", dest="seed", default=1)
 opts, _ = parser.parse_args()
 
-# get parameters
 hidden_size = int(opts.hidden_size)
 latent_size = int(opts.latent_size)
 depth = int(opts.depth)
@@ -184,9 +171,7 @@ metric = opts.metric
 seed = int(opts.seed)
 
 
-# load model
 if torch.cuda.is_available():
-	#device = torch.device("cuda:1")
 	device = torch.device("cuda")
 	torch.cuda.set_device(1)
 else:
@@ -229,7 +214,6 @@ print("size of fragment dic:", fragmentDic.size())
 
 
 
-# loading model
 
 mpn = MPN(hidden_size, depth)
 model = FTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, fragment_embedding=None, reactant_embedding=None, template_embedding=None)
@@ -246,7 +230,6 @@ score_list=[]
 if metric =="qed":
 	for i, data_pair in enumerate(data_pairs):
 		latent = model.encode([data_pair])
-		#print(i, latent.size(), latent)
 		latent_list.append(latent[0])
 		rxn_tree = data_pair[1]
 		smiles = rxn_tree.molecule_nodes[0].smiles

@@ -2,16 +2,13 @@
 Provide a simple user friendly API to Theano-managed memory.
 
 """
-# Standard imports
 from __future__ import absolute_import, print_function, division
 
 import copy
 import logging
 
-# Third-party imports
 import numpy
 
-# Theano imports
 from theano.gof import Container, Variable, generic, utils
 
 _logger = logging.getLogger('theano.compile.sharedvalue')
@@ -51,7 +48,6 @@ class SharedVariable(Variable):
 
     """
 
-    # Container object
     container = None
     """
     A container to use for this SharedVariable when it is an implicit
@@ -60,10 +56,6 @@ class SharedVariable(Variable):
     :type: `Container`
     """
 
-    # default_update
-    # If this member is present, its value will be used as the "update" for
-    # this Variable, unless another update value has been passed to "function",
-    # or the "no_default_updates" list passed to "function" contains it.
 
     def __init__(self, name, type, value, strict,
                  allow_downcast=None, container=None):
@@ -159,13 +151,8 @@ class SharedVariable(Variable):
         return cp
 
     def __getitem__(self, *args):
-        # __getitem__ is not available for generic SharedVariable objects.
-        # We raise a TypeError like Python would do if __getitem__ was not
-        # implemented at all, but with a more explicit error message to help
-        # Theano users figure out the root of the problem more easily.
         value = self.get_value(borrow=True)
         if isinstance(value, numpy.ndarray):
-            # Array probably had an unknown dtype.
             msg = ("a Numpy array with dtype: '%s'. This data type is not "
                    "currently recognized by Theano tensors: please cast "
                    "your data into a supported numeric type if you need "
@@ -189,7 +176,6 @@ class SharedVariable(Variable):
                         "sharedvar.get_value() or sharedvar.set_value()"
                         " instead.")
 
-    # We keep this just to raise an error
     value = property(_value_get, _value_set)
 
 
@@ -251,11 +237,6 @@ def shared(value, name=None, strict=False, allow_downcast=None, **kwargs):
                 return var
             except TypeError:
                 continue
-            # This may happen when kwargs were supplied
-            # if kwargs were given, the generic_constructor won't be callable.
-            #
-            # This was done on purpose, the rationale being that if kwargs
-            # were supplied, the user didn't want them to be ignored.
 
     except MemoryError as e:
         e.args = e.args + ('you might consider'

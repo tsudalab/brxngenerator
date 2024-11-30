@@ -36,7 +36,6 @@ class _typed_list_py_operators:
     def count(self, elem):
         return count(self, elem)
 
-    # name "index" is already used by an attribute
     def ind(self, elem):
         return index_(self, elem)
 
@@ -64,7 +63,6 @@ TypedListType.Constant = TypedListConstant
 
 
 class GetItem(Op):
-    # See doc in instance of this Op or function after this class definition.
     view_map = {0: [0]}
     __props__ = ()
 
@@ -125,19 +123,13 @@ index
 
 
 class Append(Op):
-    # See doc in instance of this Op after the class definition.
     __props__ = ("inplace",)
 
     def __init__(self, inplace=False):
         self.inplace = inplace
         if self.inplace:
             self.destroy_map = {0: [0]}
-            # TODO: make destroy_handler support having views and
-            # destroyed version of multiple inputs.
-            # self.view_map = {0: [1]}
         else:
-            # TODO: make destroy_handler support multiple view
-            # self.view_map = {0: [0, 1]}
             self.view_map = {0: [0]}
 
     def make_node(self, x, toAppend):
@@ -152,14 +144,12 @@ class Append(Op):
             out[0] = list(x)
         else:
             out[0] = x
-        # need to copy toAppend due to destroy_handler limitation
         toAppend = _lessbroken_deepcopy(toAppend)
         out[0].append(toAppend)
 
     def __str__(self):
         return self.__class__.__name__
 
-    # DISABLED AS WE NEED TO UPDATE IT TO COPY toAppend().
     def _c_code_(self, node, name, inp, out, sub):
         x_name, toAppend = inp[0], inp[1]
         output_name = out[0]
@@ -200,19 +190,13 @@ y
 
 
 class Extend(Op):
-    # See doc in instance of this Op after the class definition.
     __props__ = ("inplace",)
 
     def __init__(self, inplace=False):
         self.inplace = inplace
         if self.inplace:
             self.destroy_map = {0: [0]}
-            # TODO: make destroy_handler support having views and
-            # destroyed version of multiple inputs.
-            # self.view_map = {0: [1]}
         else:
-            # TODO: make destroy_handler support multiple view
-            # self.view_map = {0: [0, 1]}
             self.view_map = {0: [0]}
 
     def make_node(self, x, toAppend):
@@ -227,7 +211,6 @@ class Extend(Op):
             out[0] = list(x)
         else:
             out[0] = x
-        # need to copy toAppend due to destroy_handler limitation
         if toAppend:
             o = out[0]
             for i in toAppend:
@@ -236,7 +219,6 @@ class Extend(Op):
     def __str__(self):
         return self.__class__.__name__
 
-    # DISABLED AS WE NEED TO UPDATE IT TO COPY toAppend().
     def _c_code_(self, node, name, inp, out, sub):
         x_name, toAppend = inp[0], inp[1]
         output_name = out[0]
@@ -281,19 +263,13 @@ toAppend
 
 
 class Insert(Op):
-    # See doc in instance of this Op after the class definition.
     __props__ = ("inplace",)
 
     def __init__(self, inplace=False):
         self.inplace = inplace
         if self.inplace:
             self.destroy_map = {0: [0]}
-            # TODO: make destroy_handler support having views and
-            # destroyed version of multiple inputs.
-            # self.view_map = {0: [2]}
         else:
-            # TODO: make destroy_handler support multiple view
-            # self.view_map = {0: [0, 2]}
             self.view_map = {0: [0]}
 
     def make_node(self, x, index, toInsert):
@@ -313,14 +289,12 @@ class Insert(Op):
             out[0] = list(x)
         else:
             out[0] = x
-        # need to copy toAppend due to destroy_handler limitation
         toInsert = _lessbroken_deepcopy(toInsert)
         out[0].insert(index, toInsert)
 
     def __str__(self):
         return self.__class__.__name__
 
-    # DISABLED AS WE NEED TO UPDATE IT TO COPY toAppend().
     def _c_code_(self, node, name, inp, out, sub):
         x_name, index, toInsert = inp[0], inp[1], inp[2]
         output_name = out[0]
@@ -363,7 +337,6 @@ toInsert
 
 
 class Remove(Op):
-    # See doc in instance of this Op after the class definition.
     __props__ = ("inplace",)
 
     def __init__(self, inplace=False):
@@ -419,7 +392,6 @@ from a list. This implementation works in that case.
 
 
 class Reverse(Op):
-    # See doc in instance of this Op after the class definition.
     __props__ = ("inplace",)
 
     def __init__(self, inplace=False):
@@ -482,7 +454,6 @@ x
 
 
 class Index(Op):
-    # See doc in instance of this Op after the class definition.
     __props__ = ()
 
     def make_node(self, x, elem):
@@ -510,7 +481,6 @@ index_ = Index()
 
 
 class Count(Op):
-    # See doc in instance of this Op after the class definition.
     __props__ = ()
 
     def make_node(self, x, elem):
@@ -556,7 +526,6 @@ from a list. This implementation works in that case.
 
 
 class Length(Op):
-    # See doc in instance of this Op after the class definition.
     __props__ = ()
 
     def make_node(self, x):
@@ -615,7 +584,6 @@ class MakeList(Op):
 
     def perform(self, node, inputs, outputs):
         (out,) = outputs
-        # We need to make sure that we don't get a view on our inputs
         out[0] = [_lessbroken_deepcopy(inp) for inp in inputs]
 
 make_list = MakeList()

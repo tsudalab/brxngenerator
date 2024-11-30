@@ -33,7 +33,6 @@ SigmoidTester = makeBroadcastTester(
     expected=upcast_int8_nfunc(lambda inputs: check_floatX(
         inputs, 1 / (1 + numpy.exp(-inputs)))),
     good=_good_broadcast_unary_normal_no_complex,
-    # grad=_grad_broadcast_unary_normal,
     name='SigmoidTester',
 )
 
@@ -42,9 +41,7 @@ UltraFastSigmoidTester = makeBroadcastTester(
     expected=upcast_int8_nfunc(lambda inputs: check_floatX(
         inputs, 1 / (1 + numpy.exp(-inputs)))),
     good=_good_broadcast_unary_normal_no_complex,
-    # grad=_grad_broadcast_unary_normal,
     name='UltraFastSigmoidTester',
-# This is an approx of the sigmoid. That is why we raise eps
     eps=5e-2)
 
 HardSigmoidTester = makeBroadcastTester(
@@ -52,9 +49,7 @@ HardSigmoidTester = makeBroadcastTester(
     expected=upcast_int8_nfunc(lambda inputs: check_floatX(
         inputs, 1 / (1 + numpy.exp(-inputs)))),
     good=_good_broadcast_unary_normal_no_complex,
-    # grad=_grad_broadcast_unary_normal,
     name='HardSigmoidTester',
-# This is an approx of the sigmoid. That is why we raise eps
     eps=1e-1)
 
 
@@ -64,7 +59,6 @@ SoftplusTester = makeBroadcastTester(
         inputs, numpy.log1p(numpy.exp(inputs)))),
     good=dict(_good_broadcast_unary_normal_no_complex,
               int8=[numpy.arange(-127, 89, dtype='int8')]),
-    # grad=_grad_broadcast_unary_normal,
     name='SoftplusTester',
 )
 
@@ -110,7 +104,6 @@ class T_sigmoid_opts(unittest.TestCase):
         backup = config.warn.identify_1pexp_bug
         config.warn.identify_1pexp_bug = False
         try:
-            # tests exp_over_1_plus_exp
             f = theano.function([x], T.exp(x) / (1 + T.exp(x)), mode=m)
             assert [node.op for node in f.maker.fgraph.toposort()] == [sigmoid]
             f(data)
@@ -124,7 +117,6 @@ class T_sigmoid_opts(unittest.TestCase):
             assert [node.op for node in f.maker.fgraph.toposort()] != [sigmoid]
             f(data)
 
-            # tests inv_1_plus_exp
             f = theano.function([x], T.fill(x, 1.0) / (1 + T.exp(-x)), mode=m)
             assert hasattr(f.maker.fgraph.outputs[0].tag, 'trace')
             assert [node.op for node in f.maker.fgraph.toposort()] == [sigmoid]
@@ -142,7 +134,6 @@ class T_sigmoid_opts(unittest.TestCase):
             assert [node.op for node in f.maker.fgraph.toposort()] != [sigmoid]
             f(data)
 
-            # tests inv_1_plus_exp with neg
             f = theano.function([x], T.fill(x, -1.0) / (1 + T.exp(-x)), mode=m)
             assert hasattr(f.maker.fgraph.outputs[0].tag, 'trace')
             assert [node.op for node in f.maker.fgraph.toposort()] == [sigmoid,
@@ -164,10 +155,6 @@ class T_sigmoid_opts(unittest.TestCase):
                     theano.tensor.inplace.neg_inplace]
             f(data)
 
-            # tests double inv_1_plus_exp with neg
-            # (-1)(exp(x)) / (1+exp(x))(1+exp(-x))
-            # = (-1)/(1+exp(-x)) * exp(x)/(1+exp(x))
-            # = - (sigm(x) * sigm(x))
             f = theano.function([x], (T.fill(x, -1.0) * T.exp(x)) /
                                 ((1 + T.exp(x)) * (1 + T.exp(-x))), mode=m)
             assert hasattr(f.maker.fgraph.outputs[0].tag, 'trace')
@@ -206,7 +193,6 @@ class T_sigmoid_opts(unittest.TestCase):
             f(data)
 
         finally:
-            # Restore config option.
             config.warn.identify_1pexp_bug = backup
 
     def test_1msigmoid(self):
@@ -216,13 +202,11 @@ class T_sigmoid_opts(unittest.TestCase):
         m = self.get_mode()
         x = T.fmatrix()
 
-        # tests exp_over_1_plus_exp
         f = theano.function([x], 1 - T.exp(x) / (1 + T.exp(x)), mode=m)
         assert hasattr(f.maker.fgraph.outputs[0].tag, 'trace')
         assert [node.op for node in f.maker.fgraph.toposort()] == [
             tensor.neg, sigmoid_inplace]
 
-        # tests inv_1_plus_exp
         f = theano.function([x], 1 - T.fill(x, 1.0) / (1 + T.exp(-x)), mode=m)
         assert hasattr(f.maker.fgraph.outputs[0].tag, 'trace')
         assert [node.op for node in f.maker.fgraph.toposort()] == [tensor.neg,
@@ -235,7 +219,6 @@ class T_sigmoid_opts(unittest.TestCase):
         exp(-x) * sigm(x) -> sigm(-x)
         """
         def match(func, ops):
-            # print [node.op.scalar_op for node in func.maker.fgraph.toposort()]
             assert [node.op for node in func.maker.fgraph.toposort()] == ops
         m = self.get_mode(excluding=['local_elemwise_fusion', 'inplace'])
         x, y = tensor.vectors('x', 'y')
@@ -302,9 +285,6 @@ class T_sigmoid_opts(unittest.TestCase):
            -sigmoid(-x))
 
     def test_grad_log1msigm(self):
-        # At some point, this returned nan, because (1 - sigm(x)) was
-        # on both the numerator and the denominator of a fraction,
-        # but the two nodes in question had not been merged.
         x = tensor.matrix('x')
         lr = tensor.scalar('lr')
 
@@ -313,8 +293,6 @@ class T_sigmoid_opts(unittest.TestCase):
         c = l.mean()
         ux = x - lr * theano.grad(c, x)
 
-        # Before the optimization, inf and NaN will be produced in the graph,
-        # and DebugMode will complain. Everything is fine afterwards.
         mode = self.get_mode()
         if not isinstance(mode, theano.compile.DebugMode):
             f = theano.function([x, lr], ux, mode=mode)
@@ -398,7 +376,6 @@ class T_softplus_opts(unittest.TestCase):
         assert isinstance(topo[1].op.scalar_op, theano.scalar.Neg)
         f(numpy.random.rand(54, 11).astype(config.floatX))
 
-        # Same test with a flatten
         out = T.log(1 - T.flatten(sigmoid(x)))
         f = theano.function([x], out, mode=self.m)
         assert hasattr(f.maker.fgraph.outputs[0].tag, 'trace')
@@ -410,11 +387,9 @@ class T_softplus_opts(unittest.TestCase):
         assert isinstance(topo[2].op.scalar_op, theano.scalar.Neg)
         f(numpy.random.rand(54, 11).astype(config.floatX))
 
-        # Same test with a reshape
         out = T.log(1 - sigmoid(x).reshape([x.size]))
         f = theano.function([x], out, mode=self.m)
         topo = f.maker.fgraph.toposort()
-        #assert len(topo) == 3
         assert any(isinstance(node.op, T.Reshape) for node in topo)
         assert any(isinstance(getattr(node.op, 'scalar_op', None),
                               theano.tensor.nnet.sigm.ScalarSoftplus)

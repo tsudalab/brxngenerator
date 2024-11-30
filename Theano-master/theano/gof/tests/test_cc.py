@@ -106,9 +106,6 @@ class MyOp(Op):
         return (1,)
 
 
-# class Unary(MyOp):
-#    def __init__(self):
-#        MyOp.__init__(self, 1, self.__class__.__name__)
 
 
 class Binary(MyOp):
@@ -172,9 +169,6 @@ def Env(inputs, outputs):
     return e
 
 
-################
-# Test CLinker #
-################
 
 def test_clinker_straightforward():
     if not theano.config.cxx:
@@ -196,13 +190,10 @@ def test_clinker_literal_inlining():
     fn = lnk.make_function()
     assert abs(fn(2.0, 2.0) + 0.12345678) < 1e-9
     code = lnk.code_gen()
-    # print "=== Code generated ==="
-    # print code
     assert "4.12345678" in code  # we expect the number to be inlined
 
 
 def test_clinker_literal_cache():
-    # This caused bugs in the past related to the cache.
     if not theano.config.cxx:
         raise SkipTest("G++ not available, so we need to skip this test.")
 
@@ -243,19 +234,16 @@ def test_clinker_single_node():
 def test_clinker_dups():
     if not theano.config.cxx:
         raise SkipTest("G++ not available, so we need to skip this test.")
-    # Testing that duplicate inputs are allowed.
     x, y, z = inputs()
     e = add(x, x)
     lnk = CLinker().accept(Env([x, x], [e]))
     fn = lnk.make_function()
     assert fn(2.0, 2.0) == 4
-    # note: for now the behavior of fn(2.0, 7.0) is undefined
 
 
 def test_clinker_not_used_inputs():
     if not theano.config.cxx:
         raise SkipTest("G++ not available, so we need to skip this test.")
-    # Testing that unused inputs are allowed.
     x, y, z = inputs()
     e = add(x, y)
     lnk = CLinker().accept(Env([x, y, z], [e]))
@@ -266,7 +254,6 @@ def test_clinker_not_used_inputs():
 def test_clinker_dups_inner():
     if not theano.config.cxx:
         raise SkipTest("G++ not available, so we need to skip this test.")
-    # Testing that duplicates are allowed inside the graph
     x, y, z = inputs()
     e = add(mul(y, y), add(x, z))
     lnk = CLinker().accept(Env([x, y, z], [e]))
@@ -274,11 +261,7 @@ def test_clinker_dups_inner():
     assert fn(1.0, 2.0, 3.0) == 8.0
 
 
-######################
-# Test OpWiseCLinker #
-######################
 
-# slow on linux, but near sole test and very central
 def test_opwiseclinker_straightforward():
     x, y, z = inputs()
     e = add(mul(add(x, y), div(x, y)), bad_sub(bad_sub(x, y), z))
@@ -287,7 +270,6 @@ def test_opwiseclinker_straightforward():
     if theano.config.cxx:
         assert fn(2.0, 2.0, 2.0) == 2.0
     else:
-        # The python version of bad_sub always return -10.
         assert fn(2.0, 2.0, 2.0) == -6
 
 
@@ -311,9 +293,6 @@ def _my_checker(x, y):
                     {'performlinker': x[0], 'clinker': y[0]})
 
 
-###################
-# Test DualLinker #
-###################
 
 def test_duallinker_straightforward():
     x, y, z = inputs()
@@ -328,33 +307,23 @@ def test_duallinker_mismatch():
     if not theano.config.cxx:
         raise SkipTest("G++ not available, so we need to skip this test.")
     x, y, z = inputs()
-    # bad_sub is correct in C but erroneous in Python
     e = bad_sub(mul(x, y), mul(y, z))
     g = Env([x, y, z], [e])
     lnk = DualLinker(checker=_my_checker).accept(g)
     fn = lnk.make_function()
 
-    # good
     assert CLinker().accept(g).make_function()(1.0, 2.0, 3.0) == -4.0
-    # good
     assert OpWiseCLinker().accept(g).make_function()(1.0, 2.0, 3.0) == -4.0
 
-    # (purposely) wrong
     assert PerformLinker().accept(g).make_function()(1.0, 2.0, 3.0) == -10.0
 
     try:
-        # this runs OpWiseCLinker and PerformLinker in parallel and feeds
-        # variables of matching operations to _my_checker to verify that they
-        # are the same.
         fn(1.0, 2.0, 3.0)
         raise Exception("An exception should have been raised here!")
     except MyExc as e:
         pass
 
 
-################################
-# Test that failure code works #
-################################
 
 class AddFail(Binary):
     def c_code(self, node, name, inp, out, sub):
@@ -387,9 +356,6 @@ def test_c_fail_error():
 
 
 def test_shared_input_output():
-    # Test bug reported on the mailing list by Alberto Orlandi
-    # https://groups.google.com/d/topic/theano-users/6dLaEqc2R6g/discussion
-    # The shared variable is both an input and an output of the function.
     inc = theano.tensor.iscalar('inc')
     state = theano.shared(0)
     state.name = 'state'
@@ -399,19 +365,16 @@ def test_shared_input_output():
                         mode=mode)
     g = theano.function([inc], state, updates=[(state, state + inc)])
 
-    # Initial value
     f0 = f(0)
     g0 = g(0)
     assert f0 == g0 == 0, (f0, g0)
 
-    # Increment state via f, returns the previous value.
     f2 = f(2)
     assert f2 == f0, (f2, f0)
     f0 = f(0)
     g0 = g(0)
     assert f0 == g0 == 2, (f0, g0)
 
-    # Increment state via g, returns the previous value
     g3 = g(3)
     assert g3 == g0, (g3, g0)
     f0 = f(0)
@@ -424,13 +387,11 @@ def test_shared_input_output():
                          mode=mode)
     gv = theano.function([inc], vstate, updates=[(vstate, vstate + inc)])
 
-    # Initial value
     fv0 = fv(0)
     gv0 = gv(0)
     assert numpy.all(fv0 == 0), fv0
     assert numpy.all(gv0 == 0), gv0
 
-    # Increment state via f, returns the previous value.
     fv2 = fv(2)
     assert numpy.all(fv2 == fv0), (fv2, fv0)
     fv0 = fv(0)
@@ -438,7 +399,6 @@ def test_shared_input_output():
     assert numpy.all(fv0 == 2), fv0
     assert numpy.all(gv0 == 2), gv0
 
-    # Increment state via g, returns the previous value
     gv3 = gv(3)
     assert numpy.all(gv3 == gv0), (gv3, gv0)
     fv0 = fv(0)

@@ -1,5 +1,4 @@
 from __future__ import absolute_import, print_function, division
-# This is work in progress
 from theano import Op, Apply, tensor
 from theano.gof import local_optimizer
 from theano.sandbox.cuda import cuda_available, GpuOp
@@ -199,9 +198,6 @@ class GpuImages2Neibs(Images2Neibs, GpuOp):
         fail = sub['fail']
         mode = self.mode
         return """
-#ifndef CEIL_INTDIV
-#define CEIL_INTDIV(a, b) ((a/b) + ((a %% b) ? 1: 0))
-#endif
 
         int grid_c = -1;
         int grid_d = -1;

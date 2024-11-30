@@ -5,11 +5,7 @@ It is meant to be used to benchmark loop fusion optimizations.
 
 """
 from __future__ import absolute_import, print_function, division
-# this experiments are designed to use file-based configuration
-# rather than db-based configuration.
-# so state is ignored
 
-# since this job is not restartable, channel is also ignored
 import logging, time, sys
 
 import numpy
@@ -166,7 +162,6 @@ class Kouh2008(object):
 
         b_list = [shared_uniform(low=0, high=.01, size=(n_out,), name='b_%i'%i)
                 for i in xrange(n_terms)]
-        #x_list = [theano._asarray(eps, dtype=dtype)+softplus(tensor.dot(input, f_list[i])) for i in xrange(n_terms)]
         filter_range = theano._asarray(filter_range, dtype=dtype)
         half_filter_range = theano._asarray(filter_range/2, dtype=dtype)
         x_list = [theano._asarray(filter_range + eps, dtype=dtype)+half_filter_range * softsign(tensor.dot(input, f_list[i]) +
@@ -220,15 +215,11 @@ class Kouh2008(object):
                         w_col += 1
                 if c % 3 == 1:  # E filters
                     if w_col < w.shape[1]:
-                        # filters after the 3rd do not get rendered, but are skipped over.
-                        #  there are only 3 colour channels.
                         for i in xrange(min(self.n_E_quadratic, 3)):
                             out_tile[:, :, i] = pixel_range(w[:, w_col+i]).reshape(filter_shape)
                         w_col += self.n_E_quadratic
                 if c % 3 == 2:  # S filters
                     if w_col < w.shape[1]:
-                        # filters after the 3rd do not get rendered, but are skipped over.
-                        #  there are only 3 colour channels.
                         for i in xrange(min(self.n_S_quadratic, 3)):
                             out_tile[:, :, 2-i] = pixel_range(w[:, w_col+i]).reshape(filter_shape)
                         w_col += self.n_S_quadratic
@@ -272,15 +263,12 @@ class Config(object):
     lr = 0.001
 
 if 0:
-    # commenting out because this is not really a unit test
-    # and it doesn't run correctly because of a deprecated call to cuda.use()
     def test_bench_elemwise(n_iter=1000, **kwargs):
         conf = Config()
         for k in kwargs:
             setattr(conf, k, kwargs[k])
 
         if conf.use_gpu:
-            # Skip test if cuda_ndarray is not available.
             from nose.plugins.skip import SkipTest
             import theano.sandbox.cuda as cuda_ndarray
             if not cuda_ndarray.cuda_available:
@@ -293,7 +281,6 @@ if 0:
                 theano.compile.debugmode.DebugMode):
             debug = True
 
-        # get symbolic train set
         s_lr = theano.tensor.fscalar()
         if not debug:
             sshape = (None, 784)

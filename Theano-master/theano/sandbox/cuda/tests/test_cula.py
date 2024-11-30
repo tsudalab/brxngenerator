@@ -5,7 +5,6 @@ import numpy
 import theano
 from theano.tests import unittest_tools as utt
 
-# Skip tests if cuda_ndarray is not available.
 from nose.plugins.skip import SkipTest
 import theano.sandbox.cuda as cuda_ndarray
 from theano.misc.pycuda_init import pycuda_available

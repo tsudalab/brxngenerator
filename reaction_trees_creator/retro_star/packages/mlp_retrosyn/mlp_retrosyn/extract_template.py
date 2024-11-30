@@ -38,12 +38,10 @@ if __name__ == '__main__':
     with open(os.path.join(data_folder,'templates.dat'), 'w') as f:
         f.write('\n'.join(['\t'.join(rxn_prod) for rxn_prod in transforms]))
 
-    # Generate rules for MCTS
     templates = defaultdict(int)
     for rule, _ in tqdm(transforms):
         templates[rule] += 1
     print("The number of templates is {}".format(len(templates)))
-    # #
     template_rules = [rule for rule, cnt in templates.items() if cnt >= 1]
     print("all template rules with count >= 1: ", len(template_rules))
     with open(os.path.join(data_folder,'template_rules_1.dat'), 'w') as f:

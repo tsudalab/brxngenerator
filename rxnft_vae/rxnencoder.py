@@ -17,7 +17,6 @@ class RXNEncoder(nn.Module):
 		self.reactantDic = reactantDic
 		self.templateDic = templateDic
 		self.has_mpn = False
-		#self.r_embedding = r_embedding
 		if r_embedding is None:
 			self.r_embedding = nn.Embedding(reactantDic.size(), hidden_size)
 			self.has_mpn = False
@@ -36,7 +35,6 @@ class RXNEncoder(nn.Module):
 
 
 	def forward(self, rxn_tree_batch):
-		#print("**********************************start")
 		orders = []
 		for rxn_tree in rxn_tree_batch:
 			order = get_template_order(rxn_tree)
@@ -54,13 +52,10 @@ class RXNEncoder(nn.Module):
 			cur_mols = []
 			cur_tems = []
 			for template_id, rxn_id in zip(template_ids, rxn_ids):
-				#print(t, rxn_id, template_id)
 				template_node = rxn_tree_batch[rxn_id].template_nodes[template_id]
 				cur_mol = []
 				for reactant in template_node.children:
 					if len(reactant.children) == 0: # leaf node
-						#print(reactant.smiles)
-						#print(self.reactantDic.reactant_list)
 						if self.has_mpn == False:
 							reactant_id = self.reactantDic.get_index(reactant.smiles)
 							mfeature = self.r_embedding(create_var(torch.LongTensor([reactant_id])))[0]
@@ -74,17 +69,11 @@ class RXNEncoder(nn.Module):
 				tfeat = self.t_embedding(create_var(torch.LongTensor([temp_id])))[0]
 				cur_mols.extend(cur_mol)
 				cur_tems.append(tfeat)
-				#print(cur_mols, template_id, rxn_id)
 
-			#print(t, cur_mols)
-			#exit(1)
 
-			#cur_mols1 = torch.cat(cur_mols, dim=0).view(-1,self.hidden_size)
-			#cur_tems1 = torch.cat(cur_tems, dim=0).view(-1, self.hidden_size)
 
 			cur_mols = torch.stack(cur_mols, dim = 0)
 			cur_tems = torch.stack(cur_tems, dim=0)
-			#cur_mols = cur_mols.view(-1, MAX_REACTANTS * self.hidden_size)
 
 			o_tems = self.W_t(cur_tems)
 			o_mols = self.W_m(cur_mols)
@@ -102,8 +91,6 @@ class RXNEncoder(nn.Module):
 		for i in range(len(rxn_tree_batch)):
 			mol_vecs.append(h[(i, 0)])
 		mol_vecs = torch.stack(mol_vecs, dim=0)
-		#latent_z = self.W_l(mol_vecs)
-		#print("**********************************end")
 		return mol_vecs
 
 

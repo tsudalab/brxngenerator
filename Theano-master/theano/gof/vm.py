@@ -70,11 +70,8 @@ def calculate_reallocate_info(order, fgraph, storage_map, compute_map_re,
                     all([compute_map_re[v][0]
                          for v in dependencies.get(ins, [])]) and
                     ins not in allocated):
-                # Constant Memory cannot be changed
-                # Constant and shared variables' storage_map value is not empty
                 reuse_out = None
                 if ins not in view_of and not viewed_by.get(ins, []):
-                    # where gc
                     for i in range(idx + 1, len(order)):
                         if reuse_out is not None:
                             break
@@ -93,7 +90,6 @@ def calculate_reallocate_info(order, fgraph, storage_map, compute_map_re,
                     if (not viewed_by[origin] and
                             origin not in fgraph.inputs and
                             not isinstance(origin, theano.Constant)):
-                        # where gc
                         for i in range(idx + 1, len(order)):
                             if reuse_out is not None:
                                 break
@@ -162,9 +158,6 @@ class VM(object):
         self.call_times = [0] * len(nodes)
         self.time_thunks = False
 
-        # This variable (self.need_update_inputs) is overshadowed by
-        # CLazyLinker in CVM which has an attribute of the same name that
-        # defaults to 0 (aka False).
         self.need_update_inputs = True
 
     def __call__(self):
@@ -189,7 +182,6 @@ class VM(object):
         raise NotImplementedError('override me')
 
     def update_profile(self, profile):
-        # accumulate into the profile object
         for node, thunk, t, c in zip(self.nodes, self.thunks,
                                      self.call_times, self.call_counts):
             profile.apply_time.setdefault(node, 0.0)
@@ -213,7 +205,6 @@ class VM(object):
         if hasattr(self, 'dependencies'):
             profile.dependencies = self.dependencies
 
-        # clear the timer info out of the buffers
         for i in xrange(len(self.call_times)):
             self.call_times[i] = 0.0
             self.call_counts[i] = 0
@@ -225,7 +216,6 @@ class Loop(VM):
     No garbage collection is allowed on intermediate results.
 
     """
-    # Some other part of Theano query that information
     allow_gc = False
 
     def __call__(self):
@@ -262,7 +252,6 @@ class LoopGC(VM):
     def __init__(self, nodes, thunks, pre_call_clear, post_thunk_clear):
         super(LoopGC, self).__init__(nodes, thunks, pre_call_clear)
         self.post_thunk_clear = post_thunk_clear
-        # Some other part of Theano query that information
         self.allow_gc = True
         if not (len(nodes) == len(thunks) == len(post_thunk_clear)):
             raise ValueError()
@@ -346,19 +335,6 @@ class Stack(VM):
         for i, node in enumerate(self.nodes):
             node_idx[node] = i
 
-            # XXX: inconsistent style - why modify node here rather
-            #      than track destroy_dependencies with dictionary like
-            #      storage_map?
-            #
-            # destroy_dependencies
-            # --------------------
-            # The destroy_dependencies is a list of variables that are implicit
-            # dependencies induced by destroy_map and view_map (compared to
-            # node.inputs which are *explicit* dependencies). The variables in
-            # destroy_dependencies would be impossible to compute after the
-            # current `node` runs, because node.thunk() is going to destroy a
-            # common input variable needed by whatever node owns each variable
-            # in destroy_depenencies.
 
             node.destroy_dependencies = []
             if node in ords:
@@ -382,10 +358,6 @@ class Stack(VM):
         rval = self.thunks[idx]()
         self.node_executed_order.append(node)
 
-        # Some thunks on some computers run faster than the granularity
-        # of the time.time clock.
-        # Profile output looks buggy if a node has run but takes 0 time.
-        # (and profile code might hide real bugs if it rounds up 0)
         dt = max(time.time() - t0, 1e-10)
         if self.callback is not None:
             self.callback(
@@ -407,11 +379,9 @@ class Stack(VM):
         for k in self.storage_map:
             compute_map[k][0] = (k.owner is None)
 
-        # apply_stack contains nodes
         apply_stack = list(self.base_apply_stack)
         last_apply_stack_len = -1
 
-        # This record all function inputs/shared varibles and constants
         for var, data in iteritems(self.storage_map):
             if data[0] is None:
                 continue
@@ -429,13 +399,6 @@ class Stack(VM):
             self.variable_strides[var] = st
 
         while apply_stack:
-            # Make sure something happened last time round.  This is
-            # just a safety check to make sure the op is written
-            # correctly apply_stack should either decrease in length
-            # by one (a thunk successfully applied), or increase in
-            # length (added dependencies over and above the original).
-            # NB: this doesn't catch cycles (would be too expensive/slow),
-            #     just stalls.
             apply_stack_len = len(apply_stack)
             assert apply_stack_len != last_apply_stack_len
             last_apply_stack_len = apply_stack_len
@@ -449,17 +412,8 @@ class Stack(VM):
             computed_outs = all(compute_map[v][0] for v in current_outputs)
 
             if not thunks[self.node_idx[current_apply]].lazy:
-                #
-                # stack loop: Normal Non-Lazy Case
-                # ================================
-                #
-                # Check if all inputs are in place
-                # If so compute thunk and remove it from the apply_stack
-                # If not leave it in, and add to the apply_stack those
-                # that will produce you those inputs
 
                 if computed_ins and not computed_outs:
-                    # -- Non-lazy case: have inputs, time to compute outputs
                     try:
                         _, dt = self.run_thunk_of_node(current_apply)
                         del _
@@ -467,9 +421,6 @@ class Stack(VM):
                             current_idx = self.node_idx[current_apply]
                             self.call_counts[current_idx] += 1
                             self.call_times[current_idx] += dt
-                            # Computing the memory footprint of the the op
-                            # ?? What about inplace .. if the op is inplace
-                            # you don't actually ask for more memory!
                             for (idx, o) in enumerate(
                                     thunks[self.node_idx[
                                         current_apply]].outputs):
@@ -497,12 +448,9 @@ class Stack(VM):
                         compute_map[o][0] = 1
 
                     input_index = []
-                    # A list store the index of inputs variables
 
                     if self.allow_gc:
                         for i in current_apply.inputs:
-                            # Garbage Collection -> check if anybody else uses
-                            # this input
                             if (dependencies[i] and
                                     i.owner and
                                     i not in self.outputs):
@@ -512,13 +460,7 @@ class Stack(VM):
                                     input_index.append(
                                         current_apply.inputs.index(i))
 
-                                    # DO NOT set compute_map to 0
 
-                                    # If values become False and the
-                                    # current_apply is still in the
-                                    # stack, this will cause it to be
-                                    # recomputed! This can cause wrong value
-                                    # with some combination of inplace op.
                                     compute_map[i][0] = 2
                                     if (config.warn.vm_gc_bug and
                                         current_apply in apply_stack and
@@ -533,28 +475,17 @@ class Stack(VM):
                                             "July 30th 2012. This was not in "
                                             "a released version. The bug was "
                                             "affecting this script.",
-                                            # The stack level is not good when
-                                            # inside a Scan.
                                             stacklevel=3
                                         )
                     self.node_cleared_order.append(input_index)
 
                 elif not computed_ins:
-                    # -- Non-lazy case, need inputs
                     apply_stack.append(current_apply)
                     apply_stack.extend(inp.owner
                                        for inp in current_deps
                                        if inp.owner)
 
             elif not computed_outs:
-                #
-                # stack loop: Lazy Evaluation Case
-                # ================================
-                #
-                # Lazy evaluation protocol is to run the thunk with the
-                # current storage_map and compute_map accessed via closure,
-                # and the thunk will return a list of variables from its input
-                # list that it requires.
 
                 try:
                     requires, dt = self.run_thunk_of_node(current_apply)
@@ -570,9 +501,6 @@ class Stack(VM):
 
                 if requires:
                     for r in requires:
-                        # We are not done with this op ..  so we added
-                        # back and see to get the inputs we are
-                        # missing
                         apply_stack.append(current_apply)
                         if current_apply.inputs[r].owner:
                             apply_stack.append(current_apply.inputs[r].owner)
@@ -612,15 +540,10 @@ class Stack(VM):
                                     storage_map[i][0] = None
                                     input_index.append(
                                         current_apply.inputs.index(i))
-                                    # See the not lazy gc code for explanations
-                                    # of compute_map change
                                     compute_map[i][0] = 2
 
                     self.node_cleared_order.append(input_index)
 
-        # Hacky coarse gc final pass
-        # This is required until we have a proper gc algorithm for graphs with
-        # lazy evaluation. See discussion on theano-dev June 19 2012.
         final_index = []
 
         if self.allow_gc:
@@ -643,14 +566,9 @@ try:
 
         def __init__(self, *args, **kwargs):
             lazylinker_c.CLazyLinker.__init__(self, *args, **kwargs)
-            # skip VM.__init__
 except ImportError:
     pass
 except (OSError, theano.gof.cmodule.MissingGXX) as e:
-    # OSError happens when g++ is not installed.  In that case, we
-    # already changed the default linker to something else then CVM.
-    # Currently this is the py linker.
-    # Here we assert that the default linker is not cvm.
     assert not [x for x in _config_var_list
                 if x.fullname == 'linker'][0].default.startswith('cvm'), e
     pass
@@ -687,8 +605,6 @@ class VM_Linker(link.LocalLinker):
 
     def __init__(self, allow_gc=None, use_cloop=False, callback=None,
                  lazy=None, schedule=None, c_thunks=None):
-        # Note: if more parameters are added to __init__, make sure to forward
-        # them in the "type(self)(...)" call in the "accept" method below.
         if allow_gc is None:
             allow_gc = config.allow_gc
         self.fgraph = None
@@ -734,9 +650,6 @@ class VM_Linker(link.LocalLinker):
         if no_recycling is None:
             no_recycling = []
         if self.fgraph is not None and self.fgraph is not fgraph:
-            # Build a new VM_Linker, and call accept on that one.
-            # Warning: make sure to forward the correct values of
-            # all parameters to __init__ here.
             return type(self)(
                 allow_gc=self.allow_gc,
                 use_cloop=self.use_cloop,
@@ -751,11 +664,6 @@ class VM_Linker(link.LocalLinker):
 
     def accept_var_updates(self, updated_vars):
         self.updated_vars = updated_vars
-        # This method simply records in the linker which variables have update
-        # expressions.  It does not imply that the linker will actually
-        # implement these updates (see need_update_inputs).  This mechanism is
-        # admittedly confusing, and it could use some cleaning up. The base
-        # Linker object should probably go away completely.
 
     def compute_gc_dependencies(self, variables):
         """
@@ -784,13 +692,6 @@ class VM_Linker(link.LocalLinker):
         dependencies = {}
         for k in variables:
             dependencies[k] = []
-            # If k has no owner, it is an input / constant and its value
-            # should not be removed from the storage_map because we have no
-            # way of getting it back.
-            #
-            # XXX if k has no clients... what is it doing in the computation?
-            # Fred guess: it could happen for node with multiple outputs when
-            # we don't use all outputs.
 
             if k.owner and k.clients:
                 ls = []
@@ -818,7 +719,6 @@ class VM_Linker(link.LocalLinker):
             if self.use_cloop and config.profile_memory:
                 warnings.warn(
                     'CVM does not support memory profile, using Stack VM.')
-            # Needed for allow_gc=True, profiling and storage_map reuse
             deps = self.compute_gc_dependencies(storage_map)
             vm = Stack(
                 nodes, thunks, pre_call_clear,
@@ -827,7 +727,6 @@ class VM_Linker(link.LocalLinker):
                 dependencies=deps,
                 callback=self.callback)
         elif self.use_cloop:
-            # create a map from nodes to ints and vars to ints
             nodes_idx = {}
             vars_idx = {}
             for i, node in enumerate(nodes):
@@ -844,7 +743,6 @@ class VM_Linker(link.LocalLinker):
             for (var, i) in iteritems(vars_idx):
                 vars_idx_inv[i] = var
 
-            # put storage_map and compute_map into a int-based scheme
             storage_map_list = [storage_map[vars_idx_inv[i]]
                                 for i in xrange(len(vars_idx_inv))]
             compute_map_list = [compute_map[vars_idx_inv[i]]
@@ -853,13 +751,11 @@ class VM_Linker(link.LocalLinker):
                 assert type(storage_map_list[0]) is list
                 assert type(compute_map_list[0]) is list
 
-            # Needed for allow_gc=True, profiling and storage_map reuse
             dependency_map = self.compute_gc_dependencies(storage_map)
             dependency_map_list = [
                 [vars_idx[d] for d in dependency_map[vars_idx_inv[i]]]
                 for i in xrange(len(vars_idx_inv))]
 
-            # build the pointers to node inputs and offsets
             base_input_output_list = []
             node_n_inputs = []
             node_n_outputs = []
@@ -875,7 +771,6 @@ class VM_Linker(link.LocalLinker):
                 node_output_offset.append(len(base_input_output_list))
                 base_input_output_list.extend(outputs_idx)
 
-            # build the var owner array
             var_owner = [None] * len(vars_idx)
             for (var, i) in iteritems(vars_idx):
                 if var.owner:
@@ -884,7 +779,6 @@ class VM_Linker(link.LocalLinker):
             is_lazy_list = [int(th.lazy) for th in thunks]
             output_vars = [vars_idx[v] for v in self.fgraph.outputs]
 
-            # builds the list of prereqs induced by e.g. destroy_handler
             ords = self.fgraph.orderings()
             node_prereqs = []
             node_output_size = []
@@ -898,11 +792,6 @@ class VM_Linker(link.LocalLinker):
                 prereq_var_idxs.sort()  # TODO: why sort?
                 node_prereqs.append(prereq_var_idxs)
 
-            # Builds the list of input storage to update (according to update
-            # rules) when the outputs are computed.
-            # They are in the same order as the second part of output_vars
-            # (output_vars contains first the returned outputs, then the
-            # values of the update expressions).
             update_storage = []
             update_in_from_out = {}
             for (ivar, ovar) in iteritems(updated_vars):
@@ -942,7 +831,6 @@ class VM_Linker(link.LocalLinker):
             if lazy is None:
                 lazy = not all([(not th.lazy) for th in thunks])
             if not lazy:
-                # there is no conditional in the graph
                 if self.allow_gc:
                     vm = LoopGC(
                         nodes,
@@ -957,7 +845,6 @@ class VM_Linker(link.LocalLinker):
                         pre_call_clear,
                     )
             else:
-                # Needed when allow_gc=True and profiling
                 deps = self.compute_gc_dependencies(storage_map)
                 vm = Stack(
                     nodes, thunks, pre_call_clear,
@@ -982,7 +869,6 @@ class VM_Linker(link.LocalLinker):
 
         thunks = []
 
-        # Collect Reallocation Info
         compute_map_re = defaultdict(lambda: [0])
         for var in fgraph.inputs:
             compute_map_re[var][0] = 1
@@ -1004,9 +890,6 @@ class VM_Linker(link.LocalLinker):
                                                  compute_map,
                                                  no_recycling))
                 if not hasattr(thunks[-1], 'lazy'):
-                    # We don't want all ops maker to think about lazy Ops.
-                    # So if they didn't specify that its lazy or not, it isn't.
-                    # If this member isn't present, it will crash later.
                     thunks[-1].lazy = False
             except Exception as e:
                 e.args = ("The following error happened while"

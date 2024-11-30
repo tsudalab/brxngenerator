@@ -15,7 +15,6 @@ try:
     import pygpu
     from pygpu import blas
 except ImportError as e:
-    # To make sure theano is importable
     pass
 
 

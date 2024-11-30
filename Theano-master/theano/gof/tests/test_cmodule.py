@@ -28,7 +28,6 @@ class MyOp(theano.compile.ops.DeepCopyOp):
             code, version = self.c_code_and_version[itype]
             rand = numpy.random.rand()
             return ("""printf("%(rand)s\\n");""" + code) % locals()
-        # Else, no C code
         return super(theano.compile.ops.DeepCopyOp, self).c_code(
             node, name, inames, onames, sub)
 
@@ -53,7 +52,6 @@ def test_inter_process_cache():
     else:
         assert MyOp.nb_called == 1
 
-    # What if we compile a new function with new variables?
     x, y = theano.tensor.dvectors('xy')
     f = theano.function([x, y], [MyOp()(x), MyOp()(y)])
     f(numpy.arange(60), numpy.arange(60))
@@ -64,8 +62,4 @@ def test_inter_process_cache():
 
 
 def test_flag_detection():
-    # Check that the code detecting blas flags does not raise any exception.
-    # It used to happen on python 3 because of improper string handling,
-    # but was not detected because that path is not usually taken,
-    # so we test it here directly.
     GCC_compiler.try_flags(["-lblas"])

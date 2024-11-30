@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from __future__ import absolute_import, print_function, division
 
 __docformat__ = 'restructuredtext en'
@@ -34,9 +33,6 @@ def get_parse_error(code):
     :returns: a string containing a description of the first parse error encountered,
               or None if the code is ok
     """
-    # note that this uses non-public elements from stdlib's tabnanny, because tabnanny
-    # is (very frustratingly) written only to be used as a script, but using it that way
-    # in this context requires writing temporarily files, running subprocesses, blah blah blah
     code_buffer = StringIO(code)
     try:
         tabnanny.process_tokens(tokenize.generate_tokens(code_buffer.readline))
@@ -75,7 +71,6 @@ def get_correct_indentation_diff(code, filename):
     if code != reindent_output:
         diff_generator = difflib.unified_diff(code.splitlines(True), reindent_output.splitlines(True),
                                               fromfile=filename, tofile=filename + " (reindented)")
-        # work around http://bugs.python.org/issue2142
         diff_tuple = map(clean_diff_line_for_python_bug_2142, diff_generator)
         diff = "".join(diff_tuple)
         return diff
@@ -101,8 +96,6 @@ def run_mercurial_command(hg_command):
     hg_executable = os.environ.get("HG", "hg")
     hg_command_tuple = hg_command.split()
     hg_command_tuple.insert(0, hg_executable)
-    # If you install your own mercurial version in your home
-    # hg_executable does not always have execution permission.
     if not os.access(hg_executable, os.X_OK):
         hg_command_tuple.insert(0, sys.executable)
     try:
@@ -202,19 +195,14 @@ def main(argv=None):
                        )
     args = parser.parse_args(argv)
 
-    # -i and -s are incompatible; if you skip checking, you end up with a not-correctly-indented
-    # file, which -i then causes you to ignore!
     if args.skip_after_failure and args.incremental:
         print("*** check whitespace hook misconfigured! -i and -s are incompatible.", file=sys.stderr)
         return 1
 
     if is_merge():
-        # don't inspect merges: (a) they're complex and (b) they don't really introduce new code
         return 0
 
     if args.skip_after_failure and should_skip_commit():
-        # we're set up to skip this one, so skip it, but
-        # first, make sure we don't skip the next one as well :)
         os.remove(SKIP_WHITESPACE_CHECK_FILENAME)
         return 0
 
@@ -232,10 +220,8 @@ def main(argv=None):
             print("*** %s has parse error: %s" % (filename, parse_error), file=sys.stderr)
             block_commit = True
         else:
-            # parsing succeeded, it is safe to check indentation
             if not args.no_indentation:
                 was_clean = None  # unknown
-                # only calculate was_clean if it will matter to us
                 if args.incremental or args.incremental_with_patch:
                     if filename in changed_filenames:
                         old_file_contents = get_file_contents(filename, revision=parent_commit())

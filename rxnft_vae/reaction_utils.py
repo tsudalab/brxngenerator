@@ -94,7 +94,6 @@ def check(rxn):
 					order[template.depth] = [template.id]
 				else:
 					order[template.depth].append(template.id)
-	#print(order)
 	maxdepth = len(order) - 1
 	for t in range(maxdepth, -1, -1):
 		for template_id in order[t]:
@@ -107,15 +106,12 @@ def check(rxn):
 					reactant = reactant_node.smiles
 					reactants.append(reactant)
 					node2smiles[reactant_node.id] = reactant
-					#print(reactant)
 
 				else:
 					reactant = node2smiles[reactant_node.id]
 					reactants.append(reactant)
 			possible_templates = reverse_template(template)
 			reacts = [Chem.MolFromSmiles(reactant) for reactant in reactants]
-			#print(reactants)
-			#print(template)
 			product = None
 			for template_ in possible_templates:
 				try:
@@ -131,7 +127,6 @@ def check(rxn):
 			else:
 				product_id = template_node.parents[0].id
 				node2smiles[product_id] = Chem.MolToSmiles(product)
-	#print(node2smiles)
 	print(node2smiles[0], molecule_nodes[0].smiles)
 
 
@@ -145,9 +140,6 @@ def filter_dataset(rxn_trees):
 	return_rxns=[]
 	for i, rxn in enumerate(rxn_trees):
 		if check(rxn):
-			#print(i, "OK")
-		#else:
-		#	print(i, "not OK")
 			return_rxns.append(rxn)
 	return return_rxns
 
@@ -203,8 +195,6 @@ def get_possible_reactants(reactants):
 def get_template_order(rxn):
 	mol_nodes = rxn.molecule_nodes
 	tem_nodes = rxn.template_nodes
-	#for template_node in tem_nodes:
-	#	print(template_node.id)
 
 	order={}
 	root = tem_nodes[0]
@@ -215,14 +205,12 @@ def get_template_order(rxn):
 	
 	while len(queue) > 0:
 		x = queue.popleft()
-		#print("pop:", x.id)
 		for y in x.children:
 			if len(y.children) == 0: # starting molecule
 				continue
 			template = y.children[0] 
 			if template.id not in visisted:
 				queue.append(template)
-				#print("push:", template.id)
 				visisted.add(template.id)
 				template.depth = x.depth + 1
 				if template.depth not in order:
@@ -232,8 +220,6 @@ def get_template_order(rxn):
 
 	
 
-	#print(order)
-	#exit(1)
 	return order
 
 

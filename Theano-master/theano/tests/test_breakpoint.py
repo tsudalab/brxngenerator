@@ -12,14 +12,11 @@ class TestPdbBreakpoint(utt.InferShapeTester):
 
         super(TestPdbBreakpoint, self).setUp()
 
-        # Sample computation that involves tensors with different numbers
-        # of dimensions
         self.input1 = T.fmatrix()
         self.input2 = T.fscalar()
         self.output = T.dot((self.input1 - self.input2),
                             (self.input1 - self.input2).transpose())
 
-        # Declare the conditional breakpoint
         self.breakpointOp = PdbBreakpoint("Sum of output too high")
         self.condition = T.gt(self.output.sum(), 1000)
         (self.monitored_input1,
@@ -48,9 +45,6 @@ class TestPdbBreakpoint(utt.InferShapeTester):
         grads = [T.grad(self.monitored_input1.sum(), self.input1),
                  T.grad(self.monitored_input2.sum(), self.input2)]
 
-        # Add self.monitored_input1 as an output to the Theano function to
-        # prevent Theano from optimizing the PdbBreakpoint op out of the
-        # function graph
         fct = theano.function([self.input1, self.input2],
                               grads + [self.monitored_input1])
 

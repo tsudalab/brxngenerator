@@ -40,7 +40,6 @@ def simple_extract_stack(f=None, limit=None, skips=[]):
         co = f.f_code
         filename = co.co_filename
         name = co.co_name
-#        linecache.checkcache(filename)
         line = linecache.getline(filename, lineno, f.f_globals)
         if line:
             line = line.strip()
@@ -48,14 +47,9 @@ def simple_extract_stack(f=None, limit=None, skips=[]):
             line = None
         f = f.f_back
 
-        # Just skip inner level
         if len(trace) == 0:
             rm = False
             for p in skips:
-                # Julian: I added the 'tests' exception together with
-                # Arnaud.  Otherwise, we'd lose the stack trace during
-                # in our test cases (e.g. in test_opt.py). We're not
-                # sure this is the right way to do it though.
                 if p in filename and 'tests' not in filename:
                     rm = True
                     break
@@ -100,9 +94,6 @@ def add_tag_trace(thing, user_line=None):
              "theano/sparse/", "theano\\sparse\\",
              "theano/typed_list/", "theano\\typed_list\\"]
     tr = simple_extract_stack(limit=user_line, skips=skips)
-    # Different python version use different sementic for
-    # limit. python 2.7 include the call to extrack_stack. The -1 get
-    # rid of it.
 
     if tr:
         thing.tag.trace = [tr]
@@ -116,8 +107,6 @@ def hashtype(self):
     return hash(t.__name__) ^ hash(t.__module__)
 
 
-# Object to mark that a parameter is undefined (useful in cases where
-# None is a valid value with defined semantics)
 undef = object()
 
 
@@ -135,7 +124,6 @@ class object2(object):
     __slots__ = []
     if 0:
         def __hash__(self):
-            # this fixes silent-error-prone new-style class behavior
             if hasattr(self, '__eq__') or hasattr(self, '__cmp__'):
                 raise TypeError("unhashable object: %s" % self)
             return id(self)
@@ -225,8 +213,6 @@ def uniq(seq):
     we must keep the same order.
 
     """
-    # TODO: consider building a set out of seq so that the if condition
-    # is constant time -JB
     return [x for i, x in enumerate(seq) if seq.index(x) == i]
 
 
@@ -236,15 +222,11 @@ def difference(seq1, seq2):
 
     """
     try:
-        # try to use O(const * len(seq1)) algo
         if len(seq2) < 4:  # I'm guessing this threshold -JB
             raise Exception('not worth it')
         set2 = set(seq2)
         return [x for x in seq1 if x not in set2]
     except Exception:
-        # maybe a seq2 element is not hashable
-        # maybe seq2 is too short
-        # -> use O(len(seq1) * len(seq2)) algo
         return [x for x in seq1 if x not in seq2]
 
 
@@ -271,11 +253,6 @@ def toposort(prereqs_d):
 
     """
 
-#     all1 = set(prereqs_d.keys())
-#     all2 = set()
-#     for x, y in iteritems(prereqs_d):
-#         all2.update(y)
-#     print all1.difference(all2)
 
     seq = []
     done = set()
@@ -308,11 +285,9 @@ class Keyword:
         self.nonzero = nonzero
 
     def __nonzero__(self):
-        # Python 2.x
         return self.__bool__()
 
     def __bool__(self):
-        # Python 3.x
         return self.nonzero
 
     def __str__(self):
@@ -470,12 +445,8 @@ if PY3:
     import hashlib
 
     def hash_from_code(msg):
-        # hashlib.md5() requires an object that supports buffer interface,
-        # but Python 3 (unicode) strings don't.
         if isinstance(msg, str):
             msg = msg.encode()
-        # Python 3 does not like module names that start with
-        # a digit.
         return 'm' + hashlib.md5(msg).hexdigest()
 
 else:

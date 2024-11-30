@@ -5,7 +5,6 @@ Planned:
 Pool, DownsampleAvg, DownsampleSoftmax.
 """
 from __future__ import absolute_import, print_function, division
-# This file should move along with conv.py
 import warnings
 
 import numpy
@@ -91,25 +90,20 @@ def pool_2d(input, ds, ignore_border=None, st=None, padding=(0, 0),
         output = op(input)
         return output
 
-    # extract image dimensions
     img_shape = input.shape[-2:]
 
-    # count the number of "leading" dimensions, store as dmatrix
     batch_size = tensor.prod(input.shape[:-2])
     batch_size = tensor.shape_padright(batch_size, 1)
 
-    # store as 4D tensor with shape: (batch_size,1,height,width)
     new_shape = tensor.cast(tensor.join(0, batch_size,
                                         tensor.as_tensor([1]),
                                         img_shape), 'int64')
     input_4D = tensor.reshape(input, new_shape, ndim=4)
 
-    # downsample mini-batch of images
     op = Pool(ds, ignore_border, st=st, padding=padding,
               mode=mode)
     output = op(input_4D)
 
-    # restore to original shape
     outshp = tensor.join(0, input.shape[:-2], output.shape[-2:])
     return tensor.reshape(output, outshp, ndim=input.ndim)
 
@@ -259,9 +253,7 @@ class Pool(Op):
     def make_node(self, x):
         if x.type.ndim != 4:
             raise TypeError()
-        # TODO: consider restricting the dtype?
         x = tensor.as_tensor_variable(x)
-        # If the input shape are broadcastable we can have 0 in the output shape
         broad = x.broadcastable[:2] + (False, False)
         out = tensor.TensorType(x.dtype, broad)
         return gof.Apply(self, [x], [out()])
@@ -277,9 +269,7 @@ class Pool(Op):
         if (z[0] is None) or (z[0].shape != z_shape):
             z[0] = numpy.empty(z_shape, dtype=x.dtype)
         zz = z[0]
-        # number of pooling output rows
         pr = zz.shape[-2]
-        # number of pooling output cols
         pc = zz.shape[-1]
         ds0, ds1 = self.ds
         st0, st1 = self.st
@@ -289,7 +279,6 @@ class Pool(Op):
         img_cols = x.shape[-1] + 2 * pad_w
         inc_pad = self.mode == 'average_inc_pad'
 
-        # pad the image
         if self.padding != (0, 0):
             y = numpy.zeros(
                 (x.shape[0], x.shape[1], img_rows, img_cols),
@@ -630,8 +619,6 @@ class MaxPoolGrad(PoolGrad):
         PoolGrad.__init__(self, ds, ignore_border, st, padding, mode='max')
 
     def make_node(self, x, maxout, gz):
-        # make_node should only be called by the grad function of
-        # Pool, so these asserts should not fail.
         assert isinstance(x, Variable) and x.ndim == 4
         assert isinstance(maxout, Variable) and maxout.ndim == 4
         assert isinstance(gz, Variable) and gz.ndim == 4
@@ -645,9 +632,7 @@ class MaxPoolGrad(PoolGrad):
         assert self.mode == 'max'
         x, maxout, gz = inp
         gx_stg, = out
-        # number of pooling output rows
         pr = maxout.shape[-2]
-        # number of pooling output cols
         pc = maxout.shape[-1]
         ds0, ds1 = self.ds
         st0, st1 = self.st
@@ -656,7 +641,6 @@ class MaxPoolGrad(PoolGrad):
         img_rows = x.shape[-2] + 2 * pad_h
         img_cols = x.shape[-1] + 2 * pad_w
 
-        # pad the image
         if self.padding != (0, 0):
             y = numpy.zeros(
                 (x.shape[0], x.shape[1], img_rows, img_cols),
@@ -677,7 +661,6 @@ class MaxPoolGrad(PoolGrad):
                             for col_ind in xrange(col_st, col_end):
                                 if (maxout[n, k, r, c] == y[n, k, row_ind, col_ind]):
                                     gx[n, k, row_ind, col_ind] += gz[n, k, r, c]
-        # unpad the image
         gx = gx[:, :, pad_h:(img_rows - pad_h), pad_w:(img_cols - pad_w)]
         gx_stg[0] = gx
 
@@ -807,13 +790,7 @@ class AveragePoolGrad(PoolGrad):
         assert mode in ['sum', 'average_inc_pad', 'average_exc_pad']
         PoolGrad.__init__(self, ds, ignore_border, st, padding, mode)
 
-    # There is an extra dummy parameter to match the parameter count
-    # of MaxPoolGrad.  They have to keep the same interface because of
-    # the DownsampleFactorMaxGrad trick to keep old scripts working
-    # (see downsample.py for details on this).
     def make_node(self, x, gz, dummy=None):
-        # make_node should only be called by the grad function of
-        # Pool, so these asserts should not fail.
         assert isinstance(x, Variable) and x.ndim == 4
         assert isinstance(gz, Variable) and gz.ndim == 4
         x = tensor.as_tensor_variable(x)
@@ -831,9 +808,7 @@ class AveragePoolGrad(PoolGrad):
         if (gx_stg[0] is None) or (gx_stg[0].shape != z_shape):
             gx_stg[0] = numpy.empty(z_shape, dtype=x.dtype)
         zz = gx_stg[0]
-        # number of pooling output rows
         pr = zz.shape[-2]
-        # number of pooling output cols
         pc = zz.shape[-1]
         ds0, ds1 = self.ds
         st0, st1 = self.st
@@ -844,7 +819,6 @@ class AveragePoolGrad(PoolGrad):
         inc_pad = self.mode == 'average_inc_pad'
         sum_mode = self.mode == 'sum'
 
-        # pad the image
         if self.padding != (0, 0):
             y = numpy.zeros(
                 (x.shape[0], x.shape[1], img_rows, img_cols),
@@ -874,7 +848,6 @@ class AveragePoolGrad(PoolGrad):
                             val = gz[n, k, r, c] / ((row_end - row_st) *
                                                     (col_end - col_st))
                         gx[n, k, row_st:row_end, col_st:col_end] += val
-        # unpad the image
         gx = gx[:, :, pad_h:(img_rows - pad_h), pad_w:(img_cols - pad_w)]
         gx_stg[0] = gx
 
@@ -911,8 +884,6 @@ class DownsampleFactorMaxGradGrad(Op):
         assert self.mode == 'max'
 
     def make_node(self, x, maxout, gz):
-        # make_node should only be called by the grad function of
-        # MaxPoolGrad, so these asserts should not fail.
         x = tensor.as_tensor_variable(x)
         maxout = tensor.as_tensor_variable(maxout)
         gz = tensor.as_tensor_variable(gz)
@@ -931,9 +902,7 @@ class DownsampleFactorMaxGradGrad(Op):
         if (z[0] is None) or (z[0].shape != maxout.shape):
             z[0] = numpy.zeros(maxout.shape, dtype=x.dtype)
         ggz = z[0]  # grad wrt maxout_grad has the same shape as maxout
-        # number of pooling output rows
         pr = ggz.shape[-2]
-        # number of pooling output cols
         pc = ggz.shape[-1]
         ds0, ds1 = self.ds
         st0, st1 = self.st
@@ -941,7 +910,6 @@ class DownsampleFactorMaxGradGrad(Op):
         img_rows = x.shape[-2] + 2 * pd0
         img_cols = x.shape[-1] + 2 * pd1
 
-        # pad the image and its gradients
         if self.padding != (0, 0):
             y_padded = numpy.zeros(
                 (x.shape[0], x.shape[1], img_rows, img_cols),

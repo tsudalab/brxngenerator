@@ -1,9 +1,5 @@
-#!/usr/bin/env python
-# Theano tutorial
-# Solution to Exercise in section 'Using the GPU'
 
 
-# 1. Raw results
 
 
 from __future__ import absolute_import, print_function, division
@@ -23,17 +19,13 @@ D = (rng.randn(N, feats).astype(theano.config.floatX),
 rng.randint(size=N, low=0, high=2).astype(theano.config.floatX))
 training_steps = 10000
 
-# Declare Theano symbolic variables
 x = theano.shared(D[0], name="x")
 y = theano.shared(D[1], name="y")
 w = theano.shared(rng.randn(feats).astype(theano.config.floatX), name="w")
 b = theano.shared(numpy.asarray(0., dtype=theano.config.floatX), name="b")
 x.tag.test_value = D[0]
 y.tag.test_value = D[1]
-#print "Initial model:"
-#print w.get_value(), b.get_value()
 
-# Construct Theano expression graph
 p_1 = 1 / (1 + tt.exp(-tt.dot(x, w) - b))  # Probability of having a one
 prediction = p_1 > 0.5  # The prediction that is done: 0 or 1
 xent = -y * tt.log(p_1) - (1 - y) * tt.log(1 - p_1)  # Cross-entropy
@@ -42,7 +34,6 @@ cost = tt.cast(xent.mean(), 'float32') + \
 gw, gb = tt.grad(cost, [w, b])
 
 """
-# Compile expressions to functions
 train = theano.function(
             inputs=[x, y],
             outputs=[Out(theano.sandbox.cuda.basic_ops.gpu_from_host(tt.cast(prediction, 'float32')),borrow=True), Out(theano.sandbox.cuda.basic_ops.gpu_from_host(tt.cast(xent, 'float32')), borrow=True)],
@@ -52,7 +43,6 @@ predict = theano.function(inputs=[x], outputs=Out(theano.sandbox.cuda.basic_ops.
             name="predict")
 """
 
-# Compile expressions to functions
 train = theano.function(
             inputs=[],
             outputs=[prediction, xent],
@@ -73,8 +63,6 @@ else:
 
 for i in range(training_steps):
     pred, err = train()
-#print "Final model:"
-#print w.get_value(), b.get_value()
 
 print("target values for D")
 print(D[1])
@@ -84,22 +72,15 @@ print(predict())
 
 """
 
-# 2. Profiling
 
 
-# 2.1 Profiling for CPU computations
 
-# In your terminal, type:
 $ THEANO_FLAGS=profile=True,device=cpu python using_gpu_solution_1.py
 
-# You'll see first the output of the script:
 Used the cpu
 target values for D
 prediction on D
 
-# Followed by the output of profiling.. You'll see profiling results for each function
-# in the script, followed by a summary for all functions.
-# We'll show here only the summary:
 
 Results were produced using an Intel(R) Core(TM) i7-4820K CPU @ 3.70GHz
 
@@ -176,19 +157,15 @@ Apply
 
 
 
-# 2.2 Profiling for GPU computations
 
-# In your terminal, type:
 $ CUDA_LAUNCH_BLOCKING=1 THEANO_FLAGS=profile=True,device=gpu python using_gpu_solution_1.py
 
-# You'll see first the output of the script:
 Used the gpu
 target values for D
 prediction on D
 
 Results were produced using a GeForce GTX TITAN
 
-# Profiling summary for all functions:
 
 Function profiling
 ==================
@@ -268,7 +245,6 @@ Apply
    ... (remaining 16 Apply instances account for 0.90%(0.03s) of the runtime)
 
 
-# 3. Conclusions
 
 Examine and compare 'Ops' summaries for CPU and GPU. Usually GPU ops 'GpuFromHost' and 'HostFromGpu' by themselves
 consume a large amount of extra time, but by making as few as possible data transfers between GPU and CPU, you can minimize their overhead.

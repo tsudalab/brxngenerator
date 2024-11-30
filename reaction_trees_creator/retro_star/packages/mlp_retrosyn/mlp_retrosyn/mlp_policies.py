@@ -16,15 +16,11 @@ from pprint import pprint
 
 def preprocess(X,fp_dim):
 
-    # Compute fingerprint from mol to feature
     mol = Chem.MolFromSmiles(X)
     fp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=int(fp_dim),useChirality=True)
     onbits = list(fp.GetOnBits())
     arr = np.zeros(fp.GetNumBits())
     arr[onbits] = 1
-    # arr = (arr - arr.mean())/(arr.std() + 0.000001)
-    # arr = arr / fp_dim
-    # X = fps_to_arr(X)
     return arr
 
 
@@ -38,15 +34,10 @@ class RolloutPolicyNet(nn.Module):
         self.fc1 = nn.Linear(fp_dim,dim)
         self.bn1 = nn.BatchNorm1d(dim)
         self.dropout1 = nn.Dropout(dropout_rate)
-        # self.fc2 = nn.Linear(dim,dim)
-        # self.bn2 = nn.BatchNorm1d(dim)
-        # self.dropout2 = nn.Dropout(dropout_rate)
         self.fc3 = nn.Linear(dim,n_rules)
 
     def forward(self,x, y=None, loss_fn =nn.CrossEntropyLoss()):
         x = self.dropout1(F.elu(self.bn1(self.fc1(x))))
-        # x = self.dropout1(F.elu(self.fc1(x)))
-        # x = self.dropout2(F.elu(self.bn2(self.fc2(x))))
         x = self.fc3(x)
         if y is not None :
             return loss_fn(x, y)
@@ -56,7 +47,6 @@ class RolloutPolicyNet(nn.Module):
 
 
 def top_k_acc(preds, gt,k=1):
-    # preds = preds.to(torch.device('cpu'))
     probs, idx = torch.topk(preds, k=k)
     idx = idx.cpu().numpy().tolist()
     gt = gt.cpu().numpy().tolist()
@@ -134,7 +124,6 @@ def train_one_epoch(net, train_loader,
         optimizer.zero_grad()
         loss_v = net(X_batch,y_batch)
         loss_v = loss_v.mean()
-        # loss_v = loss_fn(y_hat, y_batch)
         loss_v.backward()
         nn.utils.clip_grad_norm_(net.parameters(), max_norm=5)
         optimizer.step()
@@ -194,9 +183,7 @@ def train(net, data,
 
     best = -1
     for e in it:
-        # Iterate batches
         train_one_epoch(net,train_loader,optimizer,device,loss_fn,it)
-        ## Do validation after one epoch training.
         val_1,val_10, val_50, loss= eval_one_epoch(net,val_loader,device)
         scheduler.step(loss)
         if best < val_1:
@@ -256,8 +243,6 @@ def train_mlp(prod_to_rules, template_rule_path, fp_dim=2048,
           epochs=epochs,
           wd=weight_decay,
           saved_model=saved_model + "_{}_".format(fp_dim) + time_stamp +'.ckpt'
-          # saved_model = saved_model + "_{}_{}".format(fp_dim,dropout_rate) + '.ckpt'
-          # saved_model=saved_model + "_{}".format(fp_dim) + '.ckpt'
           )
 
 def train_all(prod_to_rules, template_rule_path, fp_dim=2048,
@@ -287,8 +272,6 @@ def train_all(prod_to_rules, template_rule_path, fp_dim=2048,
           epochs=epochs,
           wd=weight_decay,
           saved_model=saved_model + "_{}_".format(fp_dim) + time_stamp +'.ckpt'
-          # saved_model = saved_model + "_{}_{}".format(fp_dim,dropout_rate) + '.ckpt'
-          # saved_model=saved_model + "_{}".format(fp_dim) + '.ckpt'
           )
 
 def load_model(state_path, template_rule_path,fp_dim=2048):
@@ -353,7 +336,6 @@ if __name__ == '__main__':
     lr = args.learning_rate
     print('Loading data...')
     prod_to_rules = defaultdict(set)
-    ### read the template data.
     with open(template_path, 'r') as f:
         for l in tqdm(f, desc="reading the mapping from prod to rules"):
             rule, prod = l.strip().split('\t')

@@ -239,9 +239,6 @@ if(!work_complete){
         return strutil.render_string(codeSource, locals())
 
     def c_support_code_apply(self, node, nodename):
-        # This code is not sensitive to the ignore_border flag.
-        # It runs for every position in the output z, and then computes the gradient for the
-        # input pixels that were downsampled to that z-position.
         codeSource = """
 __global__ void
 //thread block size = out_dur
@@ -311,5 +308,4 @@ def local_gpu_conv3d(node):
                                                 as_cuda_ndarray_variable(W),
                                                 as_cuda_ndarray_variable(b),
                                                 d))]
-# Not enabled by default as we don't want people to use it.
 gpu_optimizer.register("local_gpu_conv3d", local_gpu_conv3d)

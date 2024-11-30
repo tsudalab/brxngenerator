@@ -26,7 +26,6 @@ def to_gpuarray(x, copyif=False):
     if not isinstance(x, cuda.CudaNdarray):
         raise ValueError("We can transfer only CudaNdarray to pycuda.gpuarray.GPUArray")
     else:
-        # Check if it is c contiguous
         size = 1
         c_contiguous = True
         for i in range(x.ndim - 1, -1, -1):
@@ -42,7 +41,6 @@ def to_gpuarray(x, copyif=False):
             else:
                 raise ValueError("We were asked to not copy memory, but the memory is not c contiguous.")
 
-        # Now x is always c contiguous
         px = pycuda.gpuarray.GPUArray(x.shape, x.dtype, base=x, gpudata=x.gpudata)
         return px
 

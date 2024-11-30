@@ -11,12 +11,10 @@ from theano import config
 from theano.tensor.nlinalg import MatrixInverse
 from theano.tensor import DimShuffle
 
-# The one in comment are not tested...
 from theano.sandbox.linalg.ops import (Cholesky,  # op class
                                        matrix_inverse,
                                        Solve,
                                        solve,
-                                       # PSD_hint,
                                        spectral_radius_bound,
                                        imported_scipy,
                                        inv_as_solve,
@@ -85,18 +83,15 @@ def test_spectral_radius_bound():
     m = numpy.cov(m).astype(config.floatX)
     radius_bound_theano = f(m)
 
-    # test the approximation
     mm = m
     for i in range(5):
         mm = numpy.dot(mm, mm)
     radius_bound_numpy = numpy.trace(mm) ** (2 ** (-5))
     assert abs(radius_bound_numpy - radius_bound_theano) < tol
 
-    # test the bound
     eigen_val = numpy.linalg.eig(m)
     assert (eigen_val[0].max() - radius_bound_theano) < tol
 
-    # test type errors
     xx = theano.tensor.vector()
     ok = False
     try:
@@ -111,7 +106,6 @@ def test_spectral_radius_bound():
         ok = True
     assert ok
 
-    # test value error
     ok = False
     try:
         spectral_radius_bound(x, -5)

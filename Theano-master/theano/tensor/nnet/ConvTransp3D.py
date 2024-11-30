@@ -65,9 +65,7 @@ class ConvTransp3D(theano.Op):
         WShape = W.shape
         dCdW = theano.tensor.nnet.convGrad3D(dCdR, d, WShape, H)
         dCdb = T.sum(dCdR, axis=(0, 1, 2, 3))
-        # not differentiable, since d affects the output elements
         dCdd = grad_undefined(self, 2, d)
-        # disconnected, since RShape just determines the output shape
         dCdRShape = DisconnectedType()()
 
         if 'name' in dir(dCdR) and dCdR.name is not None:
@@ -100,7 +98,6 @@ class ConvTransp3D(theano.Op):
 
     def perform(self, node, inputs, output_storage):
         W, b, d, H, RShape = inputs
-#        print "\t\t\t\tConvTransp3D python code"
         output_storage[0][0] = computeR(W, b, d, H, RShape)
 
     def c_code(self, node, nodename, inputs, outputs, sub):
@@ -253,8 +250,6 @@ class ConvTransp3D(theano.Op):
 
                                    { // for fail 6
 
-                                       #define ELEM5(x, i,j,k,l,m) * ( dtype_ ## x *) ( PyArray_BYTES(x) + (i)*PyArray_STRIDES(x)[0]+(j)*PyArray_STRIDES(x)[1]+(k)*PyArray_STRIDES(x)[2]+(l)*PyArray_STRIDES(x)[3]+(m)*PyArray_STRIDES(x)[4] )
-                                       #define ELEM_AT(x, i) * ( dtype_ ## x *) ( PyArray_BYTES(x) + (i) )
 
 
 
@@ -345,7 +340,6 @@ class ConvTransp3D(theano.Op):
 
 convTransp3D = ConvTransp3D()
 
-# If the input size wasn't a multiple of D we may need to cause some automatic padding to get the right size of reconstruction
 
 
 def computeR(W, b, d, H, Rshape=None):
@@ -377,24 +371,16 @@ def computeR(W, b, d, H, Rshape=None):
         assert Rshape[1] >= videoWidth
         assert Rshape[2] >= videoDur
 
-        # print "setting video size to Rshape = "+str(Rshape)
 
         videoHeight, videoWidth, videoDur = Rshape
-    # else:
-    #       print "No Rshape passed in"
 
-    # print "video size: "+str((videoHeight, videoWidth, videoDur))
 
     R = N.zeros((batchSize, videoHeight,
                 videoWidth, videoDur, inputChannels), dtype=H.dtype)
 
-    # R[i,j,r,c,t] = b_j + sum_{rc,rk | d \circ rc + rk = r} sum_{cc,ck | ...} sum_{tc,tk | ...} sum_k W[k, j, rk, ck, tk] * H[i,k,rc,cc,tc]
     for i in xrange(0, batchSize):
-        # print '\texample '+str(i+1)+'/'+str(batchSize)
         for j in xrange(0, inputChannels):
-            # print '\t\tfeature map '+str(j+1)+'/'+str(inputChannels)
             for r in xrange(0, videoHeight):
-                # print '\t\t\trow '+str(r+1)+'/'+str(videoHeight)
                 for c in xrange(0, videoWidth):
                     for t in xrange(0, videoDur):
                         R[i, r, c, t, j] = b[j]

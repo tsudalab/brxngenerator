@@ -58,8 +58,6 @@ class RopLop_checker(unittest.TestCase):
 
     def setUp(self):
         utt.seed_rng()
-        # Using vectors make things a lot simpler for generating the same
-        # computations using scan
         self.x = tensor.vector('x')
         self.v = tensor.vector('v')
         self.rng = numpy.random.RandomState(utt.fetch_seed())
@@ -137,7 +135,6 @@ class RopLop_checker(unittest.TestCase):
         vector. The output is still a vector.
 
         """
-        # TEST ROP
         vx = numpy.asarray(self.rng.uniform(size=self.in_shape),
                            theano.config.floatX)
         vv = numpy.asarray(self.rng.uniform(size=self.in_shape),
@@ -161,7 +158,6 @@ class RopLop_checker(unittest.TestCase):
         except AssertionError:
             known_fail = True
 
-        # TEST LOP
 
         vx = numpy.asarray(self.rng.uniform(size=self.in_shape),
                            theano.config.floatX)
@@ -195,10 +191,6 @@ class test_RopLop(RopLop_checker):
                            self.in_shape)
 
     def test_max(self):
-        # If we call max directly, we will return an CAReduce object
-        # and he don't have R_op implemented!
-        # self.check_mat_rop_lop(tensor.max(self.mx, axis=[0,1])[0],
-        #                       ())
         self.check_mat_rop_lop(tensor.max(self.mx, axis=0),
                                (self.mat_in_shape[1],))
         self.check_mat_rop_lop(tensor.max(self.mx, axis=1),
@@ -243,14 +235,10 @@ class test_RopLop(RopLop_checker):
         self.check_rop_lop(out, (10,))
 
     def test_dimshuffle(self):
-        # I need the sum, because the setup expects the output to be a
-        # vector
         self.check_rop_lop(self.x[:4].dimshuffle('x', 0).sum(axis=0),
                            (4,))
 
     def test_rebroadcast(self):
-        # I need the sum, because the setup expects the output to be a
-        # vector
         self.check_rop_lop(tensor.unbroadcast(
             self.x[:4].dimshuffle('x', 0), 0).sum(axis=1),
             (1,))
@@ -335,15 +323,12 @@ class test_RopLop(RopLop_checker):
         self.check_mat_rop_lop(self.mx.sum(axis=1), (self.mat_in_shape[0],))
 
     def test_softmax(self):
-        # Softmax adds an extra dimnesion !
         self.check_rop_lop(tensor.nnet.softmax(self.x)[0], self.in_shape[0])
 
     def test_alloc(self):
-        # Alloc of the sum of x into a vector
         out1d = tensor.alloc(self.x.sum(), self.in_shape[0])
         self.check_rop_lop(out1d, self.in_shape[0])
 
-        # Alloc of x into a 3-D tensor, flattened
         out3d = tensor.alloc(self.x, self.mat_in_shape[0], self.mat_in_shape[1], self.in_shape[0])
         self.check_rop_lop(out3d.flatten(), self.mat_in_shape[0] * self.mat_in_shape[1] * self.in_shape[0])
 
@@ -383,10 +368,6 @@ class test_RopLop(RopLop_checker):
         f(mval, vval, m_val, v_val)
 
     def test_Rop_dot_bug_18Oct2013_Jeremiah(self):
-        # This test refers to a bug reported by Jeremiah Lowin on 18th Oct
-        # 2013. The bug consists when through a dot operation there is only
-        # one differentiable path (i.e. there is no gradient wrt to one of
-        # the inputs).
         x = tensor.arange(20.0).reshape([1, 20])
         v = theano.shared(numpy.ones([20]))
         d = tensor.dot(x, v).sum()

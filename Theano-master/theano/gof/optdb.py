@@ -20,7 +20,6 @@ class DB(object):
         self.__db__ = DefaultOrderedDict(OrderedSet)
         self._names = set()
         self.name = None  # will be reset by register
-        # (via obj.name by the thing doing the registering)
 
     def register(self, name, obj, *tags, **kwargs):
         """
@@ -43,9 +42,6 @@ class DB(object):
             tags specified will enable that optimization.
 
         """
-        # N.B. obj is not an instance of class Optimizer.
-        # It is an instance of a DB.In the tests for example,
-        # this is not always the case.
         if not isinstance(obj, (DB, opt.Optimizer, opt.LocalOptimizer)):
             raise TypeError('Object cannot be registered in OptDB', obj)
         if name in self.__db__:
@@ -59,8 +55,6 @@ class DB(object):
             if self.name is not None:
                 tags = tags + (self.name,)
         obj.name = name
-        # This restriction is there because in many place we suppose that
-        # something in the DB is there only once.
         if obj.name in self.__db__:
             raise ValueError('''You can\'t register the same optimization
 multiple time in a DB. Tryed to register "%s" again under the new name "%s".
@@ -93,7 +87,6 @@ multiple time in a DB. Tryed to register "%s" again under the new name "%s".
     def __query__(self, q):
         if not isinstance(q, Query):
             raise TypeError('Expected a Query.', q)
-        # The ordered set is needed for deterministic optimization.
         variables = OrderedSet()
         for tag in q.include:
             variables.update(self.__db__[tag])
@@ -194,7 +187,6 @@ class Query(object):
         if not hasattr(self, 'extra_optimizations'):
             self.extra_optimizations = []
 
-    # add all opt with this tag
     def including(self, *tags):
         return Query(self.include.union(tags),
                      self.require,
@@ -203,7 +195,6 @@ class Query(object):
                      self.position_cutoff,
                      self.extra_optimizations)
 
-    # remove all opt with this tag
     def excluding(self, *tags):
         return Query(self.include,
                      self.require,
@@ -212,7 +203,6 @@ class Query(object):
                      self.position_cutoff,
                      self.extra_optimizations)
 
-    # keep only opt with this tag.
     def requiring(self, *tags):
         return Query(self.include,
                      self.require.union(tags),
@@ -260,7 +250,6 @@ class EquilibriumDB(DB):
     def register(self, name, obj, *tags, **kwtags):
         final_opt = kwtags.pop('final_opt', False)
         cleanup = kwtags.pop('cleanup', False)
-        # An opt should not be final and clean up
         assert not (final_opt and cleanup)
         super(EquilibriumDB, self).register(name, obj, *tags, **kwtags)
         self.__final__[name] = final_opt
@@ -329,24 +318,16 @@ class SequenceDB(DB):
         position_dict = self.__position__
 
         if len(tags) >= 1 and isinstance(tags[0], Query):
-            # the call to super should have raise an error with a good message
             assert len(tags) == 1
             if getattr(tags[0], 'position_cutoff', None):
                 position_cutoff = tags[0].position_cutoff
 
-            # The Query instance might contain extra optimizations which need
-            # to be added the the sequence of optimizations (don't alter the
-            # original dictionary)
             if len(tags[0].extra_optimizations) > 0:
                 position_dict = position_dict.copy()
                 for extra_opt in tags[0].extra_optimizations:
-                    # Give a name to the extra optimization (include both the
-                    # class name for descriptiveness and id to avoid name
-                    # collisions)
                     opt, position = extra_opt
                     opt.name = "%s_%i" % (opt.__class__, id(opt))
 
-                    # Add the extra optimization to the optimization sequence
                     if position < position_cutoff:
                         opts.add(opt)
                         position_dict[opt.name] = position

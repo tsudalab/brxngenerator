@@ -63,11 +63,8 @@ def test_pycuda_elemwise_source_module():
             assert numpy.allclose(f(val1, val2), f2(val1, val2))
             assert numpy.allclose(f(val1, val2), f3(val1, val2))
             assert numpy.allclose(f(val1, val2), f4(val1, val2))
-            # print f(val1,val2)
-            # print f2(val1,val2)
 
 """
-#commented as it work only with old pycuda version.
 def test_pycuda_elemwise_kernel():
     x = T.fmatrix('x')
     y = T.fmatrix('y')
@@ -84,8 +81,6 @@ def test_pycuda_elemwise_kernel():
 
     val1 = numpy.asarray(numpy.random.rand(5, 5), dtype='float32')
     val2 = numpy.asarray(numpy.random.rand(5, 5), dtype='float32')
-    #val1 = numpy.ones((5,5))
-    #val2 = numpy.arange(25).reshape(5,5)
     assert (f(val1, val2) == f2(val1, val2)).all()
     print(f(val1, val2))
     print(f2(val1, val2))

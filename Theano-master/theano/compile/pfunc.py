@@ -64,12 +64,9 @@ def rebuild_collect_shared(outputs,
     if isinstance(outputs, tuple):
         outputs = list(outputs)
 
-    # This function implements similar functionality as graph.clone
-    # and it should be merged with that
     clone_d = {}
     update_d = {}
     update_expr = []
-    # list of shared inputs that are used as inputs of the graph
     shared_inputs = []
 
     def clone_v_get_shared_updates(v, copy_inputs_over):
@@ -82,7 +79,6 @@ def rebuild_collect_shared(outputs,
         constants (to avoid having a constant belonging to two fgraphs).
 
         """
-        # this co-recurses with clone_a
         assert v is not None
         if v in clone_d:
             return clone_d[v]
@@ -102,13 +98,9 @@ def rebuild_collect_shared(outputs,
             if v not in shared_inputs:
                 shared_inputs.append(v)
             if hasattr(v, 'default_update'):
-                # Check that v should not be excluded from the default
-                # updates list
                 if (no_default_updates is False or
                     (isinstance(no_default_updates, list) and
                      v not in no_default_updates)):
-                    # Do not use default_update if a "real" update was
-                    # provided
                     if v not in update_d:
                         v_update = v.type.filter_variable(v.default_update,
                                                           allow_convert=False)
@@ -121,13 +113,10 @@ def rebuild_collect_shared(outputs,
                         update_expr.append((v, v_update))
         if not copy_inputs_over or (isinstance(v, Constant) and
                                     hasattr(v, 'fgraph')):
-            # Cloning shared variables implies copying their underlying
-            # memory buffer ?? No.
             return clone_d.setdefault(v, v.clone())
         else:
             return clone_d.setdefault(v, v)
 
-    # intialize the clone_d mapping with the replace dictionary
     if replace is None:
         replace = []
     try:
@@ -164,18 +153,12 @@ def rebuild_collect_shared(outputs,
 
     input_variables = [clone_inputs(i) for i in inputs]
 
-    # It was decided, as a first step, to prevent shared variables from
-    # being used as function inputs. Although it is technically possible,
-    # it is also not clear when/how to use the value of that shared
-    # variable (is it a default? ignored?, if the shared variable changes,
-    # does that function default also change?).
     for v in input_variables:
         if isinstance(v, SharedVariable):
             raise TypeError(('Cannot use a shared variable (%s) as explicit '
                              'input. Consider substituting a non-shared'
                              ' variable via the `givens` parameter') % v)
 
-    # Fill update_d and update_expr with provided updates
     if updates is None:
         updates = []
     for (store_into, update_val) in iter_over_pairs(updates):
@@ -187,7 +170,6 @@ def rebuild_collect_shared(outputs,
                              'expression',
                              (store_into, update_d[store_into]))
 
-        # filter_variable ensure smooth conversion of cpu/gpu Types
         try:
             update_val = store_into.type.filter_variable(update_val,
                                                          allow_convert=False)
@@ -211,7 +193,6 @@ def rebuild_collect_shared(outputs,
         update_d[store_into] = update_val
         update_expr.append((store_into, update_val))
 
-    # Elements of "outputs" are here cloned to "cloned_outputs"
     if isinstance(outputs, list):
         cloned_outputs = []
         for v in outputs:
@@ -226,17 +207,14 @@ def rebuild_collect_shared(outputs,
                 raise TypeError('Outputs must be theano Variable or '
                                 'Out instances. Received ' + str(v) +
                                 ' of type ' + str(type(v)))
-            # computed_list.append(cloned_v)
     else:
         if isinstance(outputs, Variable):
             cloned_v = clone_v_get_shared_updates(outputs, copy_inputs_over)
             cloned_outputs = cloned_v
-            # computed_list.append(cloned_v)
         elif isinstance(outputs, Out):
             cloned_v = clone_v_get_shared_updates(outputs.variable,
                                                   copy_inputs_over)
             cloned_outputs = Out(cloned_v, borrow=outputs.borrow)
-            # computed_list.append(cloned_v)
         elif outputs is None:
             cloned_outputs = []  # TODO: get Function.__call__ to return None
         else:
@@ -244,12 +222,6 @@ def rebuild_collect_shared(outputs,
                             'instance (or list of them)',
                             outputs)
 
-    # Iterate over update_expr, cloning its elements, and updating
-    # shared_inputs, update_d and update_expr from the SharedVariables
-    # we discover.
-    # If the variable to be updated is a shared variable not already
-    # in shared_inputs, add it.
-    # Note: we extend update_expr while iterating over it.
 
     i = 0
     while i < len(update_expr):
@@ -340,36 +312,16 @@ def pfunc(params, outputs=None, mode=None, updates=None, givens=None,
     equivalent to Var1.
 
     """
-    #
-    # This function works by cloning the graph (except for the
-    # inputs), and then shipping it off to compile.function (There it
-    # will be cloned again, unnecessarily, because it doesn't know
-    # that we already cloned it.)
-    #
-    # First, it clones the replacements named in the givens argument,
-    # and points each Var1 to the clone of Var2.  Then it sets the
-    # inputs in the clone dictionary.  After these steps, we are
-    # assuming that the clone dictionary contains all the inputs to
-    # the computation graph.
-    #
-    # Then it clones the outputs and the update expressions.  This
-    # rebuilds a computation graph from the inputs and the givens.
-    #
     if updates is None:
         updates = []
     if givens is None:
         givens = []
     if profile is None:
         profile = config.profile
-        # profile -> True or False
     if profile is True:
         profile = ProfileStats(message=name)
-        # profile -> object
     elif type(profile) == str:
         profile = ProfileStats(message=profile)
-    # profile is typically either False or an object at this point.
-    # No need to block other objects being passed through though. It might be
-    # useful.
 
     if not isinstance(params, (list, tuple)):
         raise Exception("in pfunc() the first argument must be a list or "
@@ -386,11 +338,9 @@ def pfunc(params, outputs=None, mode=None, updates=None, givens=None,
             "The updates parameter must be an OrderedDict/dict or a list of "
             "lists/tuples with 2 elements")
 
-    # transform params into theano.compile.In objects.
     inputs = [_pfunc_param_to_in(p, allow_downcast=allow_input_downcast)
               for p in params]
 
-    # Check if some variable is present more than once in inputs
     in_variables = [input.variable for input in inputs]
     for i, v in enumerate(in_variables):
         if v in in_variables[(i + 1):]:
@@ -401,8 +351,6 @@ def pfunc(params, outputs=None, mode=None, updates=None, givens=None,
                  "provided for it being ignored. Please do not duplicate "
                  "variables in the inputs list." % (v, i, dup_v_i)))
 
-    # Check that we are not using `givens` to replace input variables, because
-    # this typically does nothing, contrary to what one may expect.
     in_var_set = set(in_variables)
     try:
         givens_pairs = list(givens.items())
@@ -422,8 +370,6 @@ def pfunc(params, outputs=None, mode=None, updates=None, givens=None,
                 'theano.clone(f(x), replace={x: g(x)}))`.'
                 % x)
 
-    # Extend the outputs with the updates on input variables so they are also
-    # cloned
     additional_outputs = [i.update for i in inputs if i.update]
     if outputs is None:
         out_list = []
@@ -441,11 +387,9 @@ def pfunc(params, outputs=None, mode=None, updates=None, givens=None,
                                          rebuild_strict=rebuild_strict,
                                          copy_inputs_over=True,
                                          no_default_updates=no_default_updates)
-    # extracting the arguments
     input_variables, cloned_extended_outputs, other_stuff = output_vars
     clone_d, update_d, update_expr, shared_inputs = other_stuff
 
-    # Recover only the clones of the original outputs
     if outputs is None:
         cloned_outputs = []
     else:
@@ -457,15 +401,10 @@ def pfunc(params, outputs=None, mode=None, updates=None, givens=None,
     for i, iv in zip(inputs, input_variables):
         i.variable = iv
 
-        # If needed, replace the input's update by its cloned equivalent
         if i.update:
             i.update = clone_d[i.update]
 
     for sv in shared_inputs:
-        # pass value of None
-        # value will be stored in the resulting functions' defaults
-        # list but since the value of shared variables never needs to
-        # be refed, it is not needed
         if sv in update_d:
             si = In(variable=sv, value=sv.container, mutable=True,
                     borrow=True, update=update_d[sv], shared=True)

@@ -19,7 +19,6 @@ def global_optimization(grid, lower, upper, function_grid, function_scalar, func
     grid_values = function_grid(grid)
     best = grid_values.argmin()
     
-    # We solve the optimization problem
 
     X_initial = grid[ best : (best + 1), : ]
     def objective(X):
@@ -62,8 +61,6 @@ def adam_theano(loss, all_params, learning_rate = 0.001):
 
 class SparseGP:
 
-    # The training_targets are the Y's which in the case of regression are real numbers in the case of binary
-    # classification are 1 or -1 and in the case of multiclass classification are 0, 1, 2,.. n_class - 1
 
     def __init__(self, input_means, input_vars, training_targets, n_inducing_points):
 
@@ -124,7 +121,6 @@ class SparseGP:
 
     def train_via_LBFGS(self, input_means, input_vars, training_targets, max_iterations = 500):
 
-        # We initialize the network and get the initial parameters
 
         input_means = input_means.astype(theano.config.floatX)
         input_vars = input_vars.astype(theano.config.floatX)
@@ -196,7 +192,6 @@ class SparseGP:
      	self.input_means.set_value(input_means[ selected_points, : ])
      	self.input_vars.set_value(input_vars[ selected_points, : ])
      	self.original_training_targets.set_value(training_targets[ selected_points, : ])
-     	#print('Initializing network')
      	sys.stdout.flush()
      	self.setForTraining()
      	self.initialize()
@@ -205,11 +200,8 @@ class SparseGP:
      	y = T.matrix('y', dtype = theano.config.floatX)
      	e = self.getEnergy()
      	all_params = self.get_params()
-     	#print('Compiling adam updates')
      	sys.stdout.flush()
      	process_minibatch_adam = theano.function([ X, Z, y ], -e, updates = adam_theano(-e, all_params, learning_rate), givens = { self.input_means: X, self.input_vars: Z, self.original_training_targets: y })
-     	# Main loop of the optimization
-     	#print('Training')
      	sys.stdout.flush()
      	n_batches = int(np.ceil(1.0 * n_data_points / minibatch_size))
      	for j in range(max_iterations):
@@ -227,14 +219,12 @@ class SparseGP:
                 current_energy = process_minibatch_adam(minibatch_data_means, minibatch_data_vars, minibatch_targets)
                 elapsed_time = time.time() - start
 
-                #print('Epoch: {}, Mini-batch: {} of {} - Energy: {} Time: {}'.format(j, i, n_batches, current_energy, elapsed_time))
                 sys.stdout.flush()
 
             pred, uncert = self.predict(input_means_test, input_vars_test)
             test_error = np.sqrt(np.mean((pred - test_targets)**2))
             test_ll = np.mean(sps.norm.logpdf(pred - test_targets, scale = np.sqrt(uncert)))
 
-            #print('Test error: {} Test ll: {}'.format(test_error, test_ll))
             sys.stdout.flush()
         
             pred = np.zeros((0, 1))
@@ -249,7 +239,6 @@ class SparseGP:
             training_error = np.sqrt(np.mean((pred - training_targets)**2))
             training_ll = np.mean(sps.norm.logpdf(pred - training_targets, scale = np.sqrt(uncert)))
      
-            #print('Train error: {} Train ll: {}'.format(training_error, training_ll))
             sys.stdout.flush()
 
     def get_incumbent(self, grid, lower, upper):
@@ -296,7 +285,6 @@ class SparseGP:
         function_scalar = theano.function([ x ], -log_ei[ 0 ])
         function_scalar_gradient = theano.function([ x ], -T.grad(log_ei[ 0 ], x))
 
-        # We optimize the ei in a greedy manner
 
         for i in range(1, q):
 
@@ -305,11 +293,9 @@ class SparseGP:
             randomness_numpy = casting(0 * np.random.randn(X_numpy.shape[ 0 ], n_samples).astype(theano.config.floatX))
             X.set_value(X_numpy)
             randomness.set_value(randomness_numpy)
-            #print(i, X_numpy)
 
         m, v = self.predict(X_numpy, 0 * X_numpy)
     
-        #print("Predictive mean at selected points:\n", m)
 
         return X_numpy,m
 

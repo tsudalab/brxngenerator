@@ -19,13 +19,11 @@ from theano.misc.pkl_utils import dump, load, StripPickler
 
 class T_dump_load(unittest.TestCase):
     def setUp(self):
-        # Work in a temporary directory to avoid cluttering the repository
         self.origdir = os.getcwd()
         self.tmpdir = mkdtemp()
         os.chdir(self.tmpdir)
 
     def tearDown(self):
-        # Get back to the original dir, and delete the temporary one
         os.chdir(self.origdir)
         if self.tmpdir is not None:
             shutil.rmtree(self.tmpdir)
@@ -74,13 +72,11 @@ class T_dump_load(unittest.TestCase):
 
 class TestStripPickler(unittest.TestCase):
     def setUp(self):
-        # Work in a temporary directory to avoid cluttering the repository
         self.origdir = os.getcwd()
         self.tmpdir = mkdtemp()
         os.chdir(self.tmpdir)
 
     def tearDown(self):
-        # Get back to the original dir, and delete the temporary one
         os.chdir(self.origdir)
         if self.tmpdir is not None:
             shutil.rmtree(self.tmpdir)

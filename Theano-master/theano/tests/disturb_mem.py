@@ -10,11 +10,6 @@ __email__ = "goodfeli@iro"
 
 
 def disturb_mem():
-    # Allocate a time-dependent amount of objects to increase
-    # chances of subsequently objects' ids changing from run
-    # to run. This is useful for exposing issues that cause
-    # non-deterministic behavior due to dependence on memory
-    # addresses, like iterating over a dict or a set.
     global l
     now = datetime.now()
     ms = now.microsecond

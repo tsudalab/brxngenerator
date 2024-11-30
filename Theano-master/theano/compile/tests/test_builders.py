@@ -19,15 +19,12 @@ class T_OpFromGraph(unittest_tools.InferShapeTester):
         x, y, z = T.matrices('xyz')
         e = x + y * z
         op = OpFromGraph([x, y, z], [e])
-        # (1+3*5=array of 16) - (3+1*5=array of 8)
         f = op(x, y, z) - op(y, z, x)
 
         fn = function([x, y, z], f)
         xv = numpy.ones((2, 2), dtype=config.floatX)
         yv = numpy.ones((2, 2), dtype=config.floatX) * 3
         zv = numpy.ones((2, 2), dtype=config.floatX) * 5
-        # print function, function.__module__
-        # print fn.maker.fgraph.toposort()
         fn(xv, yv, zv)
         assert numpy.all(8.0 == fn(xv, yv, zv))
         assert numpy.all(8.0 == fn(xv, yv, zv))
@@ -78,15 +75,12 @@ class T_OpFromGraph(unittest_tools.InferShapeTester):
         s = shared(numpy.random.rand(2, 2).astype(config.floatX))
         e = x + y * z + s
         op = OpFromGraph([x, y, z], [e])
-        # (1+3*5=array of 16) - (3+1*5=array of 8)
         f = op(x, y, z) - op(y, z, x)
 
         fn = function([x, y, z], f)
         xv = numpy.ones((2, 2), dtype=config.floatX)
         yv = numpy.ones((2, 2), dtype=config.floatX) * 3
         zv = numpy.ones((2, 2), dtype=config.floatX) * 5
-        # print function, function.__module__
-        # print fn.maker.fgraph.toposort()
         assert numpy.allclose(8.0, fn(xv, yv, zv))
         assert numpy.allclose(8.0, fn(xv, yv, zv))
 
@@ -103,7 +97,6 @@ class T_OpFromGraph(unittest_tools.InferShapeTester):
         zv = numpy.ones((2, 2), dtype=config.floatX) * 5
         assert numpy.allclose(11.0 + s.get_value(), fn(xv, yv, zv))
 
-        # grad again the shared variable
         f = op(x, y, z)
         f = f - T.grad(T.sum(f), s)
         fn = function([x, y, z], f)
@@ -111,7 +104,6 @@ class T_OpFromGraph(unittest_tools.InferShapeTester):
                               fn(xv, yv, zv))
 
     def test_connection_pattern(self):
-        # Basic case
         x, y, z = T.matrices('xyz')
         out1 = x * y
         out2 = y * z
@@ -123,8 +115,6 @@ class T_OpFromGraph(unittest_tools.InferShapeTester):
                          [False, True]]
         assert results == expect_result
 
-        # Graph with ops that don't have a 'full' connection pattern
-        # and with ops that have multiple outputs
         m, n, p, q = T.matrices('mnpq')
         o1, o2 = op1(m, n, p)
         out1, out2 = op1(o1, q, o2)
@@ -137,7 +127,6 @@ class T_OpFromGraph(unittest_tools.InferShapeTester):
                          [True, True]]
         assert results == expect_result
 
-        # Inner graph where some computation doesn't rely on explicit inputs
         srng = RandomStreams(seed=234)
         rv_u = srng.uniform((2, 2))
         x, y = T.matrices('xy')

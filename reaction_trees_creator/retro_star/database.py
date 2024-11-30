@@ -25,8 +25,3 @@ def collection_candidates():
 
 
 
-#col1 = collection_example_reactions_smilesonly()
-#col2 = collection_example_reactions_details()
-#col3 = collection_templates()
-#col4 = collection_candidates()
-#print(col4)

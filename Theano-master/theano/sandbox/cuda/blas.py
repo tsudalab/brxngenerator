@@ -253,7 +253,6 @@ class GpuBatchedDot(GpuOp):
             float* yend = y + CudaNdarray_SIZE(%(by)s);
             float* zend = z + CudaNdarray_SIZE(%(bz)s);
 
-            #define N_STREAMS 32
             cudaStream_t streams[N_STREAMS];
             for (int i = 0; i < N_STREAMS; i++) {
                 cudaStreamCreate(&streams[i]);
@@ -307,7 +306,6 @@ class GpuBatchedDot(GpuOp):
 
     def c_support_code(self):
         return """
-        #define CLEANUP()                               \
             do                                          \
             {                                           \
                 if (host_x) free (host_x);              \
@@ -462,11 +460,9 @@ class GpuDot22Scalar(GpuOp):
         z, = outputs
         fail = sub['fail']
         return """
-        #define REAL float
         float %(name)s_a = (PyArray_TYPE(%(a)s) == NPY_FLOAT)
         ? (REAL)(((float*)PyArray_DATA(%(a)s))[0])
         : (REAL)(((double*)PyArray_DATA(%(a)s))[0]);
-        #undef REAL
         if (%(x)s->nd != 2)
         {
             PyErr_Format(PyExc_TypeError, "rank(x)==%%i must be 2", %(x)s->nd);
@@ -546,25 +542,18 @@ class GpuGemm(GpuOp):
     def __setstate__(self, dct):
         self.__dict__.update(dct)
 
-        # Correctly reload older pickles where _op_use_c_code and
-        # destroy_map were not saved
         if '_op_use_c_code' not in self.__dict__:
             self._op_use_c_code = theano.config.cxx
         if 'destroy_map' not in self.__dict__ and self.inplace:
             self.destroy_map = {0: [0]}
 
     def make_node(self, z, a, x, y, b):
-        # the more complicated error checking performed by tensor.gemm
-        # is assumed to already have been done
         return Apply(self, [z, a, x, y, b], [z.type()])
 
     def c_code_cache_version(self):
         return (4,)
 
     def c_code(self, node, name, inputs, outputs, sub):
-        #z_out = alpha * dot(x,y) + beta * z_in
-        # inplace version, set set z_out = z_in
-        # not inplace version, we copy z_in to z_out.
         z_in, a, x, y, b = inputs
         z_out, = outputs
         inplace = int(self.inplace)
@@ -573,7 +562,6 @@ class GpuGemm(GpuOp):
 
         print("""
 
-        #define REAL float
         float %(name)s_a = (PyArray_TYPE(%(a)s) == NPY_FLOAT)
         ? (REAL)(((float*)PyArray_DATA(%(a)s))[0])
         : (REAL)(((double*)PyArray_DATA(%(a)s))[0]);
@@ -581,7 +569,6 @@ class GpuGemm(GpuOp):
         float %(name)s_b = (PyArray_TYPE(%(b)s) == NPY_FLOAT) ?
         (REAL)(((float*)PyArray_DATA(%(b)s))[0])
         : (REAL)(((double*)PyArray_DATA(%(b)s))[0]);
-        #undef REAL
 
         if (%(inplace)s
             && (CudaNdarray_HOST_STRIDES(%(z_in)s)[0] >= 0)
@@ -666,25 +653,18 @@ class GpuGemv(GpuOp):
     def __setstate__(self, dct):
         self.__dict__.update(dct)
 
-        # Correctly reload older pickles where _op_use_c_code and
-        # destroy_map were not saved
         if '_op_use_c_code' not in self.__dict__:
             self._op_use_c_code = theano.config.cxx
         if 'destroy_map' not in self.__dict__ and self.inplace:
             self.destroy_map = {0: [0]}
 
     def make_node(self, z, a, x, y, b):
-        # the more complicated error checking performed by tensor.gemv
-        # is assumed to already have been done
         return Apply(self, [z, a, x, y, b], [z.type()])
 
     def c_code_cache_version(self):
         return (3,)
 
     def c_code(self, node, name, inputs, outputs, sub):
-        #z_out = alpha * dot(x,y) + beta * z_in
-        # inplace version, set set z_out = z_in
-        # not inplace version, we copy z_in to z_out.
         z_in, a, x, y, b = inputs
         z_out, = outputs
         inplace = int(self.inplace)
@@ -766,25 +746,18 @@ class GpuGer(GpuOp):
     def __setstate__(self, dct):
         self.__dict__.update(dct)
 
-        # Correctly reload older pickles where _op_use_c_code and
-        # destroy_map were not saved
         if '_op_use_c_code' not in self.__dict__:
             self._op_use_c_code = theano.config.cxx
         if 'destroy_map' not in self.__dict__ and self.inplace:
             self.destroy_map = {0: [0]}
 
     def make_node(self, z, a, x, y):
-        # the more complicated error checking performed by tensor.ger is
-        # assumed to already have been done
         return Apply(self, [z, a, x, y], [z.type()])
 
     def c_code_cache_version(self):
         return (2,)
 
     def c_code(self, node, name, inputs, outputs, sub):
-        #z_out = alpha * dot(x,y) + beta * z_in
-        # inplace version, set set z_out = z_in
-        # not inplace version, we copy z_in to z_out.
         z_in, a, x, y = inputs
         z_out, = outputs
         inplace = int(self.inplace)
@@ -909,16 +882,11 @@ class BaseGpuCorrMM(GpuOp):
         Useful with the hack in profilemode to print the MFlops.
 
         """
-        # if the output shape is correct, then this gives the correct
-        # flops for any direction, sampling, padding, and border mode
         inputs, filters = inp
         outputs, = outp
         assert inputs[1] == filters[1]
-        # nb mul and add by output pixel
         flops = filters[2] * filters[3] * 2
-        # nb flops by output image
         flops *= outputs[2] * outputs[3]
-        # nb patch multiplied
         flops *= inputs[1] * filters[0] * inputs[0]
         return flops
 
@@ -926,12 +894,9 @@ class BaseGpuCorrMM(GpuOp):
         return ['cuda_ndarray.cuh', '<stdio.h>']
 
     def c_code_cache_version(self):
-        # raise this whenever modifying any of the support_code_files
         return (0, 24)
 
     def c_support_code_apply(self, node, nodename):
-        # REMEMBER TO RAISE c_code_cache_version when changing any of
-        # these files
         files = ['corr_gemm.cu']
         codes = [open(os.path.join(os.path.split(__file__)[0], f)).read()
                 for f in files]
@@ -1002,9 +967,6 @@ class BaseGpuCorrMM(GpuOp):
         else:
             raise ValueError("direction must be one of 'forward', "
                     "'backprop weights', 'backprop inputs'")
-        # When subsampling, we cannot unambiguously infer the height and width
-        # of bottom and weights from top, so we require them to be given.
-        # Similarly, when pad="half", we cannot infer the weight size.
         if ((direction != 0) and (dH != 1)) or ((direction == 1) and (padH == -1)):
             if not height:
                 raise ValueError("height must be given for backprop with vertical sampling or pad='half'")
@@ -1387,16 +1349,11 @@ class BaseGpuCorr3dMM(GpuOp):
 
     def flops(self, inp, outp):
         """ Useful with the hack in profilemode to print the MFlops"""
-        # if the output shape is correct, then this gives the correct
-        # flops for any direction, sampling, padding, and border mode
         inputs, filters = inp
         outputs, = outp
         assert inputs[1] == filters[1]
-        # nb mul and add by output pixel
         flops = filters[2] * filters[3] * filters[4] * 2
-        # nb flops by output image
         flops *= outputs[2] * outputs[3] * outputs[4]
-        # nb patch multiplied
         flops *= inputs[1] * filters[0] * inputs[0]
         return flops
 
@@ -1404,12 +1361,9 @@ class BaseGpuCorr3dMM(GpuOp):
         return ['cuda_ndarray.cuh', '<stdio.h>']
 
     def c_code_cache_version(self):
-        # raise this whenever modifying any of the support_code_files
         return (0, 23)
 
     def c_support_code_apply(self, node, nodename):
-        # REMEMBER TO RAISE c_code_cache_version when changing any of
-        # these files
         files = ['corr3d_gemm.cu']
         codes = [open(os.path.join(os.path.split(__file__)[0], f)).read()
                 for f in files]
@@ -1489,9 +1443,6 @@ class BaseGpuCorr3dMM(GpuOp):
         else:
             raise ValueError("direction must be one of 'forward', "
                     "'backprop weights', 'backprop inputs'")
-        # When subsampling, we cannot unambiguously infer the height and width
-        # of bottom and weights from top, so we require them to be given.
-        # Similarly, when pad="half", we cannot infer the weight size.
         if ((direction != 0) and (dH != 1)) or ((direction == 1) and (padH == -1)):
             if not height:
                 raise ValueError("height must be given for backprop with vertical sampling or pad='half'")
@@ -1877,9 +1828,6 @@ class GpuCorr3dMM_gradInputs(BaseGpuCorr3dMM):
             return [[1], [1], [0], [0], [0]]  # no connection to height, width, depth
 
 
-##
-# Not really a BLAS operation, but whatever.
-#
 
 class GpuConv(GpuOp):
     """
@@ -1967,16 +1915,10 @@ class GpuConv(GpuOp):
         self.subsample = subsample
         if logical_img_hw is not None:
             h, w = logical_img_hw
-            # TODO: reconsider this... since shapes are not given in
-            # constructor, maybe a multiplier + offset is a more
-            # appropriate way of passing this logical grid
             logical_img_hw = tuple(logical_img_hw)
         self.logical_img_hw = logical_img_hw
         if logical_kern_hw is not None:
             h, w = logical_kern_hw
-            # TODO: reconsider this... since shapes are not given in
-            # constructor, maybe a multiplier + offset is a more
-            # appropriate way of passing this logical grid
             logical_kern_hw = tuple(logical_kern_hw)
         self.logical_kern_hw = logical_kern_hw
         self.logical_kern_align_top = logical_kern_align_top
@@ -2019,8 +1961,6 @@ class GpuConv(GpuOp):
             self.fft_opt = True
 
     def __hash__(self):
-        # don't use hash(self.version) as hash(-1)==-2 and
-        # hash(-2)==-2 in python!
         return hash(type(self)) \
             ^ hash(self.border_mode) \
             ^ hash(self.subsample) \
@@ -2061,11 +2001,8 @@ class GpuConv(GpuOp):
         assert images[1] == kerns[1]
         flops = 0
         if self.border_mode == "valid":
-            # nb mul and add by output pixel
             flops = kerns[2] * kerns[3] * 2
-            # nb flops by output image
             flops *= out[2] * out[3]
-            # nb patch multiplied
             flops *= images[1] * kerns[0] * images[0]
         else:
             flops = (images[0] * kerns[0] * images[1] *
@@ -2099,12 +2036,9 @@ class GpuConv(GpuOp):
         return ['cuda_ndarray.cuh', '<stdio.h>']
 
     def c_code_cache_version(self):
-        # raise this whenever modifying any of the support_code_files
         return (0, 23)
 
     def c_support_code_apply(self, node, nodename):
-        # REMEMBER TO RAISE c_code_cache_version when changing any of
-        # these files
         files = ['conv_kernel.cu', 'conv_full_kernel.cu', 'conv.cu']
         codes = [open(os.path.join(os.path.split(__file__)[0], f)).read()
                 for f in files]
@@ -2185,8 +2119,6 @@ class GpuDownsampleFactorMax(GpuOp):
             raise TypeError()
         return Apply(self, [x], [x.type()])
 
-    # def perform(self, node, input_storage, output_storage):
-        #raise NotImplementedError('only C is implemented')
     def c_code_cache_version(self):
         return (6)
 
@@ -2468,14 +2400,6 @@ class GpuDownsampleFactorMaxGrad(GpuOp):
         """ % locals()
 
     def c_support_code_apply(self, node, nodename):
-        # This code considers every position in the output z, andthen
-        # computes the gradient for the input pixels that were
-        # downsampled to that z-position. It does so by running along
-        # every z row (sometimes plus one, to make sure every gx row
-        # gets totally filled), and by running along every x col. This
-        # code is not sensitive to the ignore_border flag along the
-        # row dimension (since it runs for every position in the
-        # output z), but it is sensitive along the col dimension.
         ignore_border = int(self.ignore_border)
 
         return """

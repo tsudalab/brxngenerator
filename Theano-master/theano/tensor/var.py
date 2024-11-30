@@ -32,21 +32,13 @@ class AsTensorError(TypeError):
 
 
 class _tensor_py_operators(object):
-    # UNARY
     def __abs__(self):
         return theano.tensor.basic.abs_(self)
 
     def __neg__(self):
         return theano.tensor.basic.neg(self)
 
-    # CASTS
-    # REMOVED THESE BECAUSE PYTHON appears to require __int__ to return
-    # an int. -JB 20081112
-    # def __int__(self): return convert_to_int32(self)
-    # def __float__(self): return convert_to_float64(self)
-    # def __complex__(self): return convert_to_complex128(self)
 
-    # COMPARISONS
     _is_nonzero = True
 
     def __lt__(self, other):
@@ -70,19 +62,9 @@ class _tensor_py_operators(object):
         return rval
 
     def __nonzero__(self):
-        # Python 2.x
         return self.__bool__()
 
     def __bool__(self):
-        # This is meant to prohibit stuff like a < b < c, which is internally
-        # implemented as (a < b) and (b < c). The trouble with this is the
-        # side-effect that checking for a non-NULL a by typing "if a: ..."
-        # uses the same __nonzero__ method.  We want these both to work, but
-        # it seems impossible.  Currently, all vars evaluate to nonzero except
-        # the return values of comparison operators, which raise this
-        # exception.  If you can think of a better solution, go for it!
-        #
-        # __bool__ is Python 3.x data model. __nonzero__ is Python 2.x.
         if self._is_nonzero:
             return True
         else:
@@ -99,7 +81,6 @@ class _tensor_py_operators(object):
                 "left. Or update to NumPy 1.8 or above."
             )
 
-    # BITWISE
     def __invert__(self):
         return theano.tensor.basic.invert(self)
 
@@ -121,57 +102,29 @@ class _tensor_py_operators(object):
     def __rxor__(self, other):
         return theano.tensor.basic.xor(other, self)
 
-    # def __iand__(self, other):
-    #    return _and_inplace(self, other)
-    #
-    # def __ior__(self, other):
-    #    return _or_inplace(self, other)
-    #
-    # def __ixor__(self, other):
-    #    return _xor_inplace(self, other)
 
-    # ARITHMETIC - NORMAL
     def __add__(self, other):
         try:
             return theano.tensor.basic.add(self, other)
-        # We should catch the minimum number of exception here.
-        # Otherwise this will convert error when Theano flags
-        # compute_test_value is used
-        # Evidently, we need to catch NotImplementedError
-        # TypeError from as_tensor_variable are caught in Elemwise.make_node
-        # Oterwise TensorVariable * SparseVariable won't work!
         except (NotImplementedError, AsTensorError):
-            # We must return NotImplemented and not an
-            # NotImplementedError or raise an NotImplementedError.
-            # That way python will give a good error message like this
-            # `TypeError: unsupported operand type(s) for +:
-            # 'TensorVariable' and 'TensorVariable'`
             return NotImplemented
 
     def __sub__(self, other):
-        # See explanation in __add__ for the error catched
-        # and the return value in that case
         try:
             return theano.tensor.basic.sub(self, other)
         except (NotImplementedError, AsTensorError):
             return NotImplemented
 
     def __mul__(self, other):
-        # See explanation in __add__ for the error catched
-        # and the return value in that case
         try:
             return theano.tensor.mul(self, other)
         except (NotImplementedError, AsTensorError):
             return NotImplemented
 
     def __div__(self, other):
-        # See explanation in __add__ for the error catched
-        # and the return value in that case
         try:
             return theano.tensor.basic.div_proxy(self, other)
         except IntegerDivisionError:
-            # This is to raise the exception that occurs when trying to divide
-            # two integer arrays (currently forbidden).
             raise
         except (NotImplementedError, AsTensorError):
             return NotImplemented
@@ -179,21 +132,15 @@ class _tensor_py_operators(object):
         __truediv__ = __div__
 
     def __pow__(self, other):
-        # See explanation in __add__ for the error catched
-        # adn the return value in that case
         try:
             return theano.tensor.basic.pow(self, other)
         except (NotImplementedError, AsTensorError):
             return NotImplemented
 
     def __mod__(self, other):
-        # See explanation in __add__ for the error catched
-        # adn the return value in that case
         try:
             return theano.tensor.basic.mod_check(self, other)
         except ComplexError:
-            # This is to raise the exception that occurs when trying to compute
-            # x % y with either x or y a complex number.
             raise
         except (NotImplementedError, AsTensorError):
             return NotImplemented
@@ -213,24 +160,7 @@ class _tensor_py_operators(object):
     def __rfloordiv__(self, other):
         return theano.tensor.basic.floor_div(other, self)
 
-    # DO NOT USE THESE BECAUSE INPLACE OPS SHOULD BE INSERTED
-    # BY OPTIMIZATIONS ONLY
-    # ARITHMETIC - INPLACE
-    # def __iadd__(self, other):
-    #    return _add_inplace(self, other)
-    # def __isub__(self, other):
-    #    return _sub_inplace(self, other)
-    #
-    # def __imul__(self, other):
-    #    return _mul_inplace(self, other)
-    #
-    # def __idiv__(self, other):
-    #    return _div_inplace(self, other)
-    #
-    # def __ipow__(self, other):
-    #    return _pow_inplace(self, other)
 
-    # ARITHMETIC - RIGHT-OPERAND
     def __radd__(self, other):
         return theano.tensor.basic.add(other, self)
 
@@ -252,7 +182,6 @@ class _tensor_py_operators(object):
     def __rpow__(self, other):
         return theano.tensor.basic.pow(other, self)
 
-    # TRANSPOSE
     T = property(lambda self: theano.tensor.basic.transpose(self))
 
     def transpose(self, *axes):
@@ -285,22 +214,12 @@ class _tensor_py_operators(object):
     size = property(lambda self: self.shape[0] if self.ndim == 1 else
                     theano.tensor.basic.prod(self.shape))
 
-    # We can't implement __len__ to provide a better error message.
     def any(self, axis=None, keepdims=False):
         return theano.tensor.basic.any(self, axis=axis, keepdims=keepdims)
 
     def all(self, axis=None, keepdims=False):
         return theano.tensor.basic.all(self, axis=axis, keepdims=keepdims)
 
-    # Otherwise TensorVariable[:-1] does not work as Python 2.5.1 calls
-    # __len__ before calling __getitem__. It also does not catch the raised
-    # Exception!
-    # def __len__(self):
-    #     # We can't implement __len__ as Python requests that this
-    #     # function returns an integer >=0
-    #     raise Exception("Theano Variables can't work with len(Theano "
-    #                     "Variable) due to Python restriction. You can use "
-    #                     "TheanoVariable.shape[0] instead.")
 
     def reshape(self, shape, ndim=None):
         """Return a reshaped view/copy of this variable.
@@ -371,7 +290,6 @@ class _tensor_py_operators(object):
     def diagonal(self, offset=0, axis1=0, axis2=1):
         return theano.tensor.basic.diagonal(self, offset, axis1, axis2)
 
-    # Transfer the data to another device
     def transfer(self, target):
         """
         If `target` is `'cpu'` this will transfer to a TensorType (if
@@ -384,7 +302,6 @@ class _tensor_py_operators(object):
         """
         return theano.tensor.transfer(self, target)
 
-    # Elemwise
     def arccos(self):
         return theano.tensor.arccos(self)
 
@@ -460,23 +377,16 @@ class _tensor_py_operators(object):
     def trunc(self):
         return theano.tensor.trunc(self)
 
-    # CASTING
     def astype(self, dtype):
         return theano.tensor.cast(self, dtype)
 
-    # SLICING/INDEXING
     def __getitem__(self, args):
         if (isinstance(args, list) and
                 any([isinstance(a, slice) for a in args])):
             pass
         elif not isinstance(args, tuple):
             args = args,
-        # Convert python literals to theano constants
         args = theano.tensor.subtensor.make_constant(args)
-        # Determine if advanced indexing is needed or not
-        # The logic is already in Subtensor.convert: if it succeeds,
-        # standard indexing is used; if it fails with
-        # AdvancedIndexingError, advanced indexing
         advanced = False
         axis = None
         for i, arg in enumerate(args):
@@ -506,11 +416,6 @@ class _tensor_py_operators(object):
                 return theano.tensor.subtensor.advanced_subtensor(self, *args)
         else:
             if numpy.newaxis in args:
-                # None (aka np.newaxis) in numpy indexing means to add a
-                # broadcastable dimension, which theano traditionally did with
-                # the dimshuffle op.  The following code converts numpy-style
-                # indexing on self to traditional [read: implemented] theano
-                # indexing on a dimshuffled view of self.
 
                 counter = 0
                 pattern = []
@@ -535,7 +440,6 @@ class _tensor_py_operators(object):
     def take(self, indices, axis=None, mode='raise'):
         return theano.tensor.subtensor.take(self, indices, axis, mode)
 
-    # COPYING
     def copy(self, name=None):
         """Return a symbolic copy and optionally assign a name.
 
@@ -550,12 +454,10 @@ class _tensor_py_operators(object):
             for i in xrange(theano.tensor.basic.get_vector_length(self)):
                 yield self[i]
         except TypeError:
-            # This prevents accidental iteration via builtin.sum(self)
             raise TypeError(('TensorType does not support iteration. '
                              'Maybe you are using builtin.sum instead of '
                              'theano.tensor.sum? (Maybe .max?)'))
 
-    # CONVENIENT ACCESS TO TYPE PROPERTIES
     ndim = property(lambda self: self.type.ndim)
     """The rank of this tensor."""
 
@@ -572,7 +474,6 @@ class _tensor_py_operators(object):
     dtype = property(lambda self: self.type.dtype)
     """The dtype of this tensor."""
 
-    # extra pseudo-operator symbols
     def __dot__(left, right):
         return theano.tensor.basic.dot(left, right)
 
@@ -598,7 +499,6 @@ class _tensor_py_operators(object):
             raise NotImplementedError()
         if numpy.isinf(L):
             raise NotImplementedError()
-        # optimizations will/should catch cases like L=1, L=2
         return theano.tensor.basic.pow(
             theano.tensor.basic.pow(
                 theano.tensor.basic.abs_(self), L).sum(axis=axis), 1.0 / L)
@@ -670,7 +570,6 @@ class _tensor_py_operators(object):
     def trace(self):
         return theano.tensor.nlinalg.trace(self)
 
-    # TO TRUMP NUMPY OPERATORS
     __array_priority__ = 1000
 
     def get_scalar_constant_value(self):
@@ -742,8 +641,6 @@ class TensorVariable(_tensor_py_operators, Variable):
                    'with float64 dtype. You requested an action via '
                    'the Theano flag warn_float64={ignore,warn,raise,pdb}.')
             if config.warn_float64 == "warn":
-                # Get the user stack. We don't want function inside the
-                # tensor and gof directory to be shown to the user.
                 x = tb.extract_stack()
                 nb_rm = 0
                 while x:
@@ -782,28 +679,18 @@ class TensorConstantSignature(tuple):
         except Exception:
             return False
 
-        # N.B. compare shape to ensure no broadcasting in ==
         if t0 != t1 or d0.shape != d1.shape:
             return False
 
         self.no_nan  # Ensure has_nan is computed.
-        # Note that in the comparisons below, the elementwise comparisons
-        # come last because they are the most expensive checks.
         if self.has_nan:
             other.no_nan  # Ensure has_nan is computed.
             return (other.has_nan and
                     self.sum == other.sum and
                     (self.no_nan.mask == other.no_nan.mask).all() and
-                    # Note that the second test below (==) may crash e.g. for
-                    # a single scalar NaN value, so we do not run it when all
-                    # values are missing.
                     (self.no_nan.mask.all() or
                      (self.no_nan == other.no_nan).all()))
         else:
-            # Simple case where we do not need to worry about NaN values.
-            # (note that if there are NaN values in d1, this will return
-            # False, which is why we do not bother with testing `other.has_nan`
-            # here).
             return (self.sum == other.sum) and numpy.all(d0 == d1)
 
     def __hash__(self):
@@ -820,26 +707,19 @@ class TensorConstantSignature(tuple):
             return self._sum
         except AttributeError:
             self._sum = self.no_nan.sum()
-            # The following 2 lines are needede as in Python 3.3 with NumPy
-            # 1.7.1, numpy.ndarray and numpy.memmap aren't hashable.
             if type(self._sum) is numpy.memmap:
                 self._sum = numpy.asarray(self._sum).item()
             if self.has_nan and self.no_nan.mask.all():
-                # In this case the sum is not properly computed by numpy.
                 self._sum = 0
             if numpy.isinf(self._sum) or numpy.isnan(self._sum):
-                # NaN may happen when there are both -inf and +inf values.
                 if self.has_nan:
-                    # Filter both NaN and Inf values.
                     mask = self.no_nan.mask + numpy.isinf(self[1])
                 else:
-                    # Filter only Inf values.
                     mask = numpy.isinf(self[1])
                 if mask.all():
                     self._sum = 0
                 else:
                     self._sum = numpy.ma.masked_array(self[1], mask).sum()
-                # At this point there should be no more NaN.
                 assert not numpy.isnan(self._sum)
         return self._sum
     sum = property(_get_sum)
@@ -889,19 +769,15 @@ class TensorConstant(_tensor_py_operators, Constant):
         return TensorConstantSignature((self.type, self.data))
 
     def equals(self, other):
-        # Override Contant.equals to allow to compare with numpy.ndarray
         if isinstance(other, numpy.ndarray):
-            # Make a TensorConstant to be able to compare
             other = theano.tensor.basic.constant(other)
         return (isinstance(other, TensorConstant) and
                 self.signature() == other.signature())
 
     def __copy__(self):
-        # We need to do this to remove the cached attribute
         return type(self)(self.type, self.data, self.name)
 
     def __deepcopy__(self, memo):
-        # We need to do this to remove the cached attribute
         return type(self)(copy.deepcopy(self.type, memo),
                           copy.deepcopy(self.data, memo),
                           copy.deepcopy(self.name, memo))

@@ -33,10 +33,6 @@ __docformat__ = "restructuredtext en"
 class ScalarSharedVariable(_scalar_py_operators, SharedVariable):
     pass
 
-# this is not installed in the default shared variable registry so that
-# scalars are typically 0-d tensors.
-# still, in case you need a shared variable scalar, you can get one
-# by calling this function directly.
 
 
 def shared(value, name=None, strict=False, allow_downcast=None):

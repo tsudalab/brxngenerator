@@ -1,4 +1,3 @@
-# This is the example in the Theano/doc/tutorial/extending_theano.txt
 from __future__ import absolute_import, print_function, division
 
 import theano
@@ -46,10 +45,6 @@ class DoubleOp(theano.Op):
         return [output_grads[0] * 2]
 
     def R_op(self, inputs, eval_points):
-        # R_op can receive None as eval_points.
-        # That means there is no differentiable path through that input.
-        # If this implies that you cannot compute some outputs,
-        # return None for those.
         if eval_points[0] is None:
             return eval_points
         return self.grad(inputs, eval_points)

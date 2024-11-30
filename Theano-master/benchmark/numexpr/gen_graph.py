@@ -72,7 +72,6 @@ def timeit_2vector(nb_element=1e6, nb_repeat=3, nb_call=int(1e2), expr="a**2 + b
     return rval
 
 def exec_timeit_2vector(expr, nb_call_scal=1, fname=None, do_unalign=False, do_amd=True):
-    #exp = [(1,100000),(1e1,100000),(1e2,100000),(1e3,100000), (5e3,50000),
     exp = [(1e3,100000),(5e3,50000), \
            (1e4,10000),(5e4,5000),(1e5,2000),(1e6,200),(1e7,10)
            ]
@@ -148,12 +147,9 @@ def execs_timeit_2vector(exprs, fname=None):
     The first level of list is put into different graph section in the same graph.
     The second level is the expression to put in each section
     """
-    #exp = [(1,100000),(1e1,100000),(1e2,100000),(1e3,100000), (5e3,50000),
     exp = [(1e3,100000),(5e3,50000), \
            (1e4,10000),(5e4,5000),(1e5,2000),(1e6,200),(1e7,10)
            ]
-    ### TO TEST UNCOMMENT THIS LINE
-    # exp = [(1,1000),(1e1,1000),(1e2,1000),]
     times=[]
     str_expr=[]
     for g_exprs in exprs:
@@ -177,18 +173,8 @@ def execs_timeit_2vector(exprs, fname=None):
     fig = pylab.figure()
     for idx,(time,expr) in enumerate(zip(times,str_expr)):
 
-        ###
-        ###
-        ###
-        # Creating each subplot
-        ###
-        ###
-        ###
-        ###
         pylab.subplot(220+idx+1)
         pylab.subplots_adjust(wspace=0.25, hspace=0.25)
-        #legend=[]
-        #plot = fig.add_subplot(1,len(exprs),idx)
         speedup = [t["numpy"].min()/t["numexpr"].min() for t in time]
 
         pylab.semilogx(nb_calls, speedup, linewidth=1.0,  color='r')
@@ -217,36 +203,11 @@ execs_timeit_2vector([
          "2*a + 3*b",
          "a+1",],
         [("2*a + b**10",.2)]
-#"2*a + b*b*b*b*b*b*b*b*b*b",
-#("2*a + exp(b)",.3),
 ],fname="multiple_graph.pdf"
 )
-###
-### This case is the one gived on numexpr web site(http://code.google.com/p/numexpr/) as of 16 June 2010
-### a**2 + b**2 + 2*a*b
-#exec_timeit_2vector("a**2 + b**2 + 2*a*b",fname="speedup_numexpr_mulpow2vec.png", do_amd=False)
-
-###
-### This case is the one gived on numexpr web site(http://code.google.com/p/numexpr/wiki/Overview) as of 16 June 2010
-### 2*a + 3*b
-#exec_timeit_2vector("2*a + 3*b",fname="speedup_numexpr_mul2vec.png", do_amd=False)
-
-###
-### This case is the one gived on numexpr web site(http://code.google.com/p/numexpr/wiki/Overview) as of 16 June 2010
-### 2*a + b**10
-#exec_timeit_2vector("2*a + b**10",.2,fname="speedup_numexpr_mulpow2vec_simple.png")
-#exec_timeit_2vector("2*a + b*b*b*b*b*b*b*b*b*b",fname="speedup_numexpr_mulpow2vec_simpleV2.png", do_amd=False)
-
-###
-### We try to see if the pow optimized speed is available for exp too.
-### 2*a + exp(b)
-#exec_timeit_2vector("2*a + exp(b)",.3,fname="speedup_numexpr_mulexp2vec.png")
-
-###
-### The simplest case where we should show the overhead at its maximum effect
-### a+1
-#exec_timeit_2vector("a+1",fname="speedup_numexpr_add1vec.png")
 
 
-#exec_timeit_2vector("a+1",.2,fname="speedup_numexpr_add1vec_unalign.png",do_unalign=True, do_amd=False)
-#exec_timeit_2vector("2*a + b**10",.1,fname="speedup_numexpr_mulpow2vec_simple_unalign.png",do_unalign=True)
+
+
+
+

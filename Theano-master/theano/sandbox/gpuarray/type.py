@@ -10,8 +10,6 @@ from theano.tensor.var import _tensor_py_operators
 from theano import Type, Variable, Constant, tensor, config, scalar
 from theano.compile import SharedVariable
 
-# Make sure this is importable even if pygpu is absent
-# (it will not work though)
 try:
     import pygpu
     from pygpu import gpuarray
@@ -77,7 +75,6 @@ def list_contexts():
     return _context_reg.keys()
 
 
-# Private method
 def _name_for_ctx(ctx):
     for k, v in iteritems(_context_reg):
         if v == ctx:
@@ -85,7 +82,6 @@ def _name_for_ctx(ctx):
         raise ContextNotDefined('context is not registered')
 
 
-# This is a private method for use by the tests only
 def _unreg_context(name):
     del _context_reg[name]
 
@@ -140,13 +136,11 @@ class GpuArrayType(Type):
 
     """
     def __init__(self, dtype, broadcastable, context_name=None, name=None):
-        # In case this was not provided and no global value is available
         self.dtype = str(dtype)
         self.broadcastable = tuple(bool(b) for b in broadcastable)
         self.ndim = len(self.broadcastable)
         self.name = name
         self.context_name = context_name
-        # This will check that the passed context name is valid and registered.
         get_context(self.context_name)
         try:
             self.typecode = gpuarray.dtype_to_typecode(self.dtype)
@@ -162,7 +156,6 @@ class GpuArrayType(Type):
         return self.__class__(dtype=dtype, broadcastable=broadcastable,
                               context_name=self.context_name, name=self.name)
 
-    # This is a property to keep the type pickleable
     @property
     def context(self):
         """
@@ -179,8 +172,6 @@ class GpuArrayType(Type):
     def filter(self, data, strict=False, allow_downcast=None):
         if (isinstance(data, gpuarray.GpuArray) and
                 data.typecode == self.typecode):
-            # This is just to make this condition not enter the
-            # following branches
             pass
         elif strict:
             if not isinstance(data, gpuarray.GpuArray):
@@ -193,7 +184,6 @@ class GpuArrayType(Type):
                                  data.typecode, str(data.dtype)))
             if self.context != data.context:
                 raise TypeError("data context does not match type context")
-            # fallthrough to ndim check
         elif (allow_downcast or
               (allow_downcast is None and
                type(data) == float and
@@ -204,8 +194,6 @@ class GpuArrayType(Type):
         else:
             if not hasattr(data, 'dtype'):
                 converted_data = theano._asarray(data, self.dtype)
-                # We use the `values_eq` static function from TensorType
-                # to handle NaN values.
                 if TensorType.values_eq(numpy.asarray(data),
                                         converted_data,
                                         force_same_dtype=False):
@@ -277,7 +265,6 @@ class GpuArrayType(Type):
         if a_eq_b.all():
             return True
 
-        # maybe the trouble is that there are NaNs
         a = numpy.asarray(a)
         b = numpy.asarray(b)
 
@@ -319,7 +306,6 @@ class GpuArrayType(Type):
             ret = numpy.asarray(res).all()
             if ret:
                 return True
-            # maybe the trouble is that there are NaNs
             an = numpy.asarray(a)
             bn = numpy.asarray(b)
             return tensor.TensorType.values_eq_approx(
@@ -381,8 +367,6 @@ class GpuArrayType(Type):
                 'int32': (int, 'npy_int32', 'NPY_INT32'),
                 'uint64': (int, 'npy_uint64', 'NPY_UINT64'),
                 'int64': (int, 'npy_int64', 'NPY_INT64'),
-                # 'complex128': (complex, 'theano_complex128', 'NPY_COMPLEX128'),
-                # 'complex64': (complex, 'theano_complex64', 'NPY_COMPLEX64')
                 }[self.dtype]
         except KeyError:
             raise TypeError("Unsupported dtype for %s: %s" %
@@ -406,7 +390,6 @@ class GpuArrayType(Type):
         return "%s = NULL;" % (name,)
 
     def c_extract(self, name, sub, check_input=True):
-        # TODO I don't check broadcast stuff for now.
         return """
         %(name)s = NULL;
         if (py_%(name)s == Py_None) {
@@ -441,14 +424,9 @@ class GpuArrayType(Type):
         """ % {'name': name}
 
     def c_init_code(self):
-        # We don't actually need the numpy API except in
-        # HostFromGpu and GpuFromHost and those case will be covered
-        # by the TensorType parameter
         return ['import_pygpu__gpuarray();']
 
     def c_headers(self):
-        # We need arrayobject for the PyArrayDescr struct def
-        # (even if we just use a pointer to it in a function def)
         return ['<gpuarray/array.h>', '<gpuarray/kernel.h>',
                 '<gpuarray/error.h>', '<gpuarray/buffer_blas.h>',
                 '<numpy/arrayobject.h>', '<gpuarray_api.h>']
@@ -461,8 +439,6 @@ class GpuArrayType(Type):
 
     def c_code_cache_version(self):
         ver = pygpu.gpuarray.api_version()
-        # we only use the major version since the minor revision are
-        # API-compatible.
         return (1, ver[0])
 
 
@@ -492,7 +468,6 @@ class GpuArrayVariable(_operators, Variable):
 
     """
 
-    # override the default
     def __repr_test_value__(self):
         return repr(numpy.array(theano.gof.op.get_test_value(self)))
 
@@ -501,8 +476,6 @@ GpuArrayType.Variable = GpuArrayVariable
 
 
 class GpuArraySignature(tensor.TensorConstantSignature):
-    # might do something better if we can run the sum on the GPU, but
-    # for now this will suffice.
     pass
 
 
@@ -586,8 +559,6 @@ def gpuarray_shared_constructor(value, name=None, strict=False,
     try:
         get_context(target)
     except ContextNotDefined:
-        # Don't make this a hard error if we attempt to make a shared
-        # variable while there is no default context.
         if target is None:
             raise TypeError('No default context and no context specified')
         raise
@@ -606,7 +577,6 @@ theano.compile.register_view_op_c_code(GpuArrayType, """
     Py_XINCREF(%(oname)s);
 """, version=(0,))
 
-# Register GpuArrayType C code for Shape Op.
 theano.compile.register_shape_c_code(
     GpuArrayType,
     """
@@ -737,7 +707,6 @@ Py_INCREF(%(name)s);
     def c_cleanup(self, name, sub):
         return "Py_XDECREF(%(name)s); %(name)s = NULL;" % dict(name=name)
 
-    # c_sync is intentionally not declared to prevent normal usage
 
     def c_init_code(self):
         return ['import_pygpu__gpuarray();']
@@ -752,7 +721,6 @@ Py_INCREF(%(name)s);
         ver = pygpu.gpuarray.api_version()
         return (0, ver[0])
 
-    # Variable, Contstant, ... not declared
 
 """
 Instance of :class:`GpuContextType` to use for the context_type
@@ -761,14 +729,8 @@ declaration of an operation.
 gpu_context_type = GpuContextType()
 
 
-# THIS WORKS But GpuArray instances don't compare equal to one
-# another, and what about __hash__ ?  So the unpickled version doesn't
-# equal the pickled version, and the cmodule cache is not happy with
-# the situation. The old back-end have this same comment and use the
-# same mechanism.
 def GpuArray_unpickler(npa, ctx_name):
     if config.experimental.unpickle_gpu_on_cpu:
-        # directly return numpy array
         warnings.warn(
             "config.experimental.unpickle_gpu_on_cpu is set to True. "
             "Unpickling GpuArray as numpy.ndarray")
@@ -786,7 +748,6 @@ def GpuArray_pickler(cnda):
     ctx_name = _name_for_ctx(cnda.context)
     return (GpuArray_unpickler, (numpy.asarray(cnda), ctx_name))
 
-# In case pygpu is not imported.
 if pygpu is not None:
     copyreg.pickle(pygpu.gpuarray.GpuArray,
                    GpuArray_pickler,

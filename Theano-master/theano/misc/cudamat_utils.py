@@ -46,7 +46,6 @@ try:
                             "because cudamat arrays are always 2-dimensional")
 
         else:
-            # Check if it is c contiguous
             size = 1
             c_contiguous = True
             for i in range(x.ndim - 1, -1, -1):
@@ -62,10 +61,7 @@ try:
                 else:
                     raise ValueError("We where asked to don't copy memory, but the memory is not c contiguous.")
 
-            # Now x is always c contiguous.
 
-            # the next step is to create a CUDAMatrix object. We do so by first creating
-            # a cudamat object with no data_host.
             cm_mat = cudamat.cudamat()
             cm_mat.size[0] = x.shape[0]
             cm_mat.size[1] = x.shape[1]
@@ -74,14 +70,12 @@ try:
             cm_mat.is_trans = 0
             cm_mat.owns_data = 0  # <-- note: cm_mat dosen't owe the data; x does. So x will delete it.
 
-            # x.gpudata is a long. We need a pointer to a float. cast.
             import ctypes
             cm_mat.data_device = ctypes.cast(x.gpudata, ctypes.POINTER(ctypes.c_float))
 
             px = cudamat.CUDAMatrix(cm_mat)
             px._base = x  # x won't be __del__'ed as long as px is around.
 
-            # let cudamat know that we don't have a numpy array attached.
             px.mat_on_host = False
             return px
 
@@ -90,9 +84,6 @@ try:
         """
         if not isinstance(x, cudamat.CUDAMatrix):
             raise ValueError("We can transfer only cudamat.CUDAMatrix to CudaNdarray")
-        # elif x.dtype != "float32":
-        # raise ValueError("CudaNdarray support only float32")
-        # We don't need this, because cudamat is always float32.
         else:
             strides = [1]
             for i in x.shape[::-1][:-1]:
@@ -102,7 +93,6 @@ try:
             import ctypes
             ptr_long = long(ctypes.cast(x.mat.data_device, ctypes.c_void_p).value)
 
-            # seems legit.
             z = cuda.from_gpu_pointer(ptr_long, x.shape, strides, x)
             return z
 

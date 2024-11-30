@@ -46,11 +46,6 @@ def compute_kernel_numpy(lls, lsf, x, z):
 
     return k
 
-##
-# xmean and xvar can be vectors of input points
-#
-# This is the expected value of the kernel
-#
 
 def compute_psi1(lls, lsf, xmean, xvar, z):
 

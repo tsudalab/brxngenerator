@@ -32,34 +32,26 @@ class TestSignalConv2D(unittest.TestCase):
         if filter_dim != 3:
             nkern = 1
 
-        # THEANO IMPLEMENTATION ############
-        # we create a symbolic function so that verify_grad can work
         def sym_conv2d(input, filters):
             return conv.conv2d(input, filters)
         output = sym_conv2d(input, filters)
         assert output.ndim == out_dim
         theano_conv = theano.function([input, filters], output)
 
-        # initialize input and compute result
         image_data = numpy.random.random(image_shape)
         filter_data = numpy.random.random(filter_shape)
         theano_output = theano_conv(image_data, filter_data)
 
-        # REFERENCE IMPLEMENTATION ############
         out_shape2d = numpy.array(image_shape[-2:]) - numpy.array(filter_shape[-2:]) + 1
         ref_output = numpy.zeros(tuple(out_shape2d))
 
-        # reshape as 3D input tensors to make life easier
         image_data3d = image_data.reshape((bsize,) + image_shape[-2:])
         filter_data3d = filter_data.reshape((nkern,) + filter_shape[-2:])
-        # reshape theano output as 4D to make life easier
         theano_output4d = theano_output.reshape((bsize, nkern,) +
                                                 theano_output.shape[-2:])
 
-        # loop over mini-batches (if required)
         for b in range(bsize):
 
-            # loop over filters (if required)
             for k in range(nkern):
 
                 image2d = image_data3d[b, :, :]
@@ -76,7 +68,6 @@ class TestSignalConv2D(unittest.TestCase):
                 self.assertTrue(_allclose(theano_output4d[b, k, :, :],
                                           output2d))
 
-        # TEST GRADIENT ############
         if verify_grad:
             utt.verify_grad(sym_conv2d, [image_data, filter_data])
 

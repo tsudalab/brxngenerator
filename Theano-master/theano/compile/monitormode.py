@@ -1,6 +1,4 @@
 from __future__ import absolute_import, print_function, division
-# Note: this code was initially copied from the 'pyutools' package by its
-# original author, and re-licensed under Theano's license.
 import numpy
 
 import theano

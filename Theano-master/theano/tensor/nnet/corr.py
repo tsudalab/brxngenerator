@@ -88,12 +88,9 @@ class BaseCorrMM(gof.Op):
         return ['<stdio.h>']
 
     def c_code_cache_version(self):
-        # raise this whenever modifying any of the support_code_files
         return (1, 1)
 
     def c_support_code_apply(self, node, nodename):
-        # REMEMBER TO RAISE c_code_cache_version when changing any of
-        # these files
         sub = {}
         dtype = str(node.__dict__['inputs'][0].dtype)
         assert dtype in ('float32', 'float64')
@@ -176,9 +173,6 @@ class BaseCorrMM(gof.Op):
         else:
             raise ValueError("direction must be one of 'forward', "
                              "'backprop weights', 'backprop inputs'")
-        # When subsampling, we cannot unambiguously infer the height and width
-        # of bottom and weights from top, so we require them to be given.
-        # Similarly, when border_mode="half", we cannot infer the weight size.
         if ((direction != 0) and (dH != 1)) or ((direction == 1) and (padH == -1)):
             if not height:
                 raise ValueError("height must be given for backprop with vertical sampling or border_mode='half'")
@@ -456,13 +450,10 @@ class CorrMM_gradWeights(BaseCorrMM):
         nkern, topshp = topshp[1], list(topshp[2:])
         height_width = node.inputs[-2:]
         if ((dH != 1) or (padH == -1)):
-            # vertical subsampling or half padding, kernel height is specified
             kH = height_width[0]
         elif padH == -2:
-            # vertical full padding, we can infer the kernel height
             kH = 2 - imshp[0] + (topshp[0] - 1) * dH
         else:
-            # explicit padding, we can infer the kernel height
             kH = imshp[0] + 2 * padH - (topshp[0] - 1) * dH
         if ((dW != 1) or (padW == -1)):
             kW = height_width[1]

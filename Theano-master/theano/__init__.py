@@ -25,8 +25,6 @@ from __future__ import absolute_import, print_function, division
 
 __docformat__ = "restructuredtext en"
 
-# Set a default logger. It is important to do this before importing some other
-# theano code, since this code may want to log some messages.
 import logging
 
 theano_logger = logging.getLogger("theano")
@@ -37,17 +35,10 @@ logging_default_handler.setFormatter(logging_default_formatter)
 theano_logger.addHandler(logging_default_handler)
 theano_logger.setLevel(logging.WARNING)
 
-# Version information.
 from theano.version import version as __version__
 
 from theano.configdefaults import config
 
-# This is the api version for ops that generate C code.  External ops
-# might need manual changes if this number goes up.  An undefined
-# __api_version__ can be understood to mean api version 0.
-#
-# This number is not tied to the release version and should change
-# very rarely.
 __api_version__ = 1
 
 from theano.gof import (
@@ -78,20 +69,12 @@ from theano.scan_module import scan, map, reduce, foldl, foldr, clone
 
 from theano.updates import OrderedUpdates
 
-# scan_module import above initializes tensor and scalar making these imports
-# redundant
 
-# import tensor
-# import scalar
 
-# we don't import by default as we don't want to force having scipy installed.
 
-# import sparse
 
 from theano.gradient import Rop, Lop, grad, subgraph_grad
 
-# This need to be before the init of GPU, as it add config variable
-# needed during that phase.
 import theano.tests
 if hasattr(theano.tests, "TheanoNoseTester"):
     test = theano.tests.TheanoNoseTester().test
@@ -102,9 +85,6 @@ else:
 
 if config.device.startswith('gpu') or config.init_gpu_device.startswith('gpu'):
     import theano.sandbox.cuda
-    # We can't test the driver during import of theano.sandbox.cuda as
-    # this cause circular import dependency. So we also test it manually
-    # after the import
     if theano.sandbox.cuda.cuda_available:
         import theano.sandbox.cuda.tests.test_driver
 
@@ -118,7 +98,6 @@ if (config.device.startswith('cuda') or
         config.contexts != ''):
     import theano.sandbox.gpuarray
 
-# Use config.numpy to call numpy.seterr
 import numpy
 
 if config.numpy.seterr_all == 'None':
@@ -149,8 +128,6 @@ numpy.seterr(
     invalid=_invalid)
 del _all, _divide, _over, _under, _invalid
 
-# This is defined here because it is designed to work across symbolic
-#   datatypes (Sparse and Tensor)
 
 
 def dot(l, r):
@@ -185,7 +162,6 @@ def get_scalar_constant_value(v):
     If `v` is not some view of constant data, then raise a
     tensor.basic.NotScalarConstantError.
     """
-    # Is it necessary to test for presence of theano.sparse at runtime?
     if 'sparse' in globals() and isinstance(v.type, sparse.SparseType):
         if v.owner is not None and isinstance(v.owner.op, sparse.CSM):
             data = v.owner.inputs[0]

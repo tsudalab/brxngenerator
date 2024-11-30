@@ -44,7 +44,6 @@ def mol2graph(mol_batch):
 
 	total_atoms = 0
 	for smiles in mol_batch:
-		#print("dkm", smiles)
 		mol= get_mol_from_smiles(smiles)
 		n_atoms = mol.GetNumAtoms()
 		for atom in mol.GetAtoms():
@@ -138,7 +137,6 @@ class MPN(nn.Module):
 		message = nn.ReLU()(binput)
 
 		for i in range(self.depth-1):
-			# given nei_message
 			nei_message = index_select_ND(message, 0, bgraph)
 			nei_message = nei_message.sum(dim=1)
 			nei_message = self.W_h(nei_message)

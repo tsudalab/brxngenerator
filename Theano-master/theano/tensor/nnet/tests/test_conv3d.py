@@ -18,10 +18,6 @@ from nose.plugins.skip import SkipTest
 
 floatX = theano.config.floatX
 
-# TODO: each individual test method should seed rng with utt.fetch_seed()
-#      as it is right now, setUp does the seeding, so if you run just
-#      a subset of the tests they will do different things than if you
-#      run all of them
 
 
 class DummyConv3D:
@@ -227,10 +223,6 @@ class TestConv3D(utt.InferShapeTester):
 
     @attr('slow')
     def test_c_against_mat_mul(self):
-        # Use a filter of the same size as the image, so the convolution is
-        # just a dense matrix multiply.
-        # Check that dense matrix multiplication gives the same result as
-        # convolution.
 
         batchSize = self.rng.randint(1, 10)
         videoDur = self.rng.randint(3, 10)
@@ -294,10 +286,6 @@ class TestConv3D(utt.InferShapeTester):
             assert False
 
     def test_c_against_mat_transp_mul(self):
-    # Use a filter of the same size as the image, so the convolution is just a
-    # dense matrix multiply.
-    # Check that dense matrix multiplication by the transpose of the matrix
-    # gives the same result as ConvTransp.
         batchSize = self.rng.randint(1, 10)
         videoDur = self.rng.randint(3, 15)
         videoWidth = self.rng.randint(3, 15)
@@ -364,8 +352,6 @@ class TestConv3D(utt.InferShapeTester):
                         assert False
 
     def test_c_against_sparse_mat_transp_mul(self):
-    # like test_c_against_mat_transp_mul but using a sparse matrix and a kernel
-    # that is smaller than the image
         if not theano.sparse.enable_sparse:
             raise SkipTest('Optional package sparse disabled')
 
@@ -390,7 +376,6 @@ class TestConv3D(utt.InferShapeTester):
         col_steps = self.rng.randint(1, 4)
         time_steps = self.rng.randint(1, 4)
 
-        #print (row_steps,col_steps,time_steps)
 
         videoDur = (time_steps - 1) * dt + filterDur + \
                       self.rng.randint(0, 3)
@@ -404,14 +389,12 @@ class TestConv3D(utt.InferShapeTester):
         self.W.set_value(self.random_tensor(numFilters, filterHeight,
                 filterWidth, filterDur, inputChannels), borrow=True)
         self.b.set_value(self.random_tensor(numFilters), borrow=True)
-        # just needed so H_shape works
         self.V.set_value(self.random_tensor(batchSize, videoHeight, videoWidth,
                             videoDur, inputChannels), borrow=True)
         self.rb.set_value(self.random_tensor(inputChannels), borrow=True)
 
         H_shape = self.H_shape_func()
 
-        # make index maps
         h = N.zeros(H_shape[1:], dtype='int32')
         r = N.zeros(H_shape[1:], dtype='int32')
         c = N.zeros(H_shape[1:], dtype='int32')
@@ -484,14 +467,11 @@ class TestConv3D(utt.InferShapeTester):
 
     def test_infer_shape(self):
         self.randomize()
-        # Conv3D
         self._compile_and_check([], [self.H], [], Conv3D)
 
-        # ConvTransp3D
         self._compile_and_check([self.RShape], [self.R],
                     [self.V.get_value(borrow=True).shape[1:4]], ConvTransp3D)
 
-        # ConvGrad3D
         self._compile_and_check([self.RShape], [T.grad(self.reconsObj, self.W),
                                             T.grad(self.reconsObj, self.H),
                                             T.grad(self.reconsObj, self.V),

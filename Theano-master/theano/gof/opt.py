@@ -52,13 +52,9 @@ class Optimizer(object):
         return self._optimizer_idx
 
     def __eq__(self, other):
-        # added to override the  __eq__ implementation that may be inherited
-        # in subclasses from other bases.
         return id(self) == id(other)
 
     def __neq__(self, other):
-        # added to override the  __neq__ implementation that may be inherited
-        # in subclasses from other bases.
         return id(self) != id(other)
 
     def apply(self, fgraph):
@@ -176,7 +172,6 @@ def inplace_optimizer(f):
 
 
 class SeqOptimizer(Optimizer, list):
-    # inherit from Optimizer first to get Optimizer.__hash__
     """
     WRITEME
 
@@ -233,7 +228,6 @@ class SeqOptimizer(Optimizer, list):
                 if fgraph.profile:
                     sub_validate_time.append(fgraph.profile.validate_time)
             except AssertionError:
-                # do not catch Assertion failures
                 raise
             except Exception as e:
                 if self.failure_callback:
@@ -260,7 +254,6 @@ class SeqOptimizer(Optimizer, list):
         name = getattr(self, 'name', None)
         print("%s%s %s id=%i" % (
             (' ' * level), self.__class__.__name__, name, id(self)), file=stream)
-        # This way, -1 will do all depth
         if depth != 0:
             depth -= 1
             for opt in self:
@@ -295,8 +288,6 @@ class SeqOptimizer(Optimizer, list):
         lll = sorted(zip(prof, ll), key=lambda a: a[0])
 
         for (t, opt) in lll[::-1]:
-            # if t < 1:
-            #    continue
             if sub_validate_time:
                 i = opt[-1]
                 val_time = sub_validate_time[i + 1] - sub_validate_time[i]
@@ -319,7 +310,6 @@ class SeqOptimizer(Optimizer, list):
         new_t = []
         new_l = []
         new_sub_profile = []
-        # merge common(same object) opt
         for l in set(prof1[0]).intersection(set(prof2[0])):
             idx1 = prof1[0].index(l)
             idx2 = prof2[0].index(l)
@@ -333,12 +323,8 @@ class SeqOptimizer(Optimizer, list):
             else:
                 new_sub_profile.append(None)
 
-        # merge not common opt
         from six import StringIO
         for l in set(prof1[0]).symmetric_difference(set(prof2[0])):
-            # The set trick above only work for the same object optimization
-            # It don't work for equivalent optimization.
-            # So we try to merge equivalent optimization here.
             new_l_names = [o.name for o in new_l]
             if l.name in new_l_names:
                 idx = new_l_names.index(l.name)
@@ -370,8 +356,6 @@ class SeqOptimizer(Optimizer, list):
             new_sub_profile.append(p[6][idx])
 
         new_opt = SeqOptimizer(*new_l)
-        # We need to assert based on the name as we merge also based on
-        # the name.
         assert set([l.name for l in prof1[0]]).issubset(
             set([l.name for l in new_l]))
         assert set([l.name for l in prof2[0]]).issubset(
@@ -388,9 +372,6 @@ class _metadict:
 
     """
 
-    # dict that accepts unhashable keys
-    # uses an associative list
-    # for internal use only
     def __init__(self):
         self.d = {}
         self.l = []
@@ -469,46 +450,25 @@ class MergeFeature(object):
         assert not hasattr(fgraph, 'merge_feature')
         fgraph.merge_feature = self
 
-        # For constants
         self.seen_constants = set()
-        # variable -> signature (for constants)
         self.const_sig = _metadict()
-        # signature -> variable (for constants)
         self.const_sig_inv = _metadict()
 
-        # For all Apply nodes
-        # Set of distinct (not mergeable) nodes
         self.nodes_seen = set()
-        # Ordered set of distinct (not mergeable) nodes without any input
         self.noinput_nodes = OrderedSet()
 
-        # Each element of scheduled is a list of list of (out, new_out) pairs.
-        # Each list of pairs represent the substitution needed to replace all
-        # the outputs of a node with the outputs of a replacement candidate.
-        # Each node can have several candidates. For instance, if "node" has
-        # 2 outputs, and there are 3 replacement candidates, we will have:
-        # shelf.scheduled = [
-        #    [[(node.out1, cand1.out1), (node.out2, cand1.out2)],
-        #     [(node.out1, cand2.out1), (node.out2, cand2.out2)],
-        #     [(node.out1, cand3.out1), (node.out2, cand3.out2)]]]
         self.scheduled = []
 
-        # List of (node, candidate) pairs, where we tried to replace node by
-        # candidate, but it failed. This is used to avoid infinite loops
-        # during the replacement phase.
         self.blacklist = []
 
         for node in fgraph.toposort():
             self.on_import(fgraph, node, "on_attach")
 
     def on_change_input(self, fgraph, node, i, r, new_r, reason):
-        # If inputs to node change, it is not guaranteed that it is distinct
-        # from the other nodes in nodes_seen
         if node in self.nodes_seen:
             self.nodes_seen.discard(node)
             self.process_node(fgraph, node)
 
-        # Since we are in on_change_input, node should have inputs.
         if not isinstance(node, string_types):
             assert node.inputs
 
@@ -528,7 +488,6 @@ class MergeFeature(object):
             self.noinput_nodes.discard(node)
         for c in node.inputs:
             if isinstance(c, graph.Constant) and (len(c.clients) <= 1):
-                # This was the last node using this constant
                 sig = self.const_sig[c]
                 self.const_sig.discard(c)
                 self.const_sig_inv.discard(sig)
@@ -544,13 +503,10 @@ class MergeFeature(object):
         sig = c.merge_signature()
         other_c = self.const_sig_inv.get(sig, None)
         if other_c is not None:
-            # multiple names will clobber each other..
-            # we adopt convention to keep the last name
             if c.name:
                 other_c.name = c.name
             self.scheduled.append([[(c, other_c, 'merge')]])
         else:
-            # this is a new constant
             self.const_sig[c] = sig
             self.const_sig_inv[sig] = c
             self.seen_constants.add(id(c))
@@ -565,9 +521,6 @@ class MergeFeature(object):
 
         node_has_assert = False
 
-        # These asserts ensure that the fgraph has set the clients field
-        # properly.
-        # The clients should at least contain `node` itself!
         if node.inputs:
             assert len(node.inputs[0].clients) > 0
             assert (node, 0) in node.inputs[0].clients
@@ -575,8 +528,6 @@ class MergeFeature(object):
             merge_candidates = [c for (c, i) in node.inputs[0].clients
                                 if c in self.nodes_seen]
 
-            # Put all clients of Assert inputs (if exist) into merge_candidates
-            # TODO: Deactivated for now as this cause cycle in the graph.
             for i in []:  # node.inputs:
                 if i.owner and isinstance(i.owner.op,
                                           theano.tensor.opt.Assert):
@@ -593,9 +544,6 @@ class MergeFeature(object):
 
                     merge_candidates.extend(assert_clients)
         else:
-            # If two nodes have no input, but perform the same operation,
-            # they are not always constant-folded, so we want to merge them.
-            # In that case, the candidates are all the nodes without inputs.
             merge_candidates = self.noinput_nodes
 
         replacement_candidates = []
@@ -607,7 +555,6 @@ class MergeFeature(object):
 
             cand_has_assert = False
 
-            # Get input list of the candidate with assert removed
             cand_inputs_assert_removed = []
             for i in candidate.inputs:
                 if i.owner and isinstance(i.owner.op,
@@ -617,7 +564,6 @@ class MergeFeature(object):
                 else:
                     cand_inputs_assert_removed.append(i)
 
-            # Get input list of the node with assert removed
             if node_has_assert:
                 node_inputs_assert_removed = []
                 for i in node.inputs:
@@ -636,18 +582,13 @@ class MergeFeature(object):
 
             if inputs_match and node.op == candidate.op:
                 if (node, candidate) in self.blacklist:
-                    # They were already tried, and there was an error
                     continue
 
-                # replace node with candidate
                 if not (node_has_assert or cand_has_assert):
-                    # Schedule transfer of clients from node to candidate
                     pairs = list(zip(node.outputs,
                                      candidate.outputs,
                                      ['merge'] * len(node.outputs)))
 
-                # if the current node has assert input, it should not be
-                # replaced with a candidate node which has no assert input
                 elif node_has_assert and not cand_has_assert:
                     pairs = list(zip(candidate.outputs,
                                      node.outputs,
@@ -662,11 +603,8 @@ class MergeFeature(object):
                                  new_node.owner.outputs,
                                  ['new_node'] * len(node.outputs)))
 
-                # transfer names
                 for pair in pairs:
                     node_output, cand_output = pair[:2]
-                    # clobber old name with new one
-                    # it's arbitrary... one of the names has to go
                     if node_output.name:
                         cand_output.name = node_output.name
 
@@ -682,17 +620,12 @@ class MergeFeature(object):
     def get_merged_assert_input(self, node, candidate):
         new_inputs = []
         for node_i, cand_i in zip(node.inputs, candidate.inputs):
-            # if node_i is assert
             if (node_i.owner and
                     isinstance(node_i.owner.op,
                                theano.tensor.opt.Assert)):
-                # node_i is assert, cand_i is assert
                 if (cand_i.owner and
                         isinstance(cand_i.owner.op,
                                    theano.tensor.opt.Assert)):
-                    # Here two assert nodes are merged.
-                    # Step 1. Merge conditions of both assert nodes.
-                    # Step 2. Make the new assert node
                     node_cond = node_i.owner.inputs[1:]
                     cand_cond = cand_i.owner.inputs[1:]
                     new_cond = list(set(node_cond + cand_cond))
@@ -701,11 +634,9 @@ class MergeFeature(object):
                             node_i.owner.inputs[0],
                             *new_cond))
 
-                # node_i is assert, cand_i is not assert
                 else:
                     new_inputs.append(node_i)
             else:
-                # if node_i is not an assert node, append cand_i
                 new_inputs.append(cand_i)
 
         return new_inputs
@@ -726,14 +657,10 @@ class MergeOptimizer(Optimizer):
     """
 
     def add_requirements(self, fgraph):
-        # Added by default
-        # fgraph.attach_feature(toolbox.ReplaceValidate())
         if not hasattr(fgraph, 'merge_feature'):
             fgraph.attach_feature(MergeFeature())
 
     def apply(self, fgraph):
-        # Constant and non-constant are now applied in the same phase.
-        # I am not sure why, but it seems to be faster this way.
         sched = fgraph.merge_feature.scheduled
         nb_fail = 0
         t0 = time.time()
@@ -748,14 +675,6 @@ class MergeOptimizer(Optimizer):
             pairs_list = sched.pop()
             success = True
             for pairs_ in pairs_list:
-                # We must check again the equivalence, as the graph
-                # can have changed. If so, doing the replacement can
-                # introduce node that depend on itself.  Doing the
-                # full check of such cycle everytimes is very time
-                # consumming. I think this double check is faster then
-                # doing the full cycle check. The full cycle check is
-                # skipped by validate() if the graph don't contain
-                # destroyers.
                 var, candidate, merge_mode = pairs_[0]
                 if merge_mode == "new_node" and hasattr(var, 'fgraph'):
                     pass
@@ -763,15 +682,12 @@ class MergeOptimizer(Optimizer):
                       not hasattr(candidate, 'fgraph')):
                     continue
 
-                # Keep len(item) == 2 for item in pairs
                 pairs = [pair[:2] for pair in pairs_]
 
                 if var.owner and candidate.owner:
                     node = var.owner
                     candidate = candidate.owner
 
-                    # Get input list of the candidate node with assert
-                    # nodes removed
                     cand_inputs_assert_removed = []
                     for i in candidate.inputs:
                         if i.owner and isinstance(i.owner.op,
@@ -781,7 +697,6 @@ class MergeOptimizer(Optimizer):
                         else:
                             cand_inputs_assert_removed.append(i)
 
-                    # Get input list of the node with assert nodes removed
                     node_inputs_assert_removed = []
                     for i in node.inputs:
                         if i.owner and isinstance(i.owner.op,
@@ -799,13 +714,10 @@ class MergeOptimizer(Optimizer):
                                            zip(node_inputs_assert_removed,
                                                cand_inputs_assert_removed))
 
-                    # No need to compare the op again, as it don't change.
                     if not inputs_match:
                         continue
 
                     if hasattr(pairs[0][0].fgraph, 'destroy_handler'):
-                        # If both nodes have clients that destroy
-                        # them, we can't merge them.
                         clients = pairs[0][0].clients + pairs[0][1].clients
                         if sum([i in utils.flatten(c.op.destroy_map.values())
                                 for c, i in clients
@@ -824,7 +736,6 @@ class MergeOptimizer(Optimizer):
                     nb_merged += len(pairs)
                     if isinstance(pairs[0][0], graph.Constant):
                         nb_constant += 1
-                        # print pairs, pairs[0][0].type
                     break
 
         if fgraph.profile:
@@ -840,7 +751,6 @@ class MergeOptimizer(Optimizer):
             validate_time = None
             callback_time = None
             callbacks_time = {}
-        # clear blacklist
         fgraph.merge_feature.blacklist = []
         return (nb_fail, time.time() - t0, validate_time,
                 callback_time, callbacks_time, nb_merged, nb_constant)
@@ -893,31 +803,17 @@ def is_same_graph_with_merge(var1, var2, givens=None):
     """
     if givens is None:
         givens = {}
-    # Copy variables since the MergeOptimizer will modify them.
     copied = copy.deepcopy([var1, var2, givens])
     vars = copied[0:2]
     givens = copied[2]
-    # Create FunctionGraph.
     inputs = theano.gof.graph.inputs(vars)
-    # The clone isn't needed as we did a deepcopy and we cloning will
-    # break the mapping in givens.
     fgraph = theano.gof.fg.FunctionGraph(inputs, vars, clone=False)
-    # Perform Variable substitution.
     for to_replace, replace_by in iteritems(givens):
         fgraph.replace(to_replace, replace_by)
-    # Perform merge optimization.
     MergeOptimizer().optimize(fgraph)
-    # When two variables perform the same computations, they will have the same
-    # owner in the optimized graph.
-    # We need to be careful with the special case where the owner is None,
-    # which happens when the graph is made of a single Variable.
-    # We also need to make sure we replace a Variable if it is present in
-    # `givens`.
     vars_replaced = [givens.get(v, v) for v in vars]
     o1, o2 = [v.owner for v in vars_replaced]
     if o1 is None and o2 is None:
-        # Comparing two single-Variable graphs: they are equal if they are
-        # the same Variable.
         return vars_replaced[0] == vars_replaced[1]
     else:
         return o1 is o2
@@ -940,7 +836,6 @@ def pre_constant_merge(vars):
 
     """
     seen_var = set()
-    # signature -> variable (for constants)
     const_sig_inv = {}
     if isinstance(vars, graph.Variable):
         vars = [vars]
@@ -964,8 +859,6 @@ def pre_constant_merge(vars):
                     "We work around a problem, the following variable"
                     " signature isn't hashable. Please, report this to"
                     " theano-dev so that the better fix is done. %s" % var)
-                # Some python object like slice aren't hashable. So
-                # don't merge them here.
                 pass
             return var
         if var.owner:
@@ -976,9 +869,6 @@ def pre_constant_merge(vars):
     return list(map(recursive_merge, vars))
 
 
-########################
-#   Local Optimizers   #
-########################
 
 class LocalOptimizer(object):
     """
@@ -1033,8 +923,6 @@ class LocalOptimizer(object):
         fgraph, this is the place to do it.
 
         """
-        # Added by default
-        # fgraph.attach_feature(toolbox.ReplaceValidate())
         pass
 
     def print_summary(self, stream=sys.stdout, level=0, depth=-1):
@@ -1061,12 +949,9 @@ class LocalMetaOptimizer(LocalOptimizer):
         return self._tracks
 
     def transform(self, node):
-        # safety check: depending on registration, tracks may have been ignored
         if self._tracks is not None:
             if not isinstance(node.op, tuple(self._tracks)):
                 return
-        # first, we need to provide dummy values for all inputs
-        # to the node that are not shared variables anyway
         givens = {}
         missing = set()
         for input in node.inputs:
@@ -1083,15 +968,12 @@ class LocalMetaOptimizer(LocalOptimizer):
         if missing:
             givens.update(self.provide_inputs(node, missing))
             missing.difference_update(givens.keys())
-        # ensure we have data for all input variables that need it
         if missing:
             if self.verbose:
                 print(("%s cannot meta-optimize %s, "
                        "%d of %d input shapes unknown" %
                        (self.__class__.__name__, node, len(missing), node.nin)))
             return
-        # now we can apply the different optimizations in turn,
-        # compile the resulting subgraphs and time their execution
         if self.verbose:
             print(("%s meta-optimizing %s (%d choices):" %
                    (self.__class__.__name__, node, len(self.optimizers))))
@@ -1114,7 +996,6 @@ class LocalMetaOptimizer(LocalOptimizer):
             else:
                 if self.verbose:
                     print("* %s: not applicable" % opt)
-        # finally, we choose the fastest one
         if timings:
             timings.sort()
             if self.verbose:
@@ -1197,7 +1078,6 @@ class LocalOptGroup(LocalOptimizer):
 
     def __init__(self, *optimizers):
         if len(optimizers) == 1 and isinstance(optimizers[0], list):
-            # This happen when created by LocalGroupDB.
             optimizers = tuple(optimizers[0])
         self.opts = optimizers
         self.reentrant = any(getattr(opt, 'reentrant', True)
@@ -1257,9 +1137,7 @@ class OpSub(LocalOptimizer):
 
     """
 
-    # an OpSub does not apply to the nodes it produces
     reentrant = False
-    # all the inputs of the original node are transferred to the outputs
     retains_inputs = True
 
     def __init__(self, op1, op2, transfer_tags=True):
@@ -1460,18 +1338,14 @@ class PatternSub(LocalOptimizer):
 
         if node.op != self.op:
             return False
-        # TODO: if we remove pdb, do this speed things up?
 
         def match(pattern, expr, u, allow_multiple_clients=False, pdb=False):
-            # TODO move outside match
             def retry_with_equiv():
                 if not self.skip_identities_fn:
                     return False
                 expr_equiv = self.skip_identities_fn(expr)
                 if expr_equiv is None:
                     return False
-                # TODO: Not sure how to handle multiple_clients flag
-                # print 'retrying match', pattern, expr_equiv
                 return match(pattern, expr_equiv, u,
                              allow_multiple_clients=allow_multiple_clients)
 
@@ -1579,11 +1453,7 @@ class PatternSub(LocalOptimizer):
             id(self)), file=stream)
 
 
-##################
-#   Navigators   #
-##################
 
-# Use the following classes to apply LocalOptimizers
 
 class Updater:
     def __init__(self, importer, pruner, chin):
@@ -1604,7 +1474,6 @@ class Updater:
             self.chin(node, i, r, new_r, reason)
 
     def on_detach(self, fgraph):
-        # To allow pickling this object
         self.importer = None
         self.pruner = None
         self.chin = None
@@ -1654,8 +1523,6 @@ class NavigatorOptimizer(Optimizer):
         if config.on_opt_error == 'pdb':
             pdb.post_mortem(sys.exc_info()[2])
         elif isinstance(exc, AssertionError) or config.on_opt_error == 'raise':
-            # We always crash on AssertionError because something may be
-            # seriously wrong if such an exception is raised.
             raise exc
 
     @staticmethod
@@ -1791,13 +1658,9 @@ class NavigatorOptimizer(Optimizer):
         if len(old_vars) != len(replacements):
             raise ValueError('Optimizer %s gave wrong number of replacements'
                              % lopt)
-        # None in the replacement mean that this variable isn't used
-        # and we want to remove it
         for r, rnew in zip(old_vars, replacements):
             if rnew is None and len(r.clients) > 0:
                 raise ValueError("A local optimizer tried to remove a Variable that is used")
-        # If an output would be replaced by itself, no need to perform
-        # the replacement
         repl_pairs = [(r, rnew) for r, rnew in zip(old_vars, replacements)
                       if rnew is not r and rnew is not None]
 
@@ -1807,10 +1670,6 @@ class NavigatorOptimizer(Optimizer):
             fgraph.replace_all_validate(repl_pairs, reason=lopt)
             return True
         except Exception as e:
-            # This means the replacements were rejected by the fgraph.
-            #
-            # This is not supposed to happen.  The default failure_callback
-            # will print a traceback as a warning.
             if self.failure_callback is not None:
                 self.failure_callback(e, self, repl_pairs, lopt, node)
                 return False
@@ -1819,8 +1678,6 @@ class NavigatorOptimizer(Optimizer):
 
     def add_requirements(self, fgraph):
         super(NavigatorOptimizer, self).add_requirements(fgraph)
-        # Added by default
-        # fgraph.attach_feature(toolbox.ReplaceValidate())
         if self.local_opt:
             self.local_opt.add_requirements(fgraph)
 
@@ -2056,7 +1913,6 @@ class EquilibriumOptimizer(NavigatorOptimizer):
     def get_local_optimizers(self):
         for opt in self.local_optimizers_all:
             yield opt
-        # if repeat is not a problem we can drop the set
         s = set()
         for lopt in itervalues(self.local_optimizers_map):
             for opt in lopt:
@@ -2135,7 +1991,6 @@ class EquilibriumOptimizer(NavigatorOptimizer):
             for copt in self.cleanup_optimizers:
                 iter_cleanup_sub_profs[copt] = []
 
-            # apply global optimizers
             sub_profs = []
             for gopt in self.global_optimizers:
                 change_tracker.reset()
@@ -2158,11 +2013,8 @@ class EquilibriumOptimizer(NavigatorOptimizer):
 
             global_opt_timing.append(float(time.time() - t0))
 
-            # apply clean up as global opt can have done changes that
-            # request that
             changed |= apply_cleanup(iter_cleanup_sub_profs)
 
-            # apply local optimizer
             topo_t0 = time.time()
             q = deque(graph.io_toposort(fgraph.inputs, start_from))
             io_toposort_timing.append(time.time() - topo_t0)
@@ -2208,12 +2060,10 @@ class EquilibriumOptimizer(NavigatorOptimizer):
                             opt_name = (getattr(lopt, "name", None) or
                                         getattr(lopt, "__name__", ""))
                         if node not in fgraph.apply_nodes:
-                            # go to next node
                             break
             finally:
                 self.detach_updater(fgraph, u)
 
-            # Apply final optimizers
             sub_profs = []
             t_before_final_opt = time.time()
             for gopt in self.final_optimizers:
@@ -2236,10 +2086,7 @@ class EquilibriumOptimizer(NavigatorOptimizer):
             final_sub_profs.append(sub_profs)
 
             global_opt_timing[-1] += time.time() - t_before_final_opt
-            # apply clean up as final opt can have done changes that
-            # request that
             changed |= apply_cleanup(iter_cleanup_sub_profs)
-            # merge clean up profiles during that iteration.
             c_sub_profs = []
             for copt, sub_profs in iteritems(iter_cleanup_sub_profs):
                 sub_prof = sub_profs[0]
@@ -2349,7 +2196,6 @@ class EquilibriumOptimizer(NavigatorOptimizer):
             not_used.sort(key=lambda nu: (nu[0], str(nu[1])))
             for (t, o) in not_used[::-1]:
                 if t > 0:
-                    # Skip opt that have 0 times, they probably wasn't even tried.
                     print(blanc + "  ", '  %.3fs - %s' % (t, o), file=stream)
             print(file=stream)
         gf_opts = [o for o in (opt.global_optimizers +
@@ -2380,8 +2226,6 @@ class EquilibriumOptimizer(NavigatorOptimizer):
 
     @staticmethod
     def merge_profile(prof1, prof2):
-        # (opt, loop_timing, loop_process_count, max_nb_nodes,
-        # global_opt_timing, nb_nodes, time_opts, io_toposort_timing) = prof1
         local_optimizers = OrderedSet(prof1[0].get_local_optimizers()).union(
             prof2[0].get_local_optimizers())
         global_optimizers = OrderedSet(prof1[0].global_optimizers).union(
@@ -2453,9 +2297,6 @@ class EquilibriumOptimizer(NavigatorOptimizer):
                 final_sub_profs,
                 cleanup_sub_profs)
 
-#################
-#   Utilities   #
-#################
 
 
 def _check_chain(r, chain):
@@ -2483,13 +2324,8 @@ def _check_chain(r, chain):
                 return False
         if chain:
             r = r.owner.inputs[chain.pop()]
-    # print 'check_chain', _check_chain.n_calls
-    # _check_chain.n_calls += 1
 
-    # The return value will be used as a Boolean, but some Variables cannot
-    # be used as Booleans (the results of comparisons, for instance)
     return (r is not None)
-# _check_chain.n_calls = 0
 
 
 def check_chain(r, *chain):

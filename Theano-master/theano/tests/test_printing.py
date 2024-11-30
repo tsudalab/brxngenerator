@@ -22,7 +22,6 @@ def test_pydotprint_cond_highlight():
     I did them to help debug stuff.
     """
 
-    # Skip test if pydot is not available.
     if not theano.printing.pydot_imported:
         raise SkipTest('pydot not available')
 
@@ -49,7 +48,6 @@ def test_pydotprint_cond_highlight():
 
 
 def test_pydotprint_return_image():
-    # Skip test if pydot is not available.
     if not theano.printing.pydot_imported:
         raise SkipTest('pydot not available')
 
@@ -67,7 +65,6 @@ def test_pydotprint_variables():
     It make sure the code run.
     """
 
-    # Skip test if pydot is not available.
     if not theano.printing.pydot_imported:
         raise SkipTest('pydot not available')
 
@@ -98,7 +95,6 @@ def test_pydotprint_long_name():
 
     """
 
-    # Skip test if pydot is not available.
     if not theano.printing.pydot_imported:
         raise SkipTest('pydot not available')
 
@@ -117,7 +113,6 @@ def test_pydotprint_long_name():
 def test_pydotprint_profile():
     """Just check that pydotprint does not crash with ProfileMode."""
 
-    # Skip test if pydot is not available.
     if not theano.printing.pydot_imported:
         raise SkipTest('pydot not available')
 
@@ -168,14 +163,11 @@ def test_debugprint():
     mode = theano.compile.get_default_mode().including('fusion')
     g = theano.function([A, B, D, E], G, mode=mode)
 
-    # just test that it work
     debugprint(G)
 
-    # test ids=int
     s = StringIO()
     debugprint(G, file=s, ids='int')
     s = s.getvalue()
-    # The additional white space are needed!
     reference = '\n'.join([
         "Elemwise{add,no_inplace} [id 0] ''   ",
         " |Elemwise{add,no_inplace} [id 1] 'C'   ",
@@ -192,11 +184,9 @@ def test_debugprint():
 
     assert s == reference
 
-    # test ids=CHAR
     s = StringIO()
     debugprint(G, file=s, ids='CHAR')
     s = s.getvalue()
-    # The additional white space are needed!
     reference = "\n".join([
         "Elemwise{add,no_inplace} [id A] ''   ",
         " |Elemwise{add,no_inplace} [id B] 'C'   ",
@@ -213,11 +203,9 @@ def test_debugprint():
 
     assert s == reference
 
-    # test ids=CHAR, stop_on_name=True
     s = StringIO()
     debugprint(G, file=s, ids='CHAR', stop_on_name=True)
     s = s.getvalue()
-    # The additional white space are needed!
     reference = '\n'.join([
         "Elemwise{add,no_inplace} [id A] ''   ",
         " |Elemwise{add,no_inplace} [id B] 'C'   ",
@@ -232,11 +220,9 @@ def test_debugprint():
 
     assert s == reference
 
-    # test ids=
     s = StringIO()
     debugprint(G, file=s, ids='')
     s = s.getvalue()
-    # The additional white space are needed!
     reference = '\n'.join([
         "Elemwise{add,no_inplace}  ''   ",
         " |Elemwise{add,no_inplace}  'C'   ",
@@ -252,11 +238,9 @@ def test_debugprint():
 
     assert s == reference
 
-    # test print_storage=True
     s = StringIO()
     debugprint(g, file=s, ids='', print_storage=True)
     s = s.getvalue()
-    # The additional white space are needed!
     reference = '\n'.join([
         "Elemwise{add,no_inplace}  ''   0 [None]",
         " |A  [None]",
@@ -275,7 +259,6 @@ def test_scan_debugprint1():
     k = tensor.iscalar("k")
     A = tensor.dvector("A")
 
-    # Symbolic description of the result
     result, updates = theano.scan(fn=lambda prior_result, A: prior_result * A,
                                   outputs_info=tensor.ones_like(A),
                                   non_sequences=A,
@@ -332,7 +315,6 @@ def test_scan_debugprint2():
 
     max_coefficients_supported = 10000
 
-    # Generate the components of the polynomial
     components, updates = theano.scan(fn=lambda coefficient, power,
                                       free_variable:
                                       coefficient * (free_variable ** power),
@@ -342,7 +324,6 @@ def test_scan_debugprint2():
                                           theano.tensor.arange(
                                               max_coefficients_supported)],
                                       non_sequences=x)
-    # Sum them up
     polynomial = components.sum()
 
     output_str = theano.printing.debugprint(polynomial, file='str')
@@ -399,9 +380,7 @@ def test_scan_debugprint3():
     k = tensor.iscalar("k")
     A = tensor.dvector("A")
 
-    # compute A**k
     def compute_A_k(A, k):
-        # Symbolic description of the result
         result, updates = theano.scan(fn=lambda prior_result,
                                       A: prior_result * A,
                                       outputs_info=tensor.ones_like(A),
@@ -412,7 +391,6 @@ def test_scan_debugprint3():
 
         return A_k
 
-    # Generate the components of the polynomial
     components, updates = theano.scan(fn=lambda coefficient,
                                       power, some_A, some_k:
                                       coefficient *
@@ -423,7 +401,6 @@ def test_scan_debugprint3():
                                           theano.tensor.arange(
                                               max_coefficients_supported)],
                                       non_sequences=[A, k])
-    # Sum them up
     polynomial = components.sum()
 
     final_result = polynomial
@@ -586,7 +563,6 @@ def test_scan_debugprint5():
     k = tensor.iscalar("k")
     A = tensor.dvector("A")
 
-    # Symbolic description of the result
     result, updates = theano.scan(fn=lambda prior_result, A: prior_result * A,
                                   outputs_info=tensor.ones_like(A),
                                   non_sequences=A,
@@ -721,7 +697,6 @@ def test_scan_debugprint5():
 
 
 def test_printing_scan():
-    # Skip test if pydot is not available.
     if not theano.printing.pydot_imported:
         raise SkipTest('pydot not available')
 

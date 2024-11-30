@@ -56,7 +56,6 @@ class GpuSolve(GpuOp):
                    storage_map, _,
                    no_recycling=[]):
 
-        # Initialize CULA the first time it is needed
         global cula_initialized
 
         if not cula_available:
@@ -71,27 +70,19 @@ class GpuSolve(GpuOp):
         outputs = [storage_map[v] for v in node.outputs]
 
         def thunk():
-            # size of the matrices to invert
             z = outputs[0]
 
-            # Matrix
             A = inputs[0][0]
 
-            # Solution vectors
             b = inputs[1][0]
 
-            # A is not explicitly converted between C and F order, instead we
-            # switch the "transpose" flag
             if self.trans in ('T', 'C'):
                 trans = 'N'
             else:
                 trans = 'T'
 
-            # Convert b to F-order from c-order.
             b_cpy = dimshuffle(b, (1, 0)).reshape((b.shape[0], b.shape[1]))
 
-            # This copy forces allocation of a new C-contiguous buffer
-            # and returns it.
             A_cpy = A.copy()
             b_cpy = b_cpy.copy()
 
@@ -119,8 +110,6 @@ class GpuSolve(GpuOp):
                 lda = max(1, n)
                 ldb = max(1, n, l)
 
-                # construct pointer arrays needed for culaDeviceSgels
-                # Cula requires you to pass a pointer for A and b.
                 A_ptr = A_.gpudata
                 b_ptr = b_.gpudata
 
@@ -129,7 +118,6 @@ class GpuSolve(GpuOp):
 
             A_pycuda, b_pycuda = cula_gpu_solve(A_cpy, b_cpy, trans)
 
-            # Convert b to F-order from c-order and assign it to output:
             b_cpy = b_cpy.reshape(b.shape[::-1])
             b_cpy = dimshuffle(b_cpy, (1, 0))
             z[0] = b_cpy

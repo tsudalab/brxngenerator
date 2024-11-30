@@ -14,7 +14,6 @@ from fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decompose
 
 
 def print_reaction(rxn):
-	# get order
 	mol_nodes = rxn.molecule_nodes
 	tem_nodes = rxn.template_nodes
 
@@ -87,14 +86,12 @@ def filter_dataset(input_files, output_file, metric="qed", reactant_count = 5, t
 					n2 = len(p2.split("."))
 					if n1 !=n2:
 						valid = False
-				#print(full_rxn, len(full_rxn))
 				if valid:
 					routes.append(full_rxn)
 	rxn_trees_t=[]
 	for route in routes:
 		tree = ReactionTree(route)
 		rxn_trees_t.append(tree)
-	#rxn_trees_t = [ReactionTree(route) for route in routes]
 	rxn_trees =[]
 	count = 0
 	rxn_ids=[]
@@ -105,15 +102,10 @@ def filter_dataset(input_files, output_file, metric="qed", reactant_count = 5, t
 			rxn_ids.append(i)
 			count +=1
 			print(smiles, count)
-	#import pickle
-	#with open('valid_rxn_ids_uspto.dat', 'wb') as f:
-	#	rxn_ids=pickle.load(f)
-	#	pickle.dump(rxn_ids, f)
 
 
 	print("total rxns:", len(rxn_trees))
 
-	###########################
 	starting_reactants = []
 	counts ={}
 	for rxn_id, rxn in enumerate(rxn_trees):
@@ -122,7 +114,6 @@ def filter_dataset(input_files, output_file, metric="qed", reactant_count = 5, t
 		queue = deque([root])
 		while len(queue) > 0:
 			x = queue.popleft()
-				#exit(1)
 			if len(x.children) == 0:
 				smiles = x.smiles
 				if smiles not in starting_reactants:
@@ -134,20 +125,16 @@ def filter_dataset(input_files, output_file, metric="qed", reactant_count = 5, t
 				template = x.children[0]
 				for y in template.children:
 					queue.append(y)
-					#visisted.add(y.id
 	
 	new_rxn_trees=[]
 	for rxn_id, rxn in enumerate(rxn_trees):
 		mol_nodes = rxn.molecule_nodes
 		template_nodes = rxn.template_nodes
-		#if len(template_nodes) < 2:
-		#	continue
 		root = mol_nodes[0]
 		queue = deque([root])
 		flag = True
 		while len(queue) > 0:
 			x = queue.popleft()
-				#exit(1)
 			if len(x.children) == 0:
 				smiles = x.smiles
 				if counts[smiles] < reactant_count:
@@ -161,7 +148,6 @@ def filter_dataset(input_files, output_file, metric="qed", reactant_count = 5, t
 			new_rxn_trees.append(rxn)
 	print("After filtering out dataset based on reactants",len(new_rxn_trees), len(rxn_trees))
 	
-	########################
 	templates = []
 	n_reacts = []
 	counts={}
@@ -192,7 +178,6 @@ def filter_dataset(input_files, output_file, metric="qed", reactant_count = 5, t
 
 			
 
-	###########################
 
 
 	smiles_list =[]

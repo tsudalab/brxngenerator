@@ -31,7 +31,6 @@ uspto['spectators'] = split_smiles[1]
 uspto['products'] = split_smiles[2]
 
 parsable = Parallel(n_jobs=-1, verbose=1)(delayed(can_parse)(rsmi) for rsmi in uspto['ReactionSmiles'].values)
-# parsable = uspto['ReactionSmiles'].map(can_parse)
 
 uspto = uspto[parsable]
 print('{} parsable reactions'.format(len(uspto)))

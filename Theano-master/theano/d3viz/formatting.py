@@ -17,13 +17,11 @@ from theano.compile import builders
 
 pydot_imported = False
 try:
-    # pydot-ng is a fork of pydot that is better maintained
     import pydot_ng as pd
     if pd.find_graphviz():
         pydot_imported = True
 except ImportError:
     try:
-        # fall back on pydot if necessary
         import pydot as pd
         if pd.find_graphviz():
             pydot_imported = True
@@ -159,7 +157,6 @@ class PyDotFormatter(object):
             topo = fct.toposort()
         outputs = list(outputs)
 
-        # Loop over apply nodes
         for node in topo:
             nparams = {}
             __node_id = self.__node_id(node)
@@ -182,7 +179,6 @@ class PyDotFormatter(object):
             pd_node = dict_to_pdnode(nparams)
             graph.add_node(pd_node)
 
-            # Loop over input nodes
             for id, var in enumerate(node.inputs):
                 var_id = self.__node_id(var.owner if var.owner else var)
                 if var.owner is None:
@@ -220,7 +216,6 @@ class PyDotFormatter(object):
                                  **edge_params)
                 graph.add_edge(pdedge)
 
-            # Loop over output nodes
             for id, var in enumerate(node.outputs):
                 var_id = self.__node_id(var)
 
@@ -245,11 +240,9 @@ class PyDotFormatter(object):
                     graph.add_edge(pd.Edge(__node_id, var_id,
                                            label=vparams['dtype']))
 
-            # Create sub-graph for OpFromGraph nodes
             if isinstance(node.op, builders.OpFromGraph):
                 subgraph = pd.Cluster(__node_id)
                 gf = PyDotFormatter()
-                # Use different node prefix for sub-graphs
                 gf.__node_prefix = __node_id
                 gf(node.op.fn, subgraph)
                 graph.add_subgraph(subgraph)
@@ -258,7 +251,6 @@ class PyDotFormatter(object):
                 def format_map(m):
                     return str([list(x) for x in m])
 
-                # Inputs mapping
                 ext_inputs = [self.__node_id(x) for x in node.inputs]
                 int_inputs = [gf.__node_id(x)
                               for x in node.op.fn.maker.fgraph.inputs]
@@ -266,7 +258,6 @@ class PyDotFormatter(object):
                 h = format_map(zip(ext_inputs, int_inputs))
                 pd_node.get_attributes()['subg_map_inputs'] = h
 
-                # Outputs mapping
                 ext_outputs = []
                 for n in topo:
                     for i in n.inputs:

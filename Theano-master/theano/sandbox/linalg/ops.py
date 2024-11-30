@@ -59,7 +59,6 @@ try:
     import scipy.linalg
     imported_scipy = True
 except ImportError:
-    # some ops (e.g. Cholesky, Solve, A_Xinv_b) won't work
     imported_scipy = False
 
 
@@ -112,7 +111,6 @@ def hints(variable):
 @local_optimizer([Hint])
 def remove_hint_nodes(node):
     if is_hint_node(node):
-        # transfer hints from graph to Feature
         try:
             for k, v in node.op.hints:
                 node.fgraph.hints_feature.add_hint(node.inputs[0], k, v)
@@ -149,10 +147,6 @@ class HintsFeature(object):
     optimizations, except that adding a hint does not change the graph.
     Adding a hint is not something that debugmode will check.
 
-    #TODO: should a Hint be an object that can actually evaluate its
-    #      truthfulness?
-    #      Should the PSD property be an object that can check the
-    #      PSD-ness of a variable?
 
     """
     def add_hint(self, r, k, v):
@@ -163,28 +157,20 @@ class HintsFeature(object):
         if r not in self.hints:
             self.hints[r] = {}
 
-    #
-    #
-    # Feature inteface
-    #
-    #
     def on_attach(self, fgraph):
         assert not hasattr(fgraph, 'hints_feature')
         fgraph.hints_feature = self
-        # Variable -> tuple(scalars) or None  (All tensor vars map to tuple)
         self.hints = {}
         for node in fgraph.toposort():
             self.on_import(fgraph, node, "on_attach")
 
     def on_import(self, fgraph, node, reason):
         if node.outputs[0] in self.hints:
-            # this is a revert, not really an import
             for r in node.outputs + node.inputs:
                 assert r in self.hints
             return
 
         for i, r in enumerate(node.inputs + node.outputs):
-            # make sure we have shapes for the inputs
             self.ensure_init_r(r)
 
     def update_second_from_first(self, r0, r1):
@@ -197,16 +183,10 @@ class HintsFeature(object):
                 new_hints[k] = v
 
     def on_change_input(self, fgraph, node, i, r, new_r, reason):
-        # TODO:
-        # This tells us that r and new_r must have the same shape
-        # if we didn't know that the shapes are related, now we do.
         self.ensure_init_r(new_r)
         self.update_second_from_first(r, new_r)
         self.update_second_from_first(new_r, r)
 
-        # change_input happens in two cases:
-        # 1) we are trying to get rid of r, or
-        # 2) we are putting things back after a failed transaction.
 
 
 class HintsOptimizer(Optimizer):
@@ -224,7 +204,6 @@ class HintsOptimizer(Optimizer):
 
     def apply(self, fgraph):
         pass
-# -1 should make it run right before the first merge
 theano.compile.mode.optdb.register('HintsOpt',
                                    HintsOptimizer(),
                                    -1,
@@ -252,8 +231,6 @@ def is_symmetric(v):
 def is_positive(v):
     if hints(v).get('positive', False):
         return True
-    # TODO: how to handle this - a registry?
-    #      infer_hints on Ops?
     logger.debug('is_positive: %s' % str(v))
     if v.owner and v.owner.op == tensor.pow:
         try:
@@ -328,7 +305,6 @@ def no_transpose_symmetric(node):
     if isinstance(node.op, DimShuffle):
         x = node.inputs[0]
         if x.type.ndim == 2 and is_symmetric(x):
-            # print 'UNDOING TRANSPOSE', is_symmetric(x), x.ndim
             if node.op.new_order == [1, 0]:
                 return [x]
 
@@ -340,9 +316,6 @@ def psd_solve_with_chol(node):
         A, b = node.inputs  # result is solution Ax=b
         if is_psd(A):
             L = cholesky(A)
-            # N.B. this can be further reduced to a yet-unwritten cho_solve Op
-            #     __if__ no other Op makes use of the the L matrix during the
-            #     stabilization
             Li_b = Solve('lower_triangular')(L, b)
             x = Solve('upper_triangular')(L.T, Li_b)
             return [x]
@@ -373,16 +346,11 @@ def local_log_prod_sqr(node):
     if node.op == tensor.log:
         x, = node.inputs
         if x.owner and isinstance(x.owner.op, tensor.elemwise.Prod):
-            # we cannot always make this substitution because
-            # the prod might include negative terms
             p = x.owner.inputs[0]
 
-            # p is the matrix we're reducing with prod
             if is_positive(p):
                 return [tensor.log(p).sum(axis=x.owner.op.axis)]
 
-            # TODO: have a reduction like prod and sum that simply
-            #      returns the sign of the prod multiplication.
 
 
 @register_canonicalize
@@ -394,7 +362,6 @@ def local_log_pow(node):
         x, = node.inputs
         if x.owner and x.owner.op == tensor.pow:
             base, exponent = x.owner.inputs
-            # TODO: reason to be careful with dtypes?
             return [exponent * tensor.log(base)]
 
 

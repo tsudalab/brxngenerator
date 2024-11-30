@@ -14,7 +14,6 @@ from theano.typed_list.basic import (GetItem, Insert,
                                      Index, Count, Length, make_list)
 from theano import sparse
 from theano.tests import unittest_tools as utt
-# TODO, handle the case where scipy isn't installed.
 try:
     import scipy.sparse as sp
     scipy_imported = True
@@ -22,25 +21,19 @@ except ImportError:
     scipy_imported = False
 
 
-# took from tensors/tests/test_basic.py
 def rand_ranged_matrix(minimum, maximum, shape):
     return numpy.asarray(numpy.random.rand(*shape) * (maximum - minimum) +
                          minimum, dtype=theano.config.floatX)
 
 
-# took from sparse/tests/test_basic.py
 def random_lil(shape, dtype, nnz):
     rval = sp.lil_matrix(shape, dtype=dtype)
     huge = 2 ** 30
     for k in range(nnz):
-        # set non-zeros in random locations (row x, col y)
         idx = numpy.random.random_integers(huge, size=2) % shape
         value = numpy.random.rand()
-        # if dtype *int*, value will always be zeros!
         if "int" in dtype:
             value = int(value * 100)
-        # The call to tuple is needed as scipy 0.13.1 do not support
-        # ndarray with lenght 2 as idx tuple.
         rval.__setitem__(
             tuple(idx),
             value)

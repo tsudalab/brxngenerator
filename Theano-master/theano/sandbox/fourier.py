@@ -14,7 +14,6 @@ from theano.gof import Op, Apply, generic
 
 
 class GradTodo(Op):
-    # TODO : need description for class
     __props__ = ()
 
     def make_node(self, x):
@@ -26,7 +25,6 @@ grad_todo = GradTodo()
 
 
 class FFT(Op):
-    # TODO : need description for parameters
     """
     Fast Fourier Transform.
 
@@ -44,7 +42,6 @@ class FFT(Op):
     """
 
     default_output = 0
-    # don't return the plan object in the 'buf' output
 
     half = False
     """Only return the first half (positive-valued) of the frequency
@@ -67,9 +64,6 @@ class FFT(Op):
             raise TypeError('Argument to HalfFFT must not be complex', frames)
         spectrogram = tensor.zmatrix()
         buf = generic()
-        # The `buf` output is present for future work
-        # when we call FFTW directly and re-use the 'plan' that FFTW creates.
-        # In that case, buf would store a CObject encapsulating the plan.
         rval = Apply(self, [_frames, _n, _axis], [spectrogram, buf])
         return rval
 
@@ -111,7 +105,6 @@ half_ifft = FFT(half=True, inverse=True)
 
 
 def dct_matrix(rows, cols, unitary=True):
-    # TODO : need description for parameters
     """
     Return a (rows x cols) matrix implementing a discrete cosine transform.
 

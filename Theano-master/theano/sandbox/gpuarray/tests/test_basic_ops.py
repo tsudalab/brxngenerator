@@ -10,7 +10,6 @@ import theano.tensor as T
 from theano.tensor import TensorType
 from theano.tensor.basic import alloc
 
-# Don't import test classes otherwise they get tested as part of the file
 from theano.tensor.tests import test_basic
 from theano.tensor.tests.test_basic import rand, safe_make_node
 from theano.tests import unittest_tools as utt
@@ -131,7 +130,6 @@ def makeTester(name, op, gpu_op, cases, checks=None, mode_gpu=mode_with_gpu,
                     exc.args += (err_msg,)
                     raise
                 else:
-                    # if we raised an exception of the same type we're good.
                     if isinstance(exc, type(ref_e)):
                         return
                     else:
@@ -183,9 +181,6 @@ def test_transfer_cpu_gpu():
 
 
 def test_transfer_strided():
-    # This is just to ensure that it works in theano
-    # libgpuarray has a much more comprehensive suit of tests to
-    # ensure correctness
     a = T.fmatrix('a')
     g = GpuArrayType(dtype='float32', broadcastable=(False, False))('g')
 
@@ -215,8 +210,6 @@ GpuAllocTester = makeTester(
     gpu_op=GpuAlloc(test_ctx_name),
     cases=dict(
         correct01=(rand(), numpy.int32(7)),
-        # just gives a DeepCopyOp with possibly wrong results on the CPU
-        # correct01_bcast=(rand(1), numpy.int32(7)),
         correct02=(rand(), numpy.int32(4), numpy.int32(7)),
         correct12=(rand(7), numpy.int32(4), numpy.int32(7)),
         correct13=(rand(7), numpy.int32(2), numpy.int32(4),
@@ -278,8 +271,6 @@ def test_gpu_contiguous():
     a = T.fmatrix('a')
     i = T.iscalar('i')
     a_val = numpy.asarray(numpy.random.rand(4, 5), dtype='float32')
-    # The reshape is needed otherwise we make the subtensor on the CPU
-    # to transfer less data.
     f = theano.function([a, i], gpu_contiguous(a.reshape((5, 4))[::i]),
                         mode=mode_with_gpu)
     topo = f.maker.fgraph.toposort()
@@ -322,9 +313,7 @@ class G_Join_and_Split(test_basic.T_Join_and_Split):
         self.mode = mode_with_gpu.excluding('constant_folding')
         self.join_op = GpuJoin()
         self.split_op_class = GpuSplit
-        # Use join instead of MakeVector since there is no MakeVector on GPU
         self.make_vector_op = GpuJoin()
-        # this is to avoid errors with limited devices
         self.floatX = 'float32'
         self.hide_error = theano.config.mode not in ['DebugMode', 'DEBUG_MODE']
         self.shared = gpuarray_shared_constructor
@@ -369,11 +358,7 @@ def test_gpujoin_gpualloc():
 
 def test_gpueye():
     def check(dtype, N, M_=None):
-        # Theano does not accept None as a tensor.
-        # So we must use a real value.
         M = M_
-        # Currently DebugMode does not support None as inputs even if this is
-        # allowed.
         if M is None:
             M = N
         N_symb = T.iscalar()
@@ -391,7 +376,6 @@ def test_gpueye():
 
     for dtype in ['float32', 'int32', 'float16']:
         yield check, dtype, 3
-        # M != N, k = 0
         yield check, dtype, 3, 5
         yield check, dtype, 5, 3
 

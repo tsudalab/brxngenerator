@@ -19,7 +19,6 @@ def load_shared_variable(val):
     return tensor_constructor(val)
 
 
-# _tensor_py_operators is first to have its version of __{gt,ge,lt,le}__
 class TensorSharedVariable(_tensor_py_operators, SharedVariable):
     pass
 
@@ -44,9 +43,6 @@ def tensor_constructor(value, name=None, strict=False, allow_downcast=None,
     if not isinstance(value, numpy.ndarray):
         raise TypeError()
 
-    # if no broadcastable is given, then the default is to assume that
-    # the value might be resized in any dimension in the future.
-    #
     if broadcastable is None:
         broadcastable = (False,) * len(value.shape)
     type = TensorType(value.dtype, broadcastable=broadcastable)
@@ -57,13 +53,6 @@ def tensor_constructor(value, name=None, strict=False, allow_downcast=None,
                                 allow_downcast=allow_downcast)
 
 
-# TensorSharedVariable brings in the tensor operators, is not ideal, but works
-# as long as we dont do purely scalar-scalar operations
-# _tensor_py_operators is first to have its version of __{gt,ge,lt,le}__
-#
-# N.B. THERE IS ANOTHER CLASS CALLED ScalarSharedVariable in the
-# theano.scalar.sharedvar file.  It is not registered as a shared_constructor,
-# this one is.
 class ScalarSharedVariable(_tensor_py_operators, SharedVariable):
     pass
 
@@ -98,8 +87,6 @@ def scalar_constructor(value, name=None, strict=False, allow_downcast=None,
     tensor_type = TensorType(dtype=str(value.dtype), broadcastable=[])
 
     try:
-        # Do not pass the dtype to asarray because we want this to fail if
-        # strict is True and the types do not match.
         rval = ScalarSharedVariable(type=tensor_type,
                                     value=numpy.array(value, copy=True),
                                     name=name,

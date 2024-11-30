@@ -10,8 +10,6 @@ from theano.compile import SharedVariable
 
 from theano.sandbox.cuda.type import CudaNdarrayType
 try:
-    # We must do those import to be able to create the full doc when nvcc
-    # is not available
     from theano.sandbox.cuda import filter as type_support_filter
     from theano.sandbox.cuda.basic_ops import HostFromGpu, GpuFromHost
 except ImportError:
@@ -97,7 +95,6 @@ class CudaNdarraySharedVariable(_operators, SharedVariable):
 
         """
         if return_internal_type or not self.get_value_return_ndarray:
-            # return a cuda_ndarray
             if borrow:
                 return self.container.value
             else:
@@ -147,15 +144,11 @@ class CudaNdarraySharedVariable(_operators, SharedVariable):
 
         """
         if not borrow:
-            # TODO: check for cuda_ndarray type
             if not isinstance(value, numpy.ndarray):
-                # in case this is a cuda_ndarray, we copy it
                 value = copy.deepcopy(value)
         self.container.value = value  # this will copy a numpy ndarray
 
     def __getitem__(self, *args):
-        # Defined to explicitly use the implementation from `_operators`, since
-        # the definition in `SharedVariable` is only meant to raise an error.
         return _operators.__getitem__(self, *args)
 
 
@@ -172,12 +165,7 @@ def cuda_shared_constructor(value, name=None, strict=False,
     if target != 'gpu':
         raise TypeError('not for gpu')
 
-    # THIS CONSTRUCTOR TRIES TO CAST VALUE TO A FLOAT32, WHICH THEN GOES ONTO THE CARD
-    # SO INT shared vars, float64 shared vars, etc. all end up on the card.
-    # THIS IS NOT THE DEFAULT BEHAVIOUR THAT WE WANT.
-    # SEE float32_shared_constructor
 
-    # TODO: what should strict mean in this context, since we always have to make a copy?
     if strict:
         _value = value
     else:
@@ -217,7 +205,6 @@ def float32_shared_constructor(value, name=None, strict=False,
                                 move_shared_float32_to_gpu=False,
                                 enable_cuda=False)
 
-    # if value isn't a float32 ndarray, or a CudaNdarray then raise
 
     if not isinstance(value, (numpy.ndarray, theano.sandbox.cuda.CudaNdarray)):
         raise TypeError('ndarray or CudaNdarray required')
@@ -235,8 +222,6 @@ def float32_shared_constructor(value, name=None, strict=False,
         else:
             deviceval = value.copy()
     else:
-        # type.broadcastable is guaranteed to be a tuple, which this next
-        # function requires
         deviceval = type_support_filter(value, type.broadcastable, False, None)
 
     try:

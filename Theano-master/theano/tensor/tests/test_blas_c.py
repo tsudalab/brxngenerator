@@ -46,7 +46,6 @@ class TestCGer(TestCase, TestOptimizationMixin):
     def function(self, inputs, outputs):
         return theano.function(inputs, outputs,
                 mode=self.mode,
-                # allow_inplace=True,
                 )
 
     def run_f(self, f):
@@ -66,7 +65,6 @@ class TestCGer(TestCase, TestOptimizationMixin):
         self.assertTrue(CGer(True) != Ger(True))
         self.assertTrue(CGer(False) != Ger(False))
 
-        # assert that eq works for non-CGer instances
         self.assertTrue(CGer(False) is not None)
         self.assertTrue(CGer(True) is not None)
 
@@ -118,17 +116,14 @@ class TestCGemv(TestCase, TestOptimizationMixin):
                            " is directly linked to blas.")
         self.dtype = dtype
         self.mode = theano.compile.get_default_mode().including('fast_run')
-        # matrix
         self.A = tensor.tensor(dtype=dtype, broadcastable=(False, False))
         self.Aval = numpy.ones((2, 3), dtype=dtype)
 
-        # vector
         self.x = tensor.tensor(dtype=dtype, broadcastable=(False,))
         self.y = tensor.tensor(dtype=dtype, broadcastable=(False,))
         self.xval = numpy.asarray([1, 2], dtype=dtype)
         self.yval = numpy.asarray([1.5, 2.7, 3.9], dtype=dtype)
 
-        # scalar
         self.a = tensor.tensor(dtype=dtype, broadcastable=())
 
     def test_nan_beta_0(self):
@@ -147,18 +142,15 @@ class TestCGemv(TestCase, TestOptimizationMixin):
                 theano.dot(self.x, self.A),
                 mode=self.mode)
 
-        # Assert that the dot was optimized somehow
         self.assertFunctionContains0(f, tensor.dot)
         self.assertFunctionContains1(
             f,
             CGemv(inplace=True)
         )
 
-        # Assert they produce the same output
         assert numpy.allclose(f(self.xval, self.Aval),
                 numpy.dot(self.xval, self.Aval))
 
-        # Test with negative strides on 2 dims
         assert numpy.allclose(f(self.xval, self.Aval[::-1, ::-1]),
                 numpy.dot(self.xval, self.Aval[::-1, ::-1]))
 
@@ -168,17 +160,14 @@ class TestCGemv(TestCase, TestOptimizationMixin):
                 theano.dot(self.A, self.y),
                 mode=self.mode)
 
-        # Assert that the dot was optimized somehow
         self.assertFunctionContains0(f, tensor.dot)
         self.assertFunctionContains1(
             f,
             CGemv(inplace=True)
         )
 
-        # Assert they produce the same output
         assert numpy.allclose(f(self.Aval, self.yval),
                 numpy.dot(self.Aval, self.yval))
-        # Test with negative strides on 2 dims
         assert numpy.allclose(f(self.Aval[::-1, ::-1], self.yval),
                 numpy.dot(self.Aval[::-1, ::-1], self.yval))
 
@@ -203,25 +192,21 @@ class TestCGemv(TestCase, TestOptimizationMixin):
         f = theano.function([], v2 + tensor.dot(m, v1),
                 mode=self.mode)
 
-        # Assert they produce the same output
         assert numpy.allclose(f(),
                 numpy.dot(m.get_value(), v1.get_value()) + v2_orig)
         topo = [n.op for n in f.maker.fgraph.toposort()]
         assert topo == [CGemv(inplace=False)], topo
 
-        # test the inplace version
         g = theano.function([], [],
                 updates=[(v2, v2 + theano.dot(m, v1))],
                 mode=self.mode)
 
-        # Assert they produce the same output
         g()
         assert numpy.allclose(v2.get_value(),
                 numpy.dot(m.get_value(), v1.get_value()) + v2_orig)
         topo = [n.op for n in g.maker.fgraph.toposort()]
         assert topo == [CGemv(inplace=True)]
 
-        # Do the same tests with a matrix with strides in both dimensions
         m.set_value(
                 m.get_value(borrow=True)[::-1, ::-1],
                 borrow=True)
@@ -252,9 +237,7 @@ class TestCGemv(TestCase, TestOptimizationMixin):
         f = theano.function([self.A, self.x, self.y], z,
                 mode=self.mode)
 
-        # Matrix value
         A_val = numpy.ones((5, 3), dtype=dtype)
-        # Different vector length
         ones_3 = numpy.ones(3, dtype=dtype)
         ones_4 = numpy.ones(4, dtype=dtype)
         ones_5 = numpy.ones(5, dtype=dtype)

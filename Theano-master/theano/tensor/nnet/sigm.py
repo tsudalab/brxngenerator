@@ -20,10 +20,6 @@ from theano.tensor import elemwise, opt, NotScalarConstantError
 from theano.tensor.type import values_eq_approx_remove_inf
 from theano.tensor.opt import copy_stack_trace
 
-############
-#
-# SCALAR OPS
-#
 
 
 class ScalarSigmoid(scalar.UnaryScalarOp):
@@ -37,8 +33,6 @@ class ScalarSigmoid(scalar.UnaryScalarOp):
             return 0.0
         if x > 30.0:
             return 1.0
-        # If x is an int8 or uint8, numpy.exp will compute the result in
-        # half-precision (float16), where we want float32.
         x_dtype = str(getattr(x, 'dtype', ''))
         if x_dtype in ('int8', 'uint8'):
             return 1.0 / (1.0 + numpy.exp(-x, sig='f'))
@@ -60,22 +54,7 @@ class ScalarSigmoid(scalar.UnaryScalarOp):
     def c_code(self, node, name, inp, out, sub):
         x, = inp
         z, = out
-        # We add boundary checks prevent exp from generating inf or
-        # 0. The reset of the logic always generate 0 or 1 in those
-        # cases. This is a speed optimization.
-        # The constants were obtained by looking at the output of
-        # python commands like:
-        #
-        # import numpy, theano
-        # dt='float32'  # or float64
-        # for i in xrange(750):
-        #     print i, repr(theano._asarray(1.0, dtype=dt) /
-        #                   (theano._asarray(1.0, dtype=dt) +
-        #                    numpy.exp(-theano._asarray([i,-i], dtype=dt))))
 
-        # float16 limits: -11.0, 7.0f
-        # We use the float32 limits for float16 for now as the
-        # computation will happend in float32 anyway.
         if (node.inputs[0].type == scalar.float32 or
                 node.inputs[0].type == scalar.float16):
             return """%(z)s = %(x)s < -88.0f ? 0.0 : %(x)s > 15.0f ? 1.0f : 1.0f /(1.0f + exp(-%(x)s));""" % locals()
@@ -91,7 +70,6 @@ class ScalarSigmoid(scalar.UnaryScalarOp):
         else:
             return v
 
-    # This fct is disabled as it is slower then the normal code!
     def c_code_contiguous_disabled(self, node, name, inp, out, sub):
         x, = inp
         z, = out
@@ -184,7 +162,6 @@ class UltraFastScalarSigmoid(scalar.UnaryScalarOp):
     @staticmethod
     def st_impl(x):
         x = 0.5 * x
-        # The if is a tanh approximate.
         if x >= 0:
             if x < 1.7:
                 z = (1.5 * x / (1 + x))
@@ -245,7 +222,6 @@ pprint.assign(ultra_fast_sigmoid,
               printing.FunctionPrinter('ultra_fast_sigmoid'))
 
 
-# @opt.register_uncanonicalize
 @gof.local_optimizer([sigmoid])
 def local_ultra_fast_sigmoid(node):
     """
@@ -266,10 +242,7 @@ def local_ultra_fast_sigmoid(node):
         copy_stack_trace(node.outputs[0], out)
 
         def values_eq_approx_remove_low_prec(a, b):
-            # atol is found by trial/error.
-            # Other test could fail without good reason.
             return tensor.TensorType.values_eq_approx(a, b, atol=0.02)
-        # Let DebugMode know that there this opt approx the values.
         out.tag.values_eq_approx = values_eq_approx_remove_low_prec
         return [out]
 theano.compile.optdb['uncanonicalize'].register("local_ultra_fast_sigmoid",
@@ -287,8 +260,6 @@ def hard_sigmoid(x):
     Removing the slope and shift does not make it faster.
 
     """
-    # Use the same dtype as determined by "upgrade_to_float",
-    # and perform computation in that dtype.
     out_dtype = scalar.upgrade_to_float(scalar.Scalar(dtype=x.dtype))[0].dtype
     slope = tensor.constant(0.2, dtype=out_dtype)
     shift = tensor.constant(0.5, dtype=out_dtype)
@@ -297,7 +268,6 @@ def hard_sigmoid(x):
     return x
 
 
-# @opt.register_uncanonicalize
 @gof.local_optimizer([sigmoid])
 def local_hard_sigmoid(node):
     if (isinstance(node.op, tensor.Elemwise) and
@@ -306,10 +276,7 @@ def local_hard_sigmoid(node):
         copy_stack_trace(node.outputs[0], out)
 
         def values_eq_approx_remove_low_prec(a, b):
-            # atol is found by trial/error.
-            # Other test could fail without good reason.
             return tensor.TensorType.values_eq_approx(a, b, atol=0.1)
-        # Let DebugMode know that there this opt approx the values.
         out.tag.values_eq_approx = values_eq_approx_remove_low_prec
         return [out]
 theano.compile.optdb['uncanonicalize'].register("local_hard_sigmoid",
@@ -326,8 +293,6 @@ class ScalarSoftplus(scalar.UnaryScalarOp):
             return 0.0
         if x > 30.0:
             return x
-        # If x is an int8 or uint8, numpy.exp will compute the result in
-        # half-precision (float16), where we want float32.
         x_dtype = str(getattr(x, 'dtype', ''))
         if x_dtype in ('int8', 'uint8'):
             return numpy.log1p(numpy.exp(x, sig='f'))
@@ -344,15 +309,7 @@ class ScalarSoftplus(scalar.UnaryScalarOp):
     def c_code(self, node, name, inp, out, sub):
         x, = inp
         z, = out
-        # These constants were obtained by looking at the output of
-        # python commands like:
-        #  for i in xrange(750):
-        #      print i, repr(numpy.log1p(numpy.exp(theano._asarray([i,-i], dtype=dt))))
-        # the boundary checks prevent us from generating inf
 
-        # float16 limits: -17.0, 6.0
-        # We use the float32 limits for float16 for now as the
-        # computation will happend in float32 anyway.
         if (node.inputs[0].type == scalar.float32 or
                 node.inputs[0].type == scalar.float16):
             return """%(z)s = %(x)s < -103.0f ? 0.0 : %(x)s > 14.0f ? %(x)s : log1p(exp(%(x)s));""" % locals()
@@ -438,20 +395,15 @@ def is_1pexp(t):
     if t.owner and t.owner.op == tensor.add:
         scalars, scalar_inputs, nonconsts = \
             opt.scalarconsts_rest(t.owner.inputs)
-        # scalar_inputs are potentially dimshuffled and fill'd scalars
         if len(nonconsts) == 1:
             maybe_exp = nonconsts[0]
             if maybe_exp.owner and maybe_exp.owner.op == tensor.exp:
-                # Verify that the constant terms sum to 1.
                 if scalars:
                     scal_sum = scalars[0]
                     for s in scalars[1:]:
                         scal_sum = scal_sum + s
                     if numpy.allclose(scal_sum, 1):
                         return False, maybe_exp.owner.inputs[0]
-                # Before 7987b51 there used to be a bug where *any* constant
-                # was considered as if it was equal to 1, and thus this
-                # function would incorrectly identify it as (1 + exp(x)).
                 if config.warn.identify_1pexp_bug:
                     warnings.warn(
                         'Although your current code is fine, please note that '
@@ -518,7 +470,6 @@ def partition_num_or_denom(r, f):
     else:
         a = [r]
 
-    # ugly 2.4-compatible thing
     f_terms = []
     neg = False
     rest = []
@@ -551,10 +502,8 @@ def is_neg(var):
     apply = var.owner
     if not apply:
         return None
-    # First match against `tensor.neg`.
     if apply.op == tensor.neg:
         return apply.inputs[0]
-    # Then match against a multiplication by -1.
     if apply.op == tensor.mul and len(apply.inputs) >= 2:
         for idx, mul_input in enumerate(apply.inputs):
             try:
@@ -563,15 +512,11 @@ def is_neg(var):
             except NotScalarConstantError:
                 is_minus_1 = False
             if is_minus_1:
-                # Found a multiplication by -1.
                 if len(apply.inputs) == 2:
-                    # Only return the other input.
                     return apply.inputs[1 - idx]
                 else:
-                    # Return the multiplication of all other inputs.
                     return tensor.mul(*(apply.inputs[0:idx] +
                                         apply.inputs[idx + 1:]))
-    # No match.
     return None
 
 
@@ -583,11 +528,8 @@ def local_exp_over_1_plus_exp(node):
     c/(1+exp(x)) -> c*sigm(-x)
 
     """
-    # this optimization should be done for numerical stability
-    # so we don't care to check client counts
     if node.op == tensor.true_div:
 
-        # find all the exp() terms in the numerator
         num, denom = node.inputs
         num_exp_x, num_rest, num_neg = partition_num_or_denom(num, is_exp)
         denom_1pexp, denom_rest, \
@@ -596,16 +538,13 @@ def local_exp_over_1_plus_exp(node):
         sigmoids = []
         for t in denom_1pexp:
             if t in num_exp_x:
-                # case: exp(x) /(1+exp(x))
                 sigmoids.append(sigmoid(t))
                 del num_exp_x[num_exp_x.index(t)]
             else:
-                # case: 1/(1+exp(x))
                 sigmoids.append(sigmoid(-t))
 
         if not sigmoids:  # we didn't find any.  abort
             return
-        # put the new numerator together
         new_num = sigmoids + [tensor.exp(t) for t in num_exp_x] + num_rest
         if len(new_num) == 1:
             new_num = new_num[0]
@@ -650,20 +589,15 @@ def parse_mul_tree(root):
                                         [True, z]]]
 
     """
-    # Is it a multiplication?
     mul_info = is_mul(root)
     if mul_info is None:
-        # Is it a negation?
         neg_info = is_neg(root)
         if neg_info is None:
-            # Keep the root "as is".
             return [False, root]
         else:
-            # Recurse, inverting the negation.
             neg, sub_tree = parse_mul_tree(neg_info)
             return [not neg, sub_tree]
     else:
-        # Recurse into inputs.
         return [False, list(map(parse_mul_tree, mul_info))]
 
 
@@ -730,26 +664,21 @@ def simplify_mul(tree):
     """
     neg, inputs = tree
     if isinstance(inputs, list):
-        # Recurse through inputs.
         s_inputs = []
         for s_i in imap(simplify_mul, inputs):
             if s_i[1] is None:
-                # Multiplication by +/-1.
                 neg ^= s_i[0]
             else:
                 s_inputs.append(s_i)
         if not s_inputs:
-            # The multiplication is empty.
             rval = [neg, None]
         elif len(s_inputs) == 1:
-            # The multiplication has a single input.
             s_inputs[0][0] ^= neg
             rval = s_inputs[0]
         else:
             rval = [neg, s_inputs]
     else:
         rval = tree
-    # print 'simplify_mul: %s -> %s' % (tree, rval)
     return rval
 
 
@@ -777,7 +706,6 @@ def compute_mul(tree):
             'Function `compute_mul` found a missing leaf, did you forget to '
             'call `simplify_mul` on the tree first?')
     elif isinstance(inputs, list):
-        # Recurse through inputs.
         rval = tensor.mul(*list(map(compute_mul, inputs)))
     else:
         rval = inputs
@@ -849,7 +777,6 @@ def perform_sigm_times_exp(tree, exp_x=None, exp_minus_x=None, sigm_x=None,
         print('  sigm_minus_x= %s' % sigm_minus_x)
     neg, inputs = tree
     if isinstance(inputs, list):
-        # Recurse through inputs of the multiplication.
         rval = False
         for sub_idx, sub_tree in enumerate(inputs):
             rval |= perform_sigm_times_exp(
@@ -858,14 +785,6 @@ def perform_sigm_times_exp(tree, exp_x=None, exp_minus_x=None, sigm_x=None,
                 sigm_minus_x=sigm_minus_x, full_tree=full_tree)
         return rval
     else:
-        # Reached a leaf: if it is an exponential or a sigmoid, then we
-        # first attempt to find a match in leaves already visited.
-        # If there is such a match, we modify the already-visited leaf
-        # accordingly: for instance if we visited a leaf sigmoid(x), then
-        # find later a -exp(-x), we replace the previous leaf by
-        # -sigmoid(-x) and remove the -exp(-x) from the tree.
-        # If no match is found, then we register this leaf so that it can
-        # be found later while walking the tree.
         var = inputs
         keep_it = False
         exp_info = is_exp(var)
@@ -896,11 +815,8 @@ def perform_sigm_times_exp(tree, exp_x=None, exp_minus_x=None, sigm_x=None,
                     sigm_minus_x.append((neg_arg, tree))
                     keep_it = True
         else:
-            # It is not an exponential nor a sigmoid.
             keep_it = True
         if not keep_it:
-            # Delete this leaf, i.e. replace it by [False, None] (corresponding
-            # to a multiplication by 1).
             assert parent is not None
             parent[1][child_idx] = [False, None]
         return not keep_it
@@ -914,22 +830,14 @@ def local_sigm_times_exp(node):
     exp(-x) * sigm(x) -> sigm(-x)
 
     """
-    # Bail early if it is not a multiplication.
     if node.op != tensor.mul:
         return None
-    # Obtain tree of multiplications starting at this node.
     mul_tree = parse_mul_tree(node.outputs[0])
-    # Perform core optimization.
     did_something = perform_sigm_times_exp(mul_tree)
     if not did_something:
-        # No change.
         return None
-    # The optimization may have introduced multiplications by 1 in the tree:
-    # get rid of them.
     mul_tree = simplify_mul(mul_tree)
-    # Recompute final output based on the updated tree.
     out = compute_mul(mul_tree)
-    # keep the stack trace
     copy_stack_trace(node.outputs[0], out)
     return [out]
 
@@ -941,14 +849,11 @@ def local_inv_1_plus_exp(node):
     1/(1+exp(x)) -> sigm(-x)
 
     """
-    # this optimization should be done for numerical stability
-    # so we don't care to check client counts
     if node.op == tensor.inv:
         inv_arg = node.inputs[0]
         if inv_arg.owner and inv_arg.owner.op == tensor.add:
             scalars, scalar_inputs, nonconsts = \
                 opt.scalarconsts_rest(inv_arg.owner.inputs)
-            # scalar_inputs are potentially dimshuffled and fill'd scalars
             if len(nonconsts) == 1:
                 if nonconsts[0].owner and nonconsts[0].owner.op == tensor.exp:
                     if scalars and numpy.allclose(numpy.sum(scalars), 1):
@@ -956,15 +861,10 @@ def local_inv_1_plus_exp(node):
                             sigmoid(
                                 tensor.neg(nonconsts[0].owner.inputs[0])),
                             scalar_inputs)
-                        # keep combined stack traces of
-                        #     exp(x):           nonconsts[0],
-                        #     1 + exp(x):       inv_arg,
-                        #     1 / (1 + exp(x)): node.outputs[0]
                         copy_stack_trace(
                             [nonconsts[0], inv_arg, node.outputs[0]], out)
                         return out
 
-# Registration is below, and conditional.
 
 
 @gof.local_optimizer([tensor.sub])
@@ -988,22 +888,11 @@ def local_1msigmoid(node):
                 return [out]
 
 register_local_1msigmoid = False
-# This is False because the Stabilize pattern above
-# is looking for 1-sigm.  Also Canonizer turns neg into *(-1) and so
-# this optimization might set off an unwanted chain of things.
-# OTH - this transformation can be seen as pushing normal arithmetic either  below or above the
-# sigmoidal nonlinearity... so if the canonicalized form had anything to say about that then it
-# would be a consideration... anyway leaving False for now.
 
 if register_local_1msigmoid:
     opt.register_canonicalize(local_1msigmoid)
 
 if 0:
-    # This code is if'd out because it is not complete,
-    # and it isn't obviously a good idea anyway.
-    # The motivation here was to identify the last exp() node
-    # in the SciPy2010 article, which was not optimized away at the time of publication,
-    # so the example is actually not numerically stable, even though it should be.
     @opt.register_stabilize
     @gof.local_optimizer([tensor.mul])
     def local_sigm_gest(node):
@@ -1034,8 +923,6 @@ if 0:
                             t0top + t1top)), mul(*(t0bot + t1bot))))
 
                         if len(rval) > 100:
-                            # This loop can be exponentially long.
-                            # aborting
                             return []
         elif len(node.outputs) > 1:
             return []

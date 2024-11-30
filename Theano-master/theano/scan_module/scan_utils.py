@@ -32,9 +32,7 @@ from theano.compat import OrderedDict
 from theano.tensor.basic import get_scalar_constant_value
 
 
-################ Utility Functions and Classes #######################
 
-# Logging function for sending warning or info
 _logger = logging.getLogger('theano.scan_utils')
 
 
@@ -60,9 +58,6 @@ def safe_new(x, tag='', dtype=None):
             return nwx
         else:
             return x.clone()
-    # Note, as_tensor_variable will convert the Scalar into a
-    # TensorScalar that will require a ScalarFromTensor op,
-    # making the pushout optimization fail
     elif isinstance(x, scalar.ScalarVariable):
         if dtype:
             nw_x = scalar.get_scalar_type(dtype=dtype)()
@@ -70,40 +65,28 @@ def safe_new(x, tag='', dtype=None):
             nw_x = x.type()
         nw_x.name = nw_name
         if theano.config.compute_test_value != 'off':
-            # Copy test value, cast it if necessary
             try:
                 x_test_value = gof.op.get_test_value(x)
             except AttributeError:
-                # There is no test value
                 pass
             else:
-                # This clause is executed if no exception was raised
                 nw_x.tag.test_value = nw_x.type.filter(x_test_value)
         return nw_x
     else:
         try:
             x = tensor.as_tensor_variable(x)
         except TypeError:
-            # This could happen for example for random states, and I really
-            # want to avoid the convoluted logic that checks for cuda
-            # ndarrays
             pass
 
-    # Cast x if needed. If x has a test value, this will also cast it.
     if dtype and x.dtype != dtype:
         x = x.astype(dtype)
 
     nw_x = x.type()
     nw_x.name = nw_name
-    # Preserve test values so that the 'compute_test_value' option can be used.
-    # The test value is deep-copied to ensure there can be no interactions
-    # between test values, due to inplace operations for instance. This may
-    # not be the most efficient memory-wise, though.
     if theano.config.compute_test_value != 'off':
         try:
             nw_x.tag.test_value = copy.deepcopy(gof.op.get_test_value(x))
         except AttributeError:
-            # This means `x` has no test value.
             pass
 
     return nw_x
@@ -142,10 +125,6 @@ def traverse(out, x, x_copy, d, visited=None):
     inner graph of scan.
 
     """
-    # ``visited`` is a set of nodes that are already known and don't need to be
-    # checked again, speeding up the traversal of multiply-connected graphs.
-    # if a ``visited`` set is given, it will be updated in-place so the callee
-    # knows which nodes we have seen.
     if visited is None:
         visited = set()
     if out in visited:
@@ -177,7 +156,6 @@ def traverse(out, x, x_copy, d, visited=None):
         return d
 
 
-# Hashing a dictionary/list/tuple by xoring the hash of each element
 def hash_listsDictsTuples(x):
     hash_value = 0
     if isinstance(x, dict):
@@ -246,7 +224,6 @@ def clone(output,
                                          strict,
                                          share_inputs)
 
-    # TODO Explain why we call it twice ?!
     _, outs, _ = rebuild_collect_shared(_outs,
                                         [],
                                         new_replace,
@@ -286,10 +263,8 @@ def map_variables(replacer, graphs, additional_inputs=[]):
             return getattr(graph.tag, "replacement", graph),
             [u])
 
-        # v is now equal to a * b + c
     """
 
-    # wrap replacer to avoid replacing things we just put there.
     graphs_seen = set()
     def wrapped_replacer(graph):
         if graph in graphs_seen:
@@ -302,9 +277,6 @@ def map_variables(replacer, graphs, additional_inputs=[]):
     graphs = list(graphs)
     inputs_ = list(set(gof.graph.inputs(graphs) + list(additional_inputs)))
 
-    # perform any desired replacement of input variables.  these
-    # aren't replaced by the local optimizer approach because they are
-    # not outputs of any Apply node.
     new_inputs = list(map(wrapped_replacer, inputs_))
     replacements = [(input_, new_input)
                     for input_, new_input
@@ -313,11 +285,6 @@ def map_variables(replacer, graphs, additional_inputs=[]):
     graphs = clone(graphs, share_inputs=True, replace=replacements)
     inputs_ = list(set(gof.graph.inputs(graphs) + list(additional_inputs)))
 
-    # clone cached constants or FunctionGraph will complain.  this has
-    # to occur in a separate pass from the replacement above because
-    # both may suggest different replacements for the same variables.
-    # since the replacements introduced above may involve cached
-    # constants, the replacement of said constants has to come after.
     cached_constants = [x for x in inputs_ if getattr(x, "cached", False)]
     copied_constants = clone(cached_constants, share_inputs=False)
     replacements = list(zip(cached_constants, copied_constants))
@@ -333,12 +300,10 @@ def map_variables(replacer, graphs, additional_inputs=[]):
         if node in nodes_seen:
             return False
 
-        # importing Scan into module scope would be circular
         from theano.scan_module.scan_op import Scan
         from theano.compile import OpFromGraph
 
         if isinstance(node.op, (Scan, OpFromGraph)):
-            # recurse on the inner graph
             (new_inner_inputs,
              new_outer_inputs,
              new_inner_outputs) = _map_variables_inner(
@@ -347,18 +312,15 @@ def map_variables(replacer, graphs, additional_inputs=[]):
                  outer_inputs=node.inputs,
                  inner_outputs=node.op.outputs,
                  containing_op=node.op)
-            # reinstantiate the op
             if isinstance(node.op, Scan):
                 new_op = Scan(new_inner_inputs,
                               new_inner_outputs,
                               node.op.info,
-                              # FIXME: infer this someday?
                               typeConstructor=None)
             elif isinstance(node.op, OpFromGraph):
                 new_op = OpFromGraph(new_inner_inputs,
                                      new_inner_outputs,
                                      **node.op.kwargs)
-            # make a new node to replace the old one
             new_node = new_op.make_node(*new_outer_inputs)
             nodes_seen.add(new_node)
             return new_node.outputs
@@ -376,15 +338,7 @@ def map_variables(replacer, graphs, additional_inputs=[]):
 
 def _map_variables_inner(replacer, inner_inputs, outer_inputs,
                          inner_outputs, containing_op):
-    # the replacements returned by the replacer may involve variables
-    # that are already owned by the outer fgraph (`fg` in the caller)
-    # and so cannot be added to the inner fgraph (`fg` in the
-    # recursive call).  wrap the replacer to catch these before they
-    # are added.
 
-    # additionally, some of these may be fgraph inputs or shared
-    # variables, which we cannot directly use inside the inner graph.
-    # we need to create inner inputs to access them through.
 
     outer_to_inner = dict(zip(outer_inputs, inner_inputs))
     extra_inner_inputs = []
@@ -406,18 +360,13 @@ def _map_variables_inner(replacer, inner_inputs, outer_inputs,
                 else:
                     other_inputs.append(input_)
 
-        # foreign inputs are fgraph inputs and shared variables that we need
-        # to access through inner inputs
         foreign_inputs = list(set(other_inputs) - set(outer_to_inner.values()))
 
-        # skip further processing if there is nothing to do
         if not constants and not foreign_inputs:
             return new_graph
 
         replacements = []
 
-        # constants just need to be replaced by copies that the inner
-        # `fg` can take ownership of
         for input_ in constants:
             new_input = input_.clone()
             new_input.name = "%s_copied" % new_input.name
@@ -425,30 +374,16 @@ def _map_variables_inner(replacer, inner_inputs, outer_inputs,
 
         for outer_input in foreign_inputs:
             if getattr(outer_input, "update", False):
-                # when theano.scan() constructs a scan node, it detects
-                # shared variables with updates and returns these updates
-                # to the user.  we need to do the same thing for every new
-                # use of such a variable that is introduced.  it's hard to
-                # do that at this point.
-                # shared variables with updates inside the inner graph of
-                # OpFromGraph are not supported at all, so we don't support
-                # introducing those either.
                 raise NotImplementedError(
                     "Replacement introduces shared variable %s "
                     "which has an update associated with it into "
                     "the inner graph of %s. This is not currently "
                     "supported." % (outer_input, containing_op))
-            # if this foreign input is not already available
-            # as an inner input, connect it through a new
-            # inner input
             if outer_input not in outer_to_inner.keys():
                 inner_input = scan_utils.safe_new(outer_input, tag="_copy")
                 outer_to_inner[outer_input] = inner_input
                 extra_inner_inputs.append(inner_input)
                 extra_outer_inputs.append(outer_input)
-                # the inner FunctionGraph wants to know its inputs
-                # beforehand, but we don't always know.  so add them
-                # as we discover them.
                 graph.owner.fgraph.add_input(inner_input)
 
         replacements.extend(outer_to_inner.items())
@@ -486,14 +421,12 @@ def get_updates_and_outputs(ls):
 
     def is_updates(elem):
         if isinstance(elem, dict):
-            # Make sure the updates will be applied in a deterministic order
             if (not isinstance(elem, compat.OrderedDict) and
                 len(elem) > 1):
                 warnings.warn("Expected OrderedDict or OrderedUpdates, got "\
                         + str(type(elem)) + ". This can make your script non-"
                         "deterministic.")
             return True
-        # Dictionaries can be given as lists of tuples
         if (isinstance(elem, (list, tuple)) and
             all([isinstance(x, (list, tuple)) and len(x) == 2
                  for x in elem])):
@@ -517,7 +450,6 @@ def get_updates_and_outputs(ls):
         variables or `theano.scan_module.until` objects.
 
         """
-        # Is `x` a container we can iterate on?
         iter_on = None
         if isinstance(x, list) or isinstance(x, tuple):
             iter_on = x
@@ -667,7 +599,6 @@ def equal_computations(xs, ys, in_xs=None, in_ys=None):
     common = set(zip(in_xs, in_ys))
     different = set()
     for dx, dy in izip(xs, ys):
-        # We checked above that both dx and dy have an owner or not
         if not dx.owner:
             if (isinstance(dx, tensor.Constant) and
                   isinstance(dy, tensor.Constant)):
@@ -678,8 +609,6 @@ def equal_computations(xs, ys, in_xs=None, in_ys=None):
             elif (dx, dy) not in common and dx != dy:
                 return False
 
-    # Explore the two graphs, in parallel, depth first, comparing the nodes
-    # along the way for equality.
     def compare_nodes(nd_x, nd_y, common, different):
         """
         Compare two nodes to determine if they perform equal computation.
@@ -709,12 +638,9 @@ def equal_computations(xs, ys, in_xs=None, in_ys=None):
             if all_in_common:
                 return True
 
-            # Compare the individual inputs for equality
             for dx, dy in izip(nd_x.inputs, nd_y.inputs):
                 if (dx, dy) not in common:
 
-                    # Equality between the variables is unknown, compare
-                    # their respective owners, if they have some
                     if (dx.owner and dy.owner and
                         dx.owner.outputs.index(dx) ==
                         dy.owner.outputs.index(dy)):
@@ -724,8 +650,6 @@ def equal_computations(xs, ys, in_xs=None, in_ys=None):
                             different.add((dx, dy))
                             return False
 
-                    # If both variables don't have an owner, then they are
-                    # inputs and can be directly compared
                     elif dx.owner is None and dy.owner is None:
 
                         if dx != dy:
@@ -739,19 +663,13 @@ def equal_computations(xs, ys, in_xs=None, in_ys=None):
                     else:
                         return False
 
-            # If the code reaches this statement then the inputs are pair-wise
-            # equivalent so the outputs of the current nodes are also
-            # pair-wise equivalents
             for dx, dy in izip(nd_x.outputs, nd_y.outputs):
                 common.add((dx, dy))
 
             return True
 
-    # Validate that each xs[i], ys[i] pair represents the same computation
     for i in range(len(xs)):
         if xs[i].owner:
-            # The case where pairs of x[i]s and y[i]s don't both have an owner
-            # have already been adressed.
             is_equal = compare_nodes(xs[i].owner, ys[i].owner, common, different)
             if not is_equal:
                 return False
@@ -768,10 +686,6 @@ def infer_shape(outs, inputs, input_shapes):
     the shape. Changes to ShapeFeature could require changes in this function.
 
     """
-    # We use a ShapeFeature because it has all the necessary logic
-    # inside.  We don't use the full ShapeFeature interface, but we
-    # let it initialize itself with an empty fgraph, otherwise we will
-    # need to do it manually
     for inp, inp_shp in izip(inputs, input_shapes):
         if inp_shp is not None and len(inp_shp) != inp.ndim:
             assert len(inp_shp) == inp.ndim
@@ -779,7 +693,6 @@ def infer_shape(outs, inputs, input_shapes):
     shape_feature = tensor.opt.ShapeFeature()
     shape_feature.on_attach(theano.gof.FunctionGraph([], []))
 
-    # Initialize shape_of with the input shapes
     for inp, inp_shp in izip(inputs, input_shapes):
         shape_feature.set_shape(inp, inp_shp)
 
@@ -789,19 +702,14 @@ def infer_shape(outs, inputs, input_shapes):
 
         """
         if out in shape_feature.shape_of:
-            # Its shape is already known
             return
         elif out.owner is None:
-            # This is an input of the graph
             shape_feature.init_r(out)
         else:
-            # Recurse over inputs
             for inp in out.owner.inputs:
                 if not inp in shape_feature.shape_of:
                     local_traverse(inp)
 
-            # shape_feature.on_import does not actually use an fgraph
-            # It will call infer_shape and set_shape appropriately
             dummy_fgraph = None
             shape_feature.on_import(dummy_fgraph, out.owner, reason="dummy")
 
@@ -832,13 +740,10 @@ class Validator(object):
         if valid_equivalent is None:
             valid_equivalent = OrderedDict()
 
-        # Nodes that are valid to have in the graph computing outputs
         self.valid = set(valid)
 
-        # Nodes that are NOT valid to have in the graph computing outputs
         self.invalid = set(invalid)
 
-        # Mapping from invalid variables to equivalent valid ones.
         self.valid_equivalent = valid_equivalent.copy()
         self.valid.update(list(valid_equivalent.values()))
         self.invalid.update(list(valid_equivalent.keys()))
@@ -861,29 +766,20 @@ class Validator(object):
 
         if out.owner is None:
             if isinstance(out, tensor.TensorConstant):
-                # This might be a constant from the outer graph or a constant
-                # from the inner graph. In all cases, we can clone it to be
-                # certain we have a valid constant
                 cloned_out = out.clone()
                 self.valid.add(cloned_out)
                 self.invalid.add(out)
                 self.valid_equivalent[out] = cloned_out
                 return cloned_out, False
             else:
-                # This is an input node and it has not been explicitly marked
-                # as invalid so we can use it
                 return out, True
 
-        # Recurse over inputs
         inputs = [self.check(i) for i in out.owner.inputs]
 
-        # If some inputs are invalid without equivalent, so is out
         if None in inputs:
             self.invalid.add(out)
             return None
 
-        # If some inputs are invalid with equivalent,
-        # an equivalent out should be built and returned
         all_inputs = [inp for (inp, is_valid) in inputs]
         equiv_inputs = [inp for (inp, is_valid) in inputs if not is_valid]
         if equiv_inputs:
@@ -894,7 +790,6 @@ class Validator(object):
             self.valid_equivalent[out] = cloned_out
             return cloned_out, False
 
-        # All inputs are valid, so is out
         return out, True
 
 
@@ -927,7 +822,6 @@ def scan_can_remove_outs(op, out_idxs):
         for pos, idx in enumerate(out_idxs):
             if (out_idxs_mask[pos] and
                  numpy.any([x in required_inputs for x in out_ins[idx]])):
-                # This output is required ..
                 out_idxs_mask[pos] = 0
                 required_inputs += gof.graph.inputs([op.outputs[idx]])
                 added = True
@@ -985,15 +879,12 @@ def compress_outs(op, not_required, inputs):
             info['n_mit_mot'] += 1
             info['tap_array'] += [op.tap_array[offset + idx]]
             info['mit_mot_out_slices'] += [op.mit_mot_out_slices[offset + idx]]
-            # input taps
             for jdx in op.tap_array[offset + idx]:
                 op_inputs += [op.inputs[i_offset]]
                 i_offset += 1
-            # output taps
             for jdx in op.mit_mot_out_slices[offset + idx]:
                 op_outputs += [op.outputs[o_offset]]
                 o_offset += 1
-            # node inputs
             node_inputs += [inputs[ni_offset + idx]]
         else:
             o_offset += len(op.mit_mot_out_slices[offset + idx])
@@ -1008,14 +899,11 @@ def compress_outs(op, not_required, inputs):
             curr_pos += 1
             info['n_mit_sot'] += 1
             info['tap_array'] += [op.tap_array[offset + idx]]
-            # input taps
             for jdx in op.tap_array[offset + idx]:
                 op_inputs += [op.inputs[i_offset]]
                 i_offset += 1
-            # output taps
             op_outputs += [op.outputs[o_offset]]
             o_offset += 1
-            # node inputs
             node_inputs += [inputs[ni_offset + idx]]
         else:
             o_offset += 1
@@ -1029,13 +917,10 @@ def compress_outs(op, not_required, inputs):
             curr_pos += 1
             info['n_sit_sot'] += 1
             info['tap_array'] += [op.tap_array[offset + idx]]
-            # input taps
             op_inputs += [op.inputs[i_offset]]
             i_offset += 1
-            # output taps
             op_outputs += [op.outputs[o_offset]]
             o_offset += 1
-            # node inputs
             node_inputs += [inputs[ni_offset + idx]]
         else:
             o_offset += 1
@@ -1072,13 +957,11 @@ def compress_outs(op, not_required, inputs):
             i_offset += 1
     node_inputs += shared_ins
     node_inputs += nit_sot_ins
-    # other stuff
     op_inputs += op.inputs[i_offset:]
     node_inputs += inputs[ni_offset + op.n_shared_outs + op.n_nit_sot:]
     if op.as_while:
         op_outputs += [op.outputs[o_offset]]
         map_old_new[o_offset] = len(op_outputs) - 1
-        #map_old_new[len(op_outputs)-1] = o_offset
 
     return (op_inputs, op_outputs, info, node_inputs, map_old_new)
 
@@ -1197,7 +1080,6 @@ class scan_args(object):
         self.outer_in_non_seqs = outer_inputs[p:]
         self.inner_in_non_seqs = inner_inputs[q:]
 
-        # now for the outputs
         p = 0
         q = 0
 
@@ -1288,7 +1170,6 @@ class scan_args(object):
     def __copy__(self):
         res = object.__new__(type(self))
         res.__dict__.update(self.__dict__)
-        # also copy mutable attrs
         for attr in self.__dict__:
             if (attr.startswith('inner_in') or attr.startswith('inner_out') or
                 attr.startswith('outer_in') or attr.startswith('outer_out') or
@@ -1330,8 +1211,6 @@ def forced_replace(out, x, y):
     if out is None:
         return None
 
-    # ``visited`` is a set of nodes that are already known and don't need to be
-    # checked again, speeding up the traversal of multiply-connected graphs.
     visited = set()
     def local_traverse(graph, x):
         if graph in visited:

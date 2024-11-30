@@ -2,7 +2,6 @@
 """
 from __future__ import absolute_import, print_function, division
 
-# Python 3.x compatibility
 from six import PY3, b, BytesIO, next
 from six.moves import configparser
 from six.moves import reload_module as reload
@@ -16,9 +15,6 @@ if PY3:
     imap = map
     ifilter = filter
 
-    # In python 3.x, when an exception is reraised it saves original
-    # exception in its args, therefore in order to find the actual
-    # message, we need to unpack arguments recursively.
     def exc_message(e):
         msg = e.args[0]
         if isinstance(msg, Exception):
@@ -30,9 +26,6 @@ if PY3:
         return (x > y) - (x < y)
 
     def get_unbound_function(unbound):
-        # Op.make_thunk isn't bound, so don't have a __func__ attr.
-        # But bound method, have a __func__ method that point to the
-        # not bound method. That is what we want.
         if hasattr(unbound, '__func__'):
             return unbound.__func__
         return unbound
@@ -58,7 +51,6 @@ else:
 
     cmp = cmp
 
-    # Older Python 2.x compatibility
     from theano.compat.python2x import DictMixin, OrderedDict
 
     def decode(x):

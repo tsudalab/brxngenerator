@@ -98,10 +98,6 @@ def test_n_samples_compatibility():
         try:
             X, samples = u.load()
         except ImportError:
-            # Windows sometimes fail with nonsensical errors like:
-            #   ImportError: No module named type
-            #   ImportError: No module named copy_reg
-            # when "type" and "copy_reg" are builtin modules.
             if sys.platform == 'win32':
                 exc_type, exc_value, exc_trace = sys.exc_info()
                 reraise(SkipTest, exc_value, exc_trace)
@@ -113,8 +109,6 @@ def test_n_samples_compatibility():
 
 
 def test_multinomial_0():
-    # This tests the MultinomialFromUniform Op directly, not going through the
-    # multinomial() call in GPU random generation.
 
     p = tensor.fmatrix()
     u = tensor.fvector()
@@ -122,28 +116,21 @@ def test_multinomial_0():
     m = multinomial.MultinomialFromUniform('auto')(p, u)
 
     def body(mode, gpu):
-        # the m*2 allows the multinomial to reuse output
         f = function([p, u], m * 2, allow_input_downcast=True, mode=mode)
 
         if gpu:
             assert any([type(node.op) is multinomial.GpuMultinomialFromUniform
                         for node in f.maker.fgraph.toposort()])
 
-        # test that both first and second samples can be drawn
         utt.assert_allclose(f([[1, 0], [0, 1]], [.1, .1]),
                             [[2, 0], [0, 2]])
 
-        # test that both second labels can be drawn
         r = f([[.2, .8], [.3, .7]], [.31, .31])
         utt.assert_allclose(r, [[0, 2], [0, 2]])
 
-        # test that both first labels can be drawn
         r = f([[.2, .8], [.3, .7]], [.21, .21])
         utt.assert_allclose(r, [[0, 2], [2, 0]])
 
-        # change the size to make sure output gets reallocated ok
-        # and also make sure that the GPU version doesn't screw up the
-        # transposed-ness
         r = f([[.2, .8]], [.25])
         utt.assert_allclose(r, [[0, 2]])
 
@@ -152,9 +139,7 @@ def test_multinomial_0():
         run_with_c(body, True)
 
 
-# TODO: check a bigger example (make sure blocking on GPU is handled correctly)
 def test_multinomial_large():
-    # DEBUG_MODE will test this on GPU
     def body(mode, gpu):
         p = tensor.fmatrix()
         u = tensor.fvector()
@@ -205,12 +190,9 @@ def test_multinomial_dtypes():
 
 def test_gpu_opt():
     if not cuda.cuda_available:
-        # Skip test if cuda_ndarray is not available.
         from nose.plugins.skip import SkipTest
         raise SkipTest('Optional package cuda not available')
 
-    # We test the case where we put the op on the gpu when the output
-    # is moved to the gpu.
     p = tensor.fmatrix()
     u = tensor.fvector()
     m = multinomial.MultinomialFromUniform('auto')(p, u)
@@ -225,7 +207,6 @@ def test_gpu_opt():
     uval = numpy.ones_like(pval[:, 0]) * 0.5
     f(pval, uval)
 
-    # Test with a row, it was failing in the past.
     r = tensor.frow()
     m = multinomial.MultinomialFromUniform('auto')(r, u)
     assert m.dtype == 'float32', m.dtype

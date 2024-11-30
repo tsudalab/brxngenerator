@@ -58,13 +58,8 @@ class RandomStreams(raw_random.RandomStreamsBase):
 
     def __init__(self, seed=None):
         super(RandomStreams, self).__init__()
-        # A list of pairs of the form (input_r, output_r).  This will be
-        # over-ridden by the module instance to contain stream generators.
         self.state_updates = []
-        # Instance variable should take None or integer value. Used to seed the
-        # random number generator that provides seeds for member streams.
         self.default_instance_seed = seed
-        # numpy.RandomState instance that gen() uses to seed new streams.
         self.gen_seedgen = numpy.random.RandomState(seed)
 
     def seed(self, seed=None):
@@ -162,7 +157,6 @@ class RandomStreams(raw_random.RandomStreamsBase):
         """
         seed = int(self.gen_seedgen.randint(2 ** 30))
         random_state_variable = shared(numpy.random.RandomState(seed))
-        # Add a reference to distinguish from other shared variables
         random_state_variable.tag.is_rng = True
         new_r, out = op(random_state_variable, *args, **kwargs)
         out.rng = random_state_variable

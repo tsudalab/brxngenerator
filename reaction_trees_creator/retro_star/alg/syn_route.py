@@ -58,8 +58,6 @@ class SynRoute:
         names = []
         for i in range(len(self.mols)):
             name = self.mols[i]
-            # if self.templates[i] is not None:
-            #     name += ' | %s' % self.templates[i]
             names.append(name)
 
         node_queue = Queue()

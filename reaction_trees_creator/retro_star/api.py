@@ -66,20 +66,9 @@ class RSPlanner:
         succ, msg, full_reactions = self.plan_handle(target_mol)
 
         if succ:
-           # result = {
-            #    'succ': succ,
-             #   'time': time.time() - t0,
-            #    'iter': msg[1],
-            #    'routes': msg[0].serialize(),
-            #    'route_cost': msg[0].total_cost,
-            #    'route_len': msg[0].length
-            #}
-            #return result
             return full_reactions
 
         else:
-            #logging.info('Synthesis path for %s not found. Please try increasing '
-             #            'the number of iterations.' % target_mol)
             return []
 
 

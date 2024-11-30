@@ -56,7 +56,6 @@ class test_sort(unittest.TestCase):
         a1 = SortOp("mergesort", [])
         a2 = SortOp("quicksort", [])
 
-        # All the below should give true
         assert a1 != a2
         assert a1 == SortOp("mergesort", [])
         assert a2 == SortOp("quicksort", [])
@@ -85,13 +84,11 @@ class test_sort(unittest.TestCase):
         utt.verify_grad(lambda x: sort(x, None), [data])
 
     def test_grad_negative_axis(self):
-        # test 2D
         data = np.random.rand(2, 3).astype(theano.config.floatX)
         utt.verify_grad(lambda x: sort(x, -1), [data])
         data = np.random.rand(2, 3).astype(theano.config.floatX)
         utt.verify_grad(lambda x: sort(x, -2), [data])
 
-        # test 3D
         data = np.random.rand(2, 3, 4).astype(theano.config.floatX)
         utt.verify_grad(lambda x: sort(x, -1), [data])
         data = np.random.rand(2, 3, 4).astype(theano.config.floatX)
@@ -99,7 +96,6 @@ class test_sort(unittest.TestCase):
         data = np.random.rand(2, 3, 4).astype(theano.config.floatX)
         utt.verify_grad(lambda x: sort(x, -3), [data])
 
-        # test 4D
         data = np.random.rand(2, 3, 4, 2).astype(theano.config.floatX)
         utt.verify_grad(lambda x: sort(x, -1), [data])
         data = np.random.rand(2, 3, 4, 2).astype(theano.config.floatX)
@@ -110,13 +106,11 @@ class test_sort(unittest.TestCase):
         utt.verify_grad(lambda x: sort(x, -4), [data])
 
     def test_grad_nonnegative_axis(self):
-        # test 2D
         data = np.random.rand(2, 3).astype(theano.config.floatX)
         utt.verify_grad(lambda x: sort(x, 0), [data])
         data = np.random.rand(2, 3).astype(theano.config.floatX)
         utt.verify_grad(lambda x: sort(x, 1), [data])
 
-        # test 3D
         data = np.random.rand(2, 3, 4).astype(theano.config.floatX)
         utt.verify_grad(lambda x: sort(x, 0), [data])
         data = np.random.rand(2, 3, 4).astype(theano.config.floatX)
@@ -124,7 +118,6 @@ class test_sort(unittest.TestCase):
         data = np.random.rand(2, 3, 4).astype(theano.config.floatX)
         utt.verify_grad(lambda x: sort(x, 2), [data])
 
-        # test 4D
         data = np.random.rand(2, 3, 4, 2).astype(theano.config.floatX)
         utt.verify_grad(lambda x: sort(x, 0), [data])
         data = np.random.rand(2, 3, 4, 2).astype(theano.config.floatX)
@@ -151,12 +144,10 @@ class TensorInferShapeTester(utt.InferShapeTester):
 
 
 def test_argsort():
-    # Set up
     rng = np.random.RandomState(seed=utt.fetch_seed())
     m_val = rng.rand(3, 2)
     v_val = rng.rand(4)
 
-    # Example 1
     a = tensor.dmatrix()
     w = argsort(a)
     f = theano.function([a], w)
@@ -164,7 +155,6 @@ def test_argsort():
     gt = np.argsort(m_val)
     assert np.allclose(gv, gt)
 
-    # Example 2
     a = tensor.dmatrix()
     axis = tensor.lscalar()
     w = argsort(a, axis)
@@ -174,7 +164,6 @@ def test_argsort():
         gt = np.argsort(m_val, axis_val)
         assert np.allclose(gv, gt)
 
-    # Example 3
     a = tensor.dvector()
     w2 = argsort(a)
     f = theano.function([a], w2)
@@ -182,7 +171,6 @@ def test_argsort():
     gt = np.argsort(v_val)
     assert np.allclose(gv, gt)
 
-    # Example 4
     a = tensor.dmatrix()
     axis = tensor.lscalar()
     l = argsort(a, axis, "mergesort")
@@ -192,17 +180,14 @@ def test_argsort():
         gt = np.argsort(m_val, axis_val)
         assert np.allclose(gv, gt)
 
-    # Example 5
     a = tensor.dmatrix()
     axis = tensor.lscalar()
     a1 = ArgSortOp("mergesort", [])
     a2 = ArgSortOp("quicksort", [])
-    # All the below should give true
     assert a1 != a2
     assert a1 == ArgSortOp("mergesort", [])
     assert a2 == ArgSortOp("quicksort", [])
 
-    # Example 6: Testing axis=None
     a = tensor.dmatrix()
     w2 = argsort(a, None)
     f = theano.function([a], w2)
@@ -212,7 +197,6 @@ def test_argsort():
 
 
 def test_argsort_grad():
-    # Testing grad of argsort
     data = np.random.rand(2, 3).astype(theano.config.floatX)
     utt.verify_grad(lambda x: argsort(x, axis=-1), [data])
 

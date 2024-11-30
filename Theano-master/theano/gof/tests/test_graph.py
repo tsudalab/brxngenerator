@@ -58,9 +58,6 @@ class MyOp(Op):
 
 MyOp = MyOp()
 
-##########
-# inputs #
-##########
 
 
 class TestInputs:
@@ -78,9 +75,6 @@ class TestInputs:
         assert i == [r1, r2, r5], i
 
 
-#############
-# as_string #
-#############
 
 
 class X:
@@ -126,9 +120,6 @@ class TestStr(X):
         assert self.str(node2.inputs, node2.outputs) == ["MyOp(R3, R3)"]
 
 
-#########
-# clone #
-#########
 
 class TestClone(X):
 
@@ -149,7 +140,6 @@ class TestClone(X):
         assert new[0].owner.inputs[0].type == node.outputs[0].type and new[0].owner.inputs[0] is not node.outputs[0]  # check that we copied deeper too
 
     def test_not_destructive(self):
-        # Checks that manipulating a cloned graph leaves the original unchanged.
         r1, r2, r5 = MyVariable(1), MyVariable(2), MyVariable(5)
         node = MyOp.make_node(MyOp.make_node(r1, r2).outputs[0], r5)
         _, new = clone([r1, r2, r5], node.outputs, False)
@@ -159,9 +149,6 @@ class TestClone(X):
         assert self.str(inputs(node.outputs), node.outputs) == ["MyOp(MyOp(R1, R2), R5)"]
 
 
-############
-# toposort #
-############
 
 def prenode(obj):
     if isinstance(obj, Variable):
@@ -231,9 +218,6 @@ class TestToposort:
         assert all == [o0]
 
 
-#################
-# is_same_graph #
-#################
 
 class TestIsSameGraph(unittest.TestCase):
 
@@ -306,9 +290,6 @@ class TestIsSameGraph(unittest.TestCase):
                    debug=False)
 
 
-################
-# eval         #
-################
 
 class TestEval(unittest.TestCase):
 
@@ -326,13 +307,9 @@ class TestEval(unittest.TestCase):
                          "temporary functions must not be serialized")
 
 
-################
-# autoname     #
-################
 class TestAutoName:
 
     def test_auto_name(self):
-        # Get counter value
         autoname_id = next(Variable.__count__)
         Variable.__count__ = count(autoname_id)
         r1, r2 = MyVariable(1), MyVariable(2)
@@ -340,7 +317,6 @@ class TestAutoName:
         assert r2.auto_name == "auto_" + str(autoname_id + 1)
 
     def test_constant(self):
-        # Get counter value
         autoname_id = next(Variable.__count__)
         Variable.__count__ = count(autoname_id)
         r1 = tensor.constant(1.5)
@@ -349,7 +325,6 @@ class TestAutoName:
         assert r2.auto_name == "auto_" + str(autoname_id + 1)
 
     def test_tensorvariable(self):
-        # Get counter value
         autoname_id = next(Variable.__count__)
         Variable.__count__ = count(autoname_id)
         r1 = tensor.TensorType(dtype='int32', broadcastable=())('myvar')
@@ -361,7 +336,6 @@ class TestAutoName:
         assert r3.auto_name == "auto_" + str(autoname_id + 2)
 
     def test_sparsevariable(self):
-        # Get counter value
         if not sparse.enable_sparse:
             raise SkipTest('Optional package SciPy not installed')
         autoname_id = next(Variable.__count__)
@@ -374,7 +348,6 @@ class TestAutoName:
         assert r3.auto_name == "auto_" + str(autoname_id + 2)
 
     def test_cudandarrayvariable(self):
-        # Get counter value
         autoname_id = next(Variable.__count__)
         Variable.__count__ = count(autoname_id)
         mytype = tensor.TensorType(dtype='int32', broadcastable=())
@@ -390,7 +363,6 @@ class TestAutoName:
         assert r4.auto_name == "auto_" + str(autoname_id + 3)
 
     def test_randomvariable(self):
-        # Get counter value
         autoname_id = next(Variable.__count__)
         Variable.__count__ = count(autoname_id)
         mytype = tensor.TensorType(dtype='int32', broadcastable=())
@@ -406,7 +378,6 @@ class TestAutoName:
         assert r2.auto_name == "auto_" + str(autoname_id + 1)
 
     def test_clone(self):
-        # Get counter value
         autoname_id = next(Variable.__count__)
         Variable.__count__ = count(autoname_id)
         r1 = MyVariable(1)

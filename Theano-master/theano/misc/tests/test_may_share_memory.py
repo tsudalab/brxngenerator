@@ -36,7 +36,6 @@ def test_may_share_memory():
         assert may_share_memory(a_, b_, False) == rep
         assert may_share_memory(b_, a_, False) == rep
 
-    # test that it raise error when needed.
     for a_, b_, rep in [(a, (0,), False), (a, 1, False), (a, None, False), ]:
         assert may_share_memory(a_, b_, False) == rep
         assert may_share_memory(b_, a_, False) == rep
@@ -73,7 +72,6 @@ if scipy_imported:
             assert may_share_memory(a_, b_) == rep
             assert may_share_memory(b_, a_) == rep
 
-        # test that it raise error when needed.
         for a_, b_, rep in [(a, (0,), False), (a, 1, False), (a, None, False)]:
             assert may_share_memory(a_, b_, False) == rep
             assert may_share_memory(b_, a_, False) == rep

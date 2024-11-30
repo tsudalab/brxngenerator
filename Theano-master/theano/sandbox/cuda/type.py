@@ -16,23 +16,16 @@ from theano import scalar as scal
 from six import StringIO
 
 try:
-    # We must do those import to be able to create the full doc when nvcc
-    # is not available
     import cuda_ndarray.cuda_ndarray as cuda
     from theano.sandbox.cuda.nvcc_compiler import NVCC_compiler
     import cuda_ndarray
-    # Python 3 does not necessarily set __file__. May need manual setting.
-    # The problem is known to occur on Windows 10 with Python 3.4 installed by Anaconda.
     try:
         cuda_ndarray.__file__
     except AttributeError:
         from theano.gof.cmodule import get_lib_extension
-        # Only works with Python 3, but it's fine, because Python 2
-        # guarantees to set __file__ when importing any module.
         cuda_ndarray.__file__ = os.path.join(cuda_ndarray.__path__._path[0],
                                              'cuda_ndarray.' + get_lib_extension())
 except ImportError:
-    # Used to know that `cuda` could not be properly imported.
     cuda = None
 
 
@@ -110,7 +103,6 @@ class CudaNdarrayType(Type):
             return cuda.filter(data, self.broadcastable, strict, old_data)
 
         else:  # (not strict) and (not allow_downcast)
-            # Check if data.dtype can be accurately cast to self.dtype
             if isinstance(data, numpy.ndarray):
                 up_dtype = scal.upcast(self.dtype, data.dtype)
                 if up_dtype == self.dtype:
@@ -155,8 +147,6 @@ class CudaNdarrayType(Type):
             other = other._as_CudaNdarrayVariable()
 
         if not isinstance(other, Variable):
-            # The value is not a Variable: we cast it into
-            # a Constant of the appropriate Type.
             other = self.Constant(type=self, data=other)
 
         if other.type == self:
@@ -189,9 +179,6 @@ class CudaNdarrayType(Type):
     def bound(a):
         high = a.gpudata
         low = a.gpudata
-        # stride is in the number of element.
-        # we must convert that to bytes in case we
-        # will view the element as a different type.
         elem_size = numpy.zeros(0, dtype=a.dtype).dtype.itemsize
 
         for stri, shp in zip(a._strides, a.shape):
@@ -203,8 +190,6 @@ class CudaNdarrayType(Type):
 
     @staticmethod
     def may_share_memory(a, b):
-        # when this is called with a an ndarray and b
-        # a sparce matrix, numpy.may_share_memory fail.
         if a is b:
             return True
         if a.__class__ is b.__class__:
@@ -218,13 +203,11 @@ class CudaNdarrayType(Type):
 
     @staticmethod
     def values_eq(a, b):
-        # TODO: make the comparaison without transfert.
         return tensor.TensorType.values_eq(numpy.asarray(a), numpy.asarray(b))
 
     @staticmethod
     def values_eq_approx(a, b, allow_remove_inf=False, allow_remove_nan=False,
                          rtol=None, atol=None):
-        # TODO: make the comparaison without transfert.
         return tensor.TensorType.values_eq_approx(
             numpy.asarray(a),
             numpy.asarray(b),
@@ -241,8 +224,6 @@ class CudaNdarrayType(Type):
         This function is used internally as part of C code generation.
 
         """
-        # TODO: add more type correspondances for e.g. int32, int64, float32,
-        # complex64, etc.
         try:
             return {'float32': (float, 'npy_float32', 'NPY_FLOAT32'),
                     'float64': (float, 'npy_float64', 'NPY_FLOAT64'),
@@ -312,7 +293,6 @@ class CudaNdarrayType(Type):
             return self.name
         else:
             b = self.broadcastable
-            #bcast = str(self.broadcastable)
             if not numpy.any(b):
                 s = "%iD" % len(b)
             else:
@@ -327,7 +307,6 @@ class CudaNdarrayType(Type):
 
     def __repr__(self):
         return str(self)
-        #"CudaNdarrayType{%s, %s}" % (str(self.dtype), str(self.broadcastable))
 
     def c_declare(self, name, sub, check_input=True):
         return """ CudaNdarray * %(name)s;""" % locals()
@@ -413,7 +392,6 @@ class CudaNdarrayType(Type):
                 Py_INCREF(py_%(name)s);
             }
             """ % locals(), file=sio)
-        # print sio.getvalue()
         return sio.getvalue()
 
     def c_extract_out(self, name, sub, check_input=True, check_broadcast=True):
@@ -496,17 +474,12 @@ class CudaNdarrayType(Type):
         return ret
 
     def c_libraries(self):
-        # returning cublas because the cuda_ndarray.cuh header
-        # includes calls to SetVector and cublasGetError
         return ['cudart', config.cublas.lib, 'cuda_ndarray']
 
     def c_support_code(cls):
         return ""
 
     def c_code_cache_version(self):
-        # return ()
-        # no need to put nvcc.fastmath in the tuple as the
-        # c_compile_args is put in the key.
         return (3,)  # cublas v2 changes
 
     def c_compiler(self):
@@ -526,7 +499,6 @@ class CudaNdarrayType(Type):
 
 theano.compile.ops.expandable_types += (CudaNdarrayType,)
 
-# Register C code for ViewOp on CudaNdarrayType
 theano.compile.register_view_op_c_code(
         CudaNdarrayType,
         """
@@ -553,7 +525,6 @@ theano.compile.register_shape_i_c_code(
     """,
     version=(1,))
 
-# Register CudaNdarrayType to the DeepCopyOp list of types with c code.
 theano.compile.register_deep_copy_op_c_code(
         CudaNdarrayType,
         """
@@ -585,14 +556,9 @@ theano.compile.register_deep_copy_op_c_code(
         version=3)
 
 
-# THIS WORKS But CudaNdarray instances don't compare equal to one
-# another, and what about __hash__ ?  So the unpickled version doesn't
-# equal the pickled version, and the cmodule cache is not happy with
-# the situation.
 def CudaNdarray_unpickler(npa):
 
     if config.experimental.unpickle_gpu_on_cpu:
-        # directly return numpy array
         warnings.warn("config.experimental.unpickle_gpu_on_cpu is set to True. Unpickling CudaNdarray as numpy.ndarray")
         return npa
     elif cuda:
@@ -606,7 +572,6 @@ copyreg.constructor(CudaNdarray_unpickler)
 def CudaNdarray_pickler(cnda):
     return (CudaNdarray_unpickler, (numpy.asarray(cnda),))
 
-# In case cuda is not imported.
 if cuda is not None:
     copyreg.pickle(cuda.CudaNdarray, CudaNdarray_pickler,
                     CudaNdarray_unpickler)

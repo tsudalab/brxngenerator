@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# Theano tutorial
-# Solution to Exercise in section 'Extending Theano'
 from __future__ import absolute_import, print_function, division
 
 import unittest
@@ -8,7 +5,6 @@ import unittest
 import theano
 
 
-# 1. Op returns x * y
 
 class ProdOp(theano.Op):
     def __eq__(self, other):
@@ -41,7 +37,6 @@ class ProdOp(theano.Op):
         return [output_grads[0] * inputs[1], output_grads[0] * inputs[0]]
 
 
-# 2. Op returns x + y and x - y
 
 class SumDiffOp(theano.Op):
     def __eq__(self, other):
@@ -83,7 +78,6 @@ class SumDiffOp(theano.Op):
         return [og1 + og2, og1 - og2]
 
 
-# 3. Testing apparatus
 
 import numpy
 from theano.gof import Op, Apply
@@ -158,7 +152,6 @@ class TestSumDiffOp(utt.InferShapeTester):
         x = tensor.dmatrix()
         y = tensor.dmatrix()
 
-        # adapt the choice of the next instruction to the op under test
 
         self._compile_and_check([x, y], self.op_class()(x, y),
                                 [numpy.random.rand(5, 6),
@@ -166,7 +159,6 @@ class TestSumDiffOp(utt.InferShapeTester):
                                 self.op_class)
 
 
-# as_op exercice
 import theano
 import numpy
 from theano.compile.ops import as_op
@@ -185,7 +177,6 @@ def numpy_add(a, b):
 
 def infer_shape_numpy_add_sub(node, input_shapes):
     ashp, bshp = input_shapes
-    # Both inputs should have that same shape, so we just return one of them.
     return [ashp[0]]
 
 

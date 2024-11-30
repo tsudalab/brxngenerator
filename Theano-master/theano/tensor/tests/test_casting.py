@@ -56,7 +56,6 @@ class test_casting(unittest.TestCase):
         vec128 = TensorType('complex128', (False, ))()
 
         f = function([vec64], basic._convert_to_complex128(vec64))
-        # we need to compare with the same type.
         assert vec64.type.values_eq_approx(val128, f(val64))
 
         f = function([vec128], basic._convert_to_complex128(vec128))
@@ -68,21 +67,18 @@ class test_casting(unittest.TestCase):
         f = function([vec128], basic._convert_to_complex64(vec128))
         assert vec128.type.values_eq_approx(val64, f(val128))
 
-        # upcasting to complex128
         for t in ['int8', 'int16', 'int32', 'int64', 'float32', 'float64']:
             a = theano.shared(numpy.ones(3, dtype=t))
             b = theano.shared(numpy.ones(3, dtype='complex128'))
             f = function([], basic._convert_to_complex128(a))
             assert a.type.values_eq_approx(b.get_value(), f())
 
-        # upcasting to complex64
         for t in ['int8', 'int16', 'int32', 'int64', 'float32']:
             a = theano.shared(numpy.ones(3, dtype=t))
             b = theano.shared(numpy.ones(3, dtype='complex64'))
             f = function([], basic._convert_to_complex64(a))
             assert a.type.values_eq_approx(b.get_value(), f())
 
-        # downcast to complex64
         for t in ['float64']:
             a = theano.shared(numpy.ones(3, dtype=t))
             b = theano.shared(numpy.ones(3, dtype='complex64'))

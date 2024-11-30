@@ -58,8 +58,6 @@ def test_pseudoinverse_correctness():
     assert ri.shape[0] == r.shape[1]
     assert ri.shape[1] == r.shape[0]
     assert ri.dtype == r.dtype
-    # Note that pseudoinverse can be quite unprecise so I prefer to compare
-    # the result with what numpy.linalg returns
     assert _allclose(ri, numpy.linalg.pinv(r))
 
 
@@ -240,15 +238,12 @@ class test_diag(unittest.TestCase):
         g = alloc_diag(x)
         f = theano.function([x], g)
 
-        # test "normal" scenario (5x5 matrix) and special cases of 0x0 and 1x1
         for shp in [5, 0, 1]:
             m = rng.rand(shp).astype(self.floatX)
             v = numpy.diag(m)
             r = f(m)
-            # The right matrix is created
             assert (r == v).all()
 
-        # Test we accept only vectors
         xx = theano.tensor.matrix()
         ok = False
         try:
@@ -257,7 +252,6 @@ class test_diag(unittest.TestCase):
             ok = True
         assert ok
 
-        # Test infer_shape
         f = theano.function([x], g.shape)
         topo = f.maker.fgraph.toposort()
         if config.mode != 'FAST_COMPILE':
@@ -272,18 +266,14 @@ class test_diag(unittest.TestCase):
         tensor.verify_grad(alloc_diag, [x], rng=rng)
 
     def test_diag(self):
-        # test that it builds a matrix with given diagonal when using
-        # vector inputs
         x = theano.tensor.vector()
         y = diag(x)
         assert y.owner.op.__class__ == AllocDiag
 
-        # test that it extracts the diagonal when using matrix input
         x = theano.tensor.matrix()
         y = extract_diag(x)
         assert y.owner.op.__class__ == ExtractDiag
 
-        # other types should raise error
         x = theano.tensor.tensor3()
         ok = False
         try:
@@ -292,7 +282,6 @@ class test_diag(unittest.TestCase):
             ok = True
         assert ok
 
-    # not testing the view=True case since it is not used anywhere.
     def test_extract_diag(self):
         rng = numpy.random.RandomState(utt.fetch_seed())
         m = rng.rand(2, 3).astype(self.floatX)
@@ -308,10 +297,8 @@ class test_diag(unittest.TestCase):
             x.set_value(m)
             v = numpy.diag(m)
             r = f()
-            # The right diagonal is extracted
             assert (r == v).all()
 
-        # Test we accept only matrix
         xx = theano.tensor.vector()
         ok = False
         try:
@@ -320,7 +307,6 @@ class test_diag(unittest.TestCase):
             ok = True
         assert ok
 
-        # Test infer_shape
         f = theano.function([], g.shape)
         topo = f.maker.fgraph.toposort()
         if config.mode != 'FAST_COMPILE':
@@ -384,7 +370,6 @@ class test_Eig(utt.InferShapeTester):
         S = self.S
         self._compile_and_check([A],  # theano.function inputs
                                 self.op(A),  # theano.function outputs
-                                # S must be square
                                 [S],
                                 self.op_class,
                                 warn=False)

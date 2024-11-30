@@ -91,9 +91,6 @@ class MolNode:
 
     def serialize(self):
         text = '%d | %s' % (self.id, self.mol)
-        # text = '%d | %s | pred %.2f | value %.2f | target %.2f' % \
-        #        (self.id, self.mol, self.pred_value, self.v_self(),
-        #         self.v_target())
         return text
 
     def get_ancestors(self):

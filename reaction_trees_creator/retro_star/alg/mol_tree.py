@@ -136,7 +136,6 @@ class MolTree:
             str_reactants = ".".join(reactants)
             str_reaction = "*".join([str_product, str_reactants, str_template])
             full_reactions.append(str_reaction)
-        #print(full_reactions)
 
 
         return syn_route, full_reactions

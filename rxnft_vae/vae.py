@@ -30,9 +30,6 @@ class FTRXNVAE(nn.Module):
 		self.template_vocab = template_vocab
 		self.depth = depth
 
-		#print(self.fragment_vocab.vmap)
-		#print(self.reactant_vocab.vmap)
-		#print(self.template_vocab.vmap)
 
 		self.hidden_size = hidden_size
 		self.latent_size = latent_size
@@ -88,9 +85,6 @@ class FTRXNVAE(nn.Module):
 
 		encoder_outputs, root_vecs = self.fragment_encoder(ft_trees)
 		root_vecs_rxn = self.rxn_encoder(rxn_trees)
-		#root_vecs = torch.cat([root_vecs, root_vecs_rxn], dim=1)
-		#root_vecs = self.combine_layer(input)
-		#root_vecs = nn.ReLU()(root_vecs_rxn)
 		ft_mean = self.FT_mean(root_vecs)
 		ft_log_var = -torch.abs(self.FT_var(root_vecs))
 
@@ -129,9 +123,6 @@ class bFTRXNVAE(nn.Module):
 		self.binary_size = latent_size//2
 		self.device = device
 
-		#print(self.fragment_vocab.vmap)
-		#print(self.reactant_vocab.vmap)
-		#print(self.template_vocab.vmap)
 
 		self.hidden_size = hidden_size
 		self.latent_size = latent_size
@@ -201,20 +192,13 @@ class bFTRXNVAE(nn.Module):
 	def forward(self, ftrxn_tree_batch, beta, a = 1.0, b = 1.0, epsilon_std=0.1, temp=0.8):
 		batch_size = len(ftrxn_tree_batch)
 		ft_trees = [ftrxn_tree[0] for ftrxn_tree in ftrxn_tree_batch]
-		# ft_trees = torch.Tensor(ft_trees).to(self.device)
 		rxn_trees = [ftrxn_tree[1] for ftrxn_tree in ftrxn_tree_batch]
-		# rxn_trees = torch.Tensor(rxn_trees).to(self.device)
 		set_batch_nodeID(ft_trees, self.fragment_vocab)
 
 		encoder_outputs, root_vecs = self.fragment_encoder(ft_trees)
 		root_vecs_rxn = self.rxn_encoder(rxn_trees)
-		#root_vecs = torch.cat([root_vecs, root_vecs_rxn], dim=1)
-		#root_vecs = self.combine_layer(input)
-		#root_vecs = nn.ReLU()(root_vecs_rxn)
 		ft_mean = self.FT_mean(root_vecs)
-		# ft_log_var = -torch.abs(self.FT_var(root_vecs))
 		rxn_mean = self.RXN_mean(root_vecs_rxn)
-		# rxn_log_var = -torch.abs(self.RXN_var(root_vecs_rxn))
 
 		log_ft = ft_mean.view(-1, self.n_class)# .to(self.device)
 		q_ft = F.softmax(log_ft, dim=-1).view(-1, self.binary_size*self.n_class)
@@ -226,17 +210,9 @@ class bFTRXNVAE(nn.Module):
   
 		kl_loss = ft_kl + rxn_kl
 
-		# z_mean = torch.cat([ft_mean, rxn_mean], dim=1)
-		# z_log_var = torch.cat([ft_log_var,rxn_log_var], dim=1)
-		# kl_loss = -0.5 * torch.sum(1.0 + z_log_var - z_mean * z_mean - torch.exp(z_log_var)) / batch_size
 
 		
-		# epsilon = create_var(torch.randn(batch_size, int(self.latent_size)), False)*epsilon_std
-		# ft_vec = ft_mean + torch.exp(ft_log_var / 2) * epsilon
-		# print('shape: ', root_vecs.shape, ft_vec.shape)
 
-		# epsilon = create_var(torch.randn(batch_size, int(self.latent_size)), False)*epsilon_std
-		# rxn_vec = rxn_mean + torch.exp(rxn_log_var / 2) * epsilon
 
 		pred_loss, stop_loss, pred_acc, stop_acc = self.fragment_decoder(ft_trees, g_ft_vecs)
 		molecule_distance_loss, template_loss, molecule_label_loss, template_acc, label_acc = self.rxn_decoder(rxn_trees, g_rxn_vecs, encoder_outputs)

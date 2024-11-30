@@ -29,7 +29,6 @@ class GpuCrossentropySoftmaxArgmax1HotWithBias(GpuOp):
         return self.__class__.__name__
 
     def make_node(self, x, b, y_idx):
-        # N.B. won't work when we don't cast y_idx to float anymore
         x = as_cuda_ndarray_variable(x)
         b = as_cuda_ndarray_variable(b)
         y_idx = as_cuda_ndarray_variable(y_idx)
@@ -279,7 +278,6 @@ __global__ void k_xent_sm_1hot_bias(const int M, const int N,
         return sio.getvalue()
 
     def c_code_cache_version(self):
-        # return ()
         return (5,)
 
 gpu_crossentropy_softmax_argmax_1hot_with_bias = \
@@ -314,7 +312,6 @@ class GpuCrossentropySoftmax1HotWithBiasDx(GpuOp):
         return Apply(self, [dy, sm, y_idx], [sm.type()])
 
     def c_code_cache_version(self):
-        # return ()
         return (8,)
 
     def c_code(self, node, nodename, inp, out, sub):
@@ -595,7 +592,6 @@ class GpuSoftmax(GpuOp):
                       inline_softmax('N', 'buf', 'buf2',
                                      'threadIdx.x', 'blockDim.x'),
                       "for (int tx = threadIdx.x; tx< N; tx += blockDim.x){",
-                        # This set all value correctly
                         "sm[blockIDX * sm_s0 + tx * sm_s1] = buf[tx]",
                       "}",
                       "__syncthreads()",
@@ -648,7 +644,6 @@ class GpuSoftmaxWithBias(GpuOp):
         return [shape[0]]
 
     def c_code_cache_version(self):
-        # return ()
         return (9,) + inline_softmax.code_version
 
     def c_code(self, node, nodename, inp, out, sub):

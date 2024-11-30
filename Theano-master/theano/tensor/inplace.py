@@ -21,8 +21,6 @@ def _scal_inplace(symbol):
     if getattr(symbol, '__doc__', False):
         rval.__doc__ = symbol.__doc__ + '\n' + rval.__doc__
 
-    # for the meaning of this see the ./epydoc script
-    # it makes epydoc display rval as if it were a function, not an object
     rval.__epydoc_asRoutine = symbol
     rval.__module__ = 'theano.tensor.inplace'
 

@@ -51,7 +51,6 @@ class Test_profiling(unittest.TestCase):
             buf = StringIO()
             f.profile.summary(buf)
 
-            # regression testing for future algo speed up
             the_string = buf.getvalue()
             lines1 = [l for l in the_string.split("\n") if "Max if linker" in l]
             lines2 = [l for l in the_string.split("\n") if "Minimum peak" in l]

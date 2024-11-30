@@ -75,10 +75,6 @@ def test_unpickle_gpuarray_as_numpy_ndarray_flag2():
             try:
                 mat = u.load()
             except ImportError:
-                # Windows sometimes fail with nonsensical errors like:
-                #   ImportError: No module named type
-                #   ImportError: No module named copy_reg
-                # when "type" and "copy_reg" are builtin modules.
                 if sys.platform == 'win32':
                     exc_type, exc_value, exc_trace = sys.exc_info()
                     reraise(SkipTest, exc_value, exc_trace)

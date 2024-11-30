@@ -23,7 +23,6 @@ def test_to_gpuarray():
     px = to_gpuarray(cx)
     assert isinstance(px, pycuda.gpuarray.GPUArray)
     cx[0, 0] = numpy.asarray(1, dtype="float32")
-    # Check that they share the same memory space
     assert px.gpudata == cx.gpudata
     assert numpy.asarray(cx[0, 0]) == 1
 
@@ -32,13 +31,11 @@ def test_to_gpuarray():
     assert px.shape == cx.shape
     assert all(numpy.asarray(cx._strides) * 4 == px.strides)
 
-    # Test when the CudaNdarray is strided
     cx = cx[::2, ::]
     px = to_gpuarray(cx, copyif=True)
     assert isinstance(px, pycuda.gpuarray.GPUArray)
     cx[0, 0] = numpy.asarray(2, dtype="float32")
 
-    # Check that they do not share the same memory space
     assert px.gpudata != cx.gpudata
     assert numpy.asarray(cx[0, 0]) == 2
     assert not numpy.allclose(numpy.asarray(cx), px.get())
@@ -47,7 +44,6 @@ def test_to_gpuarray():
     assert px.shape == cx.shape
     assert not all(numpy.asarray(cx._strides) * 4 == px.strides)
 
-    # Test that we return an error
     try:
         px = to_gpuarray(cx)
         assert False

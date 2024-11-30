@@ -34,9 +34,6 @@ class test_ifelse(unittest.TestCase, utt.TestOptimizationMixin):
             return IfElse(n, as_view=True)
 
     def test_lazy_if(self):
-        # Tests that lazy if works .. even if the two results have different
-        # shapes but the same type (i.e. both vectors, or matrices or
-        # whatnot of same dtype)
         x = tensor.vector('x', dtype=self.dtype)
         y = tensor.vector('y', dtype=self.dtype)
         c = tensor.iscalar('c')
@@ -54,19 +51,14 @@ class test_ifelse(unittest.TestCase, utt.TestOptimizationMixin):
         assert numpy.allclose(vy, f(0, vx, vy))
 
     def test_not_lazy_if_inplace(self):
-        # Tests that if the outputs are scalars and the graph is big,
-        # we disable the inplace opt to speed up optimization
         x = tensor.vector('x', dtype=self.dtype)
         y = tensor.vector('y', dtype=self.dtype)
         c = tensor.iscalar('c')
         mode = theano.compile.get_mode(self.mode).excluding(
-            # Disable many opt to keep the graph big enough to disable
-            # the opt.
             'fusion', 'local_add_canonizer',
             'inplace', 'constant_folding', 'constant_folding')
         y2 = reduce(lambda x, y: x + y, [y] + list(range(200)))
         f = theano.function([c, x, y], ifelse(c, x, y2), mode=mode)
-        # For not inplace ifelse
         ifnode = [n for n in f.maker.fgraph.toposort()
                   if isinstance(n.op, IfElse)]
         assert len(ifnode) == 1
@@ -121,7 +113,6 @@ class test_ifelse(unittest.TestCase, utt.TestOptimizationMixin):
         assert f(0, vx, vy) == vy
 
     def test_grad_lazy_if(self):
-        # Tests that we can compute the gradients through lazy if
         x = tensor.vector('x', dtype=self.dtype)
         y = tensor.vector('y', dtype=self.dtype)
         c = tensor.iscalar('c')
@@ -131,8 +122,6 @@ class test_ifelse(unittest.TestCase, utt.TestOptimizationMixin):
         f = theano.function([c, x, y], [self.cast_output(gx),
                                         self.cast_output(gy)],
                             mode=self.mode)
-        # There is only 2 of the 3 ifelse that are moved on the GPU.
-        # The one that stay on the CPU is for the shape.
         self.assertFunctionContains(f, self.get_ifelse(1), min=2, max=3)
         rng = numpy.random.RandomState(utt.fetch_seed())
 
@@ -187,7 +176,6 @@ class test_ifelse(unittest.TestCase, utt.TestOptimizationMixin):
         assert numpy.allclose(vy2, ovy2)
 
     def test_multiple_out_grad(self):
-        # Tests that we can compute the gradients through lazy if
         x1 = tensor.vector('x1')
         x2 = tensor.vector('x2')
         y1 = tensor.vector('y1')
@@ -218,7 +206,6 @@ class test_ifelse(unittest.TestCase, utt.TestOptimizationMixin):
         assert numpy.all(outs_0[3] == 1.)
 
     def test_multiple_out_crash(self):
-        # This test failed up to commit 2faeb62c38
         p0 = self.shared(numpy.asarray(numpy.random.random([4, 8]),
                                        dtype=self.dtype))
         p1 = self.shared(numpy.asarray(numpy.random.random(8),
@@ -229,13 +216,11 @@ class test_ifelse(unittest.TestCase, utt.TestOptimizationMixin):
                                        dtype=self.dtype))
         p = [p0, p1, p2, p3]
 
-        # in my code these vars are the result of applying scan
         ften0 = tensor.tensor3('ft0', dtype=self.dtype)
         fmat1 = tensor.matrix('fm1', dtype=self.dtype)
         ften2 = tensor.tensor3('ft2', dtype=self.dtype)
         fmat3 = tensor.matrix('fm3', dtype=self.dtype)
 
-        # then I keep only the last iteration
         fsub0 = ften0[-1]
         fsub1 = fmat1[-1]
         fsub2 = ften2[-1]
@@ -284,9 +269,7 @@ class test_ifelse(unittest.TestCase, utt.TestOptimizationMixin):
         rng = numpy.random.RandomState(utt.fetch_seed())
         data = rng.rand(5).astype(self.dtype)
         x = self.shared(data)
-        # print x.broadcastable
         y = tensor.row('y', self.dtype)
-        # print y.broadcastable
         cond = theano.tensor.iscalar('cond')
 
         self.assertRaises(TypeError, ifelse, cond, x, y)
@@ -477,7 +460,6 @@ class test_ifelse(unittest.TestCase, utt.TestOptimizationMixin):
         try:
             x = tensor.scalar('x')
             x.tag.test_value = 1
-            # Used to crash due to undefined test value.
             tensor.grad(ifelse(0, x, x), x)
         finally:
             theano.config.compute_test_value = backup

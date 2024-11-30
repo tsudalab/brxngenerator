@@ -51,7 +51,6 @@ class OpFromGraph(gof.Op):
         x, y, z = tensor.scalars('xyz')
         e = x + y * z
         op = OpFromGraph([x, y, z], [e])
-        # op behaves like a normal theano op
         e2 = op(x, y, z) + op(z, y, x)
         fn = function([x, y, z], [e2])
 
@@ -66,7 +65,6 @@ class OpFromGraph(gof.Op):
         s = theano.shared(numpy.random.rand(2, 2).astype(config.floatX))
         e = x + y * z + s
         op = OpFromGraph([x, y, z], [e])
-        # op behaves like a normal theano op
         e2 = op(x, y, z) + op(z, y, x)
         fn = function([x, y, z], [e2])
 
@@ -82,8 +80,6 @@ class OpFromGraph(gof.Op):
         if 'updates' in kwargs or 'givens' in kwargs:
             raise TypeError('updates and givens are not allowed in kwargs')
 
-        # To support correctly shared variables the inner fct should
-        # not see them. Otherwise their is problem with the gradient.
         self.shared_inputs = [var for var in gof.graph.inputs(outputs)
                               if isinstance(var, SharedVariable)]
         shared_vars = [var.type() for var in self.shared_inputs]
@@ -108,11 +104,9 @@ class OpFromGraph(gof.Op):
         self.output_types = [output.type for output in outputs]
 
     def __eq__(self, other):
-        # TODO: recognize a copy
         return self is other
 
     def __hash__(self):
-        # TODO: use internal variables in hash
         return hash(type(self))
 
     def make_node(self, *inputs):
@@ -137,8 +131,6 @@ class OpFromGraph(gof.Op):
         variables = self.fn(*inputs)
         assert len(variables) == len(outputs)
         for output, variable in zip(outputs, variables):
-            # TODO: when function's output-borrowing semantics are correct,
-            # we wont need this copy anymore
             output[0] = variable.copy()
 
     def connection_pattern(self, node):
@@ -153,13 +145,6 @@ class OpFromGraph(gof.Op):
                                                             self.new_inputs,
                                                             shapes)
 
-        # Clone the output shape so that shape are computed from outer inputs.
-        # Note:
-        # Here we can do it more simply like:
-        #      ret = [theano.clone(shp, replace=repl) for shp in out_shp]
-        # But  doing it multiple time could duplicate common subgraph between
-        # each shape call. Theano optimizer will clean this up later, but this
-        # will ask extra work to the optimizer.
         repl = dict(zip(self.new_inputs, node.inputs))
         cloned = theano.clone(reduce(tuple.__add__, out_shp), replace=repl)
         ret = []
@@ -186,8 +171,6 @@ class OpFromGraph(gof.Op):
                 if g is None:
                     grad_ops.append(lambda *args: None)
                 else:
-                    # It is normal if some inputs are not needed in order
-                    # to compute the gradient, so we ignore them.
                     grad_ops.append(OpFromGraph(self.new_inputs + output_grads,
                                                 [g],
                                                 on_unused_input='ignore'))
@@ -195,6 +178,4 @@ class OpFromGraph(gof.Op):
 
         return [go(*(inputs + output_grads)) for go in grad_ops]
 
-# Since OpFromGraph contains a Theano compiled function, we should let
-# DebugMode know about it
 ops_with_inner_function[OpFromGraph] = 'fn'

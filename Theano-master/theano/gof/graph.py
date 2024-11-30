@@ -19,7 +19,6 @@ from theano.misc.ordered_set import OrderedSet
 
 __docformat__ = "restructuredtext en"
 
-# Lazy imports to avoid circular dependencies.
 is_same_graph_with_merge = None
 equal_computations = None
 
@@ -105,14 +104,12 @@ class Apply(Node):
         if not isinstance(outputs, (list, tuple)):
             raise TypeError("The output of an Apply must be a list or tuple")
 
-        # filter inputs to make sure each element is a Variable
         for input in inputs:
             if isinstance(input, Variable):
                 self.inputs.append(input)
             else:
                 raise TypeError("The 'inputs' argument to Apply must contain Variable instances, not %s" % input)
         self.outputs = []
-        # filter outputs to make sure each element is a Variable
         for i, output in enumerate(outputs):
             if isinstance(output, Variable):
                 if output.owner is None:
@@ -135,7 +132,6 @@ class Apply(Node):
 
     def __getstate__(self):
         d = self.__dict__
-        # ufunc don't pickle/unpickle well
         if hasattr(self.tag, 'ufunc'):
             d = copy(self.__dict__)
             t = d["tag"]
@@ -238,7 +234,6 @@ class Apply(Node):
         for i, (curr, new) in enumerate(zip(self.inputs, new_inputs)):
             if not curr.type == new.type:
                 if strict:
-                    # If compatible, casts new into curr.type
                     new_inputs[i] = curr.type.filter_variable(new)
                 else:
                     remake_node = True
@@ -253,7 +248,6 @@ class Apply(Node):
     def get_parents(self):
         return list(self.inputs)
 
-    # convenience properties
     nin = property(lambda self: len(self.inputs), doc='same as len(self.inputs)')
     """
     Property: Number of inputs.
@@ -372,7 +366,6 @@ class Variable(Node):
 
     """
 
-    # __slots__ = ['type', 'owner', 'index', 'name']
     __count__ = count(0)
 
     def __init__(self, type, owner=None, index=None, name=None):
@@ -447,7 +440,6 @@ class Variable(Node):
         Name is copied to the returned instance.
 
         """
-        # return copy(self)
         cp = self.__class__(self.type, None, None, self.name)
         cp.tag = copy(self.tag)
         return cp
@@ -547,13 +539,11 @@ class Constant(Variable):
 
     """
 
-    # __slots__ = ['data']
     def __init__(self, type, data, name=None):
         Variable.__init__(self, type, None, None, name)
         self.data = type.filter(data)
 
     def equals(self, other):
-        # this does what __eq__ should do, but Variable and Apply should always be hashable by id
         return isinstance(other, Constant) and self.signature() == other.signature()
 
     def signature(self):
@@ -597,7 +587,6 @@ class Constant(Variable):
     owner = property(lambda self: None, __set_owner)
     value = property(lambda self: self.data, doc='read-only data access method')
 
-    # index is not defined, because the `owner` attribute must necessarily be None
 
 
 def stack_search(start, expand, mode='bfs', build_inv=False):
@@ -839,7 +828,6 @@ def clone_get_equiv(inputs, outputs, copy_inputs_and_orphans=True, memo=None):
     if memo is None:
         memo = {}
 
-    # clone the inputs if necessary
     for input in inputs:
         if copy_inputs_and_orphans:
             cpy = input.clone()
@@ -849,7 +837,6 @@ def clone_get_equiv(inputs, outputs, copy_inputs_and_orphans=True, memo=None):
         else:
             memo.setdefault(input, input)
 
-    # go through the inputs -> outputs graph cloning as we go
     for apply in io_toposort(inputs, outputs):
         for input in apply.inputs:
             if input not in memo:
@@ -864,7 +851,6 @@ def clone_get_equiv(inputs, outputs, copy_inputs_and_orphans=True, memo=None):
         for output, new_output in zip(apply.outputs, new_apply.outputs):
             memo.setdefault(output, new_output)
 
-    # finish up by cloning any remaining outputs (it can happen)
     for output in outputs:
         if output not in memo:
             memo[output] = output.clone()
@@ -974,17 +960,13 @@ def io_toposort(inputs, outputs, orderings=None, clients=None):
         node->clients for each node in the subgraph that is sorted
 
     """
-    # the inputs are used only here in the function that decides what 'predecessors' to explore
     iset = set(inputs)
 
-    # We build 2 functions as a speed up
     deps_cache = {}
 
     compute_deps = None
     compute_deps_cache = None
     if not orderings:  # can be None or empty dict
-        # Specialized function that is faster when no ordering.
-        # Also include the cache in the function itself for speed up.
         def compute_deps_cache(obj):
             if obj in deps_cache:
                 return deps_cache[obj]
@@ -1041,8 +1023,6 @@ def io_connection_pattern(inputs, outputs):
     """
     inner_nodes = io_toposort(inputs, outputs)
 
-    # Initialize 'connect_pattern_by_var' by establishing each input as
-    # connected only to itself
     connect_pattern_by_var = {}
     nb_inputs = len(inputs)
 
@@ -1051,23 +1031,14 @@ def io_connection_pattern(inputs, outputs):
         inp_connection_pattern = [i == j for j in range(nb_inputs)]
         connect_pattern_by_var[input] = inp_connection_pattern
 
-    # Iterate through the nodes used to produce the outputs from the
-    # inputs and, for every node, infer their connection pattern to
-    # every input from the connection patterns of their parents.
     for n in inner_nodes:
 
-        # Get the connection pattern of the inner node's op. If the op
-        # does not define a connection_pattern method, assume that
-        # every node output is connected to every node input
         try:
             op_connection_pattern = n.op.connection_pattern(n)
         except AttributeError:
             op_connection_pattern = ([[True] * len(n.outputs)] *
                                      len(n.inputs))
 
-        # For every output of the inner node, figure out which inputs it
-        # is connected to by combining the connection pattern of the inner
-        # node and the connection patterns of the inner node's inputs.
         for out_idx in range(len(n.outputs)):
             out = n.outputs[out_idx]
             out_connection_pattern = [False] * nb_inputs
@@ -1078,19 +1049,13 @@ def io_connection_pattern(inputs, outputs):
                 if inp in connect_pattern_by_var:
                     inp_connection_pattern = connect_pattern_by_var[inp]
 
-                    # If the node output is connected to the node input, it
-                    # means it is connected to every inner input that the
-                    # node inputs is connected to
                     if op_connection_pattern[inp_idx][out_idx]:
                         out_connection_pattern = [out_connection_pattern[i] or
                                                   inp_connection_pattern[i]
                                                   for i in range(nb_inputs)]
 
-            # Store the connection pattern of the node output
             connect_pattern_by_var[out] = out_connection_pattern
 
-    # Obtain the global connection pattern by combining the
-    # connnection patterns of the individual outputs
     global_connection_pattern = [[] for o in range(len(inputs))]
     for out in outputs:
         out_connection_pattern = connect_pattern_by_var[out]
@@ -1143,62 +1108,44 @@ def is_same_graph(var1, var2, givens=None, debug=False):
         ======  ======  ======  ======
 
     """
-    # Lazy import.
     if givens is None:
         givens = {}
     global equal_computations, is_same_graph_with_merge
     if equal_computations is None:
         from theano.gof.opt import is_same_graph_with_merge
         from theano.scan_module.scan_utils import equal_computations
-    # Convert `givens` to dictionary.
     if not isinstance(givens, dict):
         givens = dict(givens)
-    # Get result from the merge-based function.
     rval1 = is_same_graph_with_merge(var1=var1, var2=var2, givens=givens)
-    # Get result from the function `equal_computations` from scan_utils.
 
     use_equal_computations = True
     if givens:
-        # We need to build the `in_xs` and `in_ys` lists. To do this, we need
-        # to be able to tell whether a variable belongs to the computational
-        # graph of `var1` or `var2`.
-        # The typical case we want to handle is when `to_replace` belongs to
-        # one of these graphs, and `replace_by` belongs to the other one. In
-        # other situations, the current implementation of `equal_computations`
-        # is probably not appropriate, so we do not call it.
         ok = True
         in_xs = []
         in_ys = []
-        # Compute the sets of all variables found in each computational graph.
         inputs_var = list(map(inputs, ([var1], [var2])))
         all_vars = [set(variables(v_i, v_o))
                     for v_i, v_o in ((inputs_var[0], [var1]),
                                      (inputs_var[1], [var2]))]
 
         def in_var(x, k):
-            # Return True iff `x` is in computation graph of variable `vark`.
             return x in all_vars[k - 1]
 
         for to_replace, replace_by in iteritems(givens):
-            # Map a substitution variable to the computational graphs it
-            # belongs to.
             inside = dict((v, [in_var(v, k) for k in (1, 2)])
                           for v in (to_replace, replace_by))
             if (inside[to_replace][0] and not inside[to_replace][1] and
                     inside[replace_by][1] and not inside[replace_by][0]):
-                # Substitute variable in `var1` by one from `var2`.
                 in_xs.append(to_replace)
                 in_ys.append(replace_by)
             elif (inside[to_replace][1] and not inside[to_replace][0] and
                   inside[replace_by][0] and not inside[replace_by][1]):
-                # Substitute variable in `var2` by one from `var1`.
                 in_xs.append(replace_by)
                 in_ys.append(to_replace)
             else:
                 ok = False
                 break
         if not ok:
-            # We cannot directly use `equal_computations`.
             if debug:
                 raise AssertionError(
                     'When `debug` is True we want to make sure we are also '

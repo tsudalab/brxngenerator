@@ -51,7 +51,6 @@ def exec_multilayer_conv_nnet_old(conv_mode, ss, bsize, imshp, kshps, nkerns,
         conv_op_py=False, do_print=True, repeat=1,
         unroll_patch=False, unroll_patch_size=False, verbose=0):
 
-        # build actual input images
         imgval = global_rng.rand(bsize, imshp[0], imshp[1], imshp[2])
 
         a = T.dmatrix()
@@ -59,7 +58,6 @@ def exec_multilayer_conv_nnet_old(conv_mode, ss, bsize, imshp, kshps, nkerns,
         inputs4 = dmatrix4()
         kerns4 = dmatrix4()
 
-        # for each layer
         ntot = 0
         tctot = 0
         tpytot = 0
@@ -71,12 +69,9 @@ def exec_multilayer_conv_nnet_old(conv_mode, ss, bsize, imshp, kshps, nkerns,
                 
                 print(conv_mode, ss, n_layer, kshp, nkern)
 
-            # actual values
             w = global_rng.random_sample(N.r_[nkern, imshp[0], kshp])
             w_flip = flip(w, kshp).reshape(w.shape)
 
-            # manual implementation
-            # check first stage
             padimg = imgval
             if conv_mode == 'full':
                 padimg_shp = N.array(imshp[1:]) + 2*(N.array(kshp) - N.array([1, 1]))
@@ -89,7 +84,6 @@ def exec_multilayer_conv_nnet_old(conv_mode, ss, bsize, imshp, kshps, nkerns,
             time1 = time.time()
             outval = N.zeros(N.r_[bsize, outshp])
             if validate:
-                # causes an atexit problem
                 from scipy.signal.sigtools import _convolve2d
                 from scipy.signal.signaltools import  _valfrommode, _bvalfromboundary
                 val = _valfrommode(conv_mode)
@@ -101,7 +95,6 @@ def exec_multilayer_conv_nnet_old(conv_mode, ss, bsize, imshp, kshps, nkerns,
                                 imgval[b, i, ...], w_flip[n, i, ...], 1, val, bval, 0)[0::ss[0], 0::ss[1]]
                 ntot += time.time() - time1
 
-            # ConvOp
             if unroll_patch and not unroll_patch_size:
                 conv_op = ConvOp(dx=ss[0], dy=ss[1], output_mode=conv_mode,
                                  unroll_patch=unroll_patch, verbose=verbose)(inputs4, kerns4)
@@ -147,7 +140,6 @@ def exec_multilayer_conv_nnet(conv_mode, ss, bsize, imshp, kshps, nkerns,
         do_print=True, repeat=1,
         unroll_patch=False, unroll_patch_size=False, verbose=0):
 
-        # build actual input images
         imgval = global_rng.rand(bsize, imshp[0], imshp[1], imshp[2])
 
         a = T.dmatrix()
@@ -155,7 +147,6 @@ def exec_multilayer_conv_nnet(conv_mode, ss, bsize, imshp, kshps, nkerns,
         inputs4 = dmatrix4()
         kerns4 = dmatrix4()
 
-        # for each layer
         ntot = 0
         tctot = 0
         tpytot = 0
@@ -166,7 +157,6 @@ def exec_multilayer_conv_nnet(conv_mode, ss, bsize, imshp, kshps, nkerns,
                 
                 print(conv_mode, ss, n_layer, kshp, nkern)
 
-            # actual values
             w = global_rng.random_sample(N.r_[nkern, imshp[0], kshp])
             w_flip = flip(w, kshp).reshape(w.shape)
 
@@ -175,7 +165,6 @@ def exec_multilayer_conv_nnet(conv_mode, ss, bsize, imshp, kshps, nkerns,
             time1 = time.time()
             outval = N.zeros(N.r_[bsize, outshp])
 
-            # ConvOp
             if unroll_patch and not unroll_patch_size:
                 conv_op = ConvOp(dx=ss[0], dy=ss[1], output_mode=conv_mode,
                                  unroll_patch=unroll_patch, verbose=verbose)(inputs4, kerns4)
@@ -199,18 +188,12 @@ def exec_multilayer_conv_nnet(conv_mode, ss, bsize, imshp, kshps, nkerns,
 
 
 def speed_multilayer_conv():
-        # calculate the speed up of different combination of unroll
-        # put the paramter to the same you will try.
         
         validate = False  # we don't validate the result to have it much faster!
         repeat = 3
         verbose = 1
         unroll_batch = [1, 2, 3, 4, 5, 6, 10]  # 15, 30, 60 always much slower
         unroll_kern = [1, 2, 3, 4, 5, 6, 10]  # 15, 30, 60 always much slower
-        #unroll_batch = [1,4,5]
-        #unroll_kern = [1,4,5]
-        #unroll_batch = [1,4]
-        #unroll_kern = [1,4]
         unroll_patch = [True, False]
         
         bsize = 60  # batch size
@@ -227,7 +210,6 @@ def speed_multilayer_conv():
     
         timing = N.zeros((len(unroll_batch), len(unroll_kern), 3, len(convmodes)*len(ssizes)))
         t_b_k = []
-        # calculate the timing with unrolling
 
         print('time unroll batch kern')
         best = []
@@ -240,16 +222,13 @@ def speed_multilayer_conv():
                     tctot, tpytot, ntot = [], [], []
                     for conv_mode, n_mode in zip(convmodes, xrange(len(convmodes))):
                         for ss, n_ss in zip(ssizes, xrange(len(ssizes))):
-#                            tctot_, tpytot_, ntot_ = exec_multilayer_conv_nnet_old(conv_mode, ss, bsize, imshp_start, kshps, nkerns, unroll_batch=unroll_b, unroll_kern=unroll_k, validate=validate, verbose=verbose,do_print=False)
                             tctot_, tpytot_, ntot_ = exec_multilayer_conv_nnet(conv_mode, ss, bsize, imshp_start, kshps, nkerns, unroll_batch=unroll_b, unroll_kern=unroll_k, verbose=verbose, do_print=False, repeat=repeat)
                             tctot += [tctot_]
                             tpytot += [tpytot_]
                             ntot += [ntot_]
                     if unroll_b == 4 and unroll_k == 4:
-                        # print "unroll 4/4",tctot
                         best = tctot
                     if unroll_b == 1 and unroll_k == 1:
-                        # print "unroll 1/1",tctot
                         worst = tctot
                     timing[n_b, n_k] = [tctot, tpytot, ntot]  # [sum(tctot), sum(tpytot), sum(ntot)]
         if not t_:
@@ -257,14 +236,12 @@ def speed_multilayer_conv():
         else:
             t = t_
         t = N.asarray(t)
-        # calculate the old timing
         print('time old version')
         tctot, tpytot, ntot = [], [], []
         tctot_ = []
         if not tctot_:
             for conv_mode, n_mode in zip(convmodes, xrange(len(convmodes))):
                 for ss, n_ss in zip(ssizes, xrange(len(ssizes))):
-#                    tctot_, tpytot_, ntot_ = exec_multilayer_conv_nnet_old(conv_mode, ss, bsize, imshp_start, kshps, nkerns, unroll_batch=0, unroll_kern=0, validate=validate, verbose=verbose,do_print=False)
                     tctot_, tpytot_, ntot_ = exec_multilayer_conv_nnet(conv_mode, ss, bsize, imshp_start, kshps, nkerns, unroll_batch=0, unroll_kern=0, verbose=verbose, do_print=False, repeat=repeat)
                     tctot += [tctot_]
                     tpytot += [tpytot_]
@@ -285,16 +262,13 @@ def speed_multilayer_conv():
         print("speedup vs (1/1)%.3fx, vs old %.3fx" % (t.max()/t.min(), sum(tctot)/t.min()))
         print(worst/best, tctot/best)
 
-        # calculate the timing of unroll_patch
         print('time unroll_patch')
         tctot_patch = []
         tctot_patch_size = []
         for conv_mode, n_mode in zip(convmodes, xrange(len(convmodes))):
             for ss, n_ss in zip(ssizes, xrange(len(ssizes))):
-                #tctot_, tpytot_, ntot_ = exec_multilayer_conv_nnet_old(conv_mode, ss, bsize, imshp_start, kshps, nkerns, unroll_batch=0, unroll_kern=0, validate=validate,unroll_patch=True,verbose=verbose,do_print=False)
                 tctot_, tpytot_, ntot_ = exec_multilayer_conv_nnet(conv_mode, ss, bsize, imshp_start, kshps, nkerns, unroll_batch=0, unroll_kern=0, unroll_patch=True, verbose=verbose, do_print=False, repeat=repeat)
                 tctot_patch += [tctot_]
-                #tctot_, tpytot_, ntot_ = exec_multilayer_conv_nnet_old(conv_mode, ss, bsize, imshp_start, kshps, nkerns, unroll_batch=0, unroll_kern=0, validate=validate,unroll_patch=True,verbose=verbose,do_print=False,unroll_patch_size=True)
                 tctot_, tpytot_, ntot_ = exec_multilayer_conv_nnet(conv_mode, ss, bsize, imshp_start, kshps, nkerns, unroll_batch=0, unroll_kern=0, unroll_patch=True, verbose=verbose, do_print=False, unroll_patch_size=True, repeat=repeat)
                 tctot_patch_size += [tctot_]
 

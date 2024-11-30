@@ -8,7 +8,6 @@ import theano.tests.unittest_tools as utt
 
 
 def test_numpy_method():
-    # This type of code is used frequently by PyMC3 users
     x = tt.dmatrix('x')
     data = np.random.rand(5, 5)
     x.tag.test_value = data

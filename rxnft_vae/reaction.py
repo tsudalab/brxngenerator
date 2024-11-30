@@ -54,7 +54,6 @@ class Templates(object):
 class MoleculeNode(object):
 	def __init__(self, smiles, id):
 		self.smiles = smiles
-		#self.mol = get_mol_from_smiles(smiles)
 		self.parents = []
 		self.children = []
 		self.is_leaf = False
@@ -75,11 +74,9 @@ class TemplateNode(object):
 
 class ReactionTree(object):
 	def __init__(self, route):
-		#print(route)
 		self.route = route
 		self.smiles_map = []
 		self.visit = []
-		# id of molecule and template nodes
 		self.molecule_nodes = []
 		self.template_nodes = []
 		mol_count = 0
@@ -90,13 +87,11 @@ class ReactionTree(object):
 			template = reaction[2]
 			ids = get_index(self.smiles_map, product)
 			if ids[0] == -1:
-				# add product node
 				prod_node = MoleculeNode(product, mol_count)
 				
 				self.smiles_map.append(product)
 				self.molecule_nodes.append(prod_node)
 				self.visit.append(0)
-				#print("adding node:", prod_node.id, prod_node.smiles)
 				mol_count += 1
 
 				temp_node = TemplateNode(template, tem_count)
@@ -110,37 +105,30 @@ class ReactionTree(object):
 						temp_node.children.append(rec_node)
 						self.molecule_nodes.append(rec_node)
 						self.visit.append(0)
-						#print("adding node:", rec_node.id, rec_node.smiles)
 						self.smiles_map.append(reactant)
 						mol_count += 1
 			else:
 				for idx in ids:
-					#print(idx, self.molecule_nodes[idx].smiles, self.visit[idx])
 					prod_node = self.molecule_nodes[idx]
 					if self.visit[idx] == 1:
 						continue
 					self.visit[idx] = 1
 
-					#print("Product:", prod_node.smiles, idx)
-					# add template
 					temp_node = TemplateNode(template, tem_count)
 					tem_count += 1
 					temp_node.parents.append(prod_node)
 					prod_node.children.append(temp_node)
 					self.template_nodes.append(temp_node)
-					#print("Template:", temp_node.template)
 					for reactant in reactants:
 						rec_node = MoleculeNode(reactant, mol_count)
 						rec_node.parents.append(temp_node)
 						temp_node.children.append(rec_node)
 						self.molecule_nodes.append(rec_node)
 						self.visit.append(0)
-						#print("*** adding node:", idx, rec_node.id, rec_node.smiles)
 						self.smiles_map.append(reactant)
 						mol_count += 1
 					break
 
-				#print("Reactant:", rec_node.smiles)
 	def show_reaction(self, product, templateDic, reactDic):
 		if len(product.children) == 0:
 			print(product.id, reactDic.get_index(product.smiles), "leaf")
@@ -191,7 +179,6 @@ def extract_starting_reactants(rxns):
 		queue = deque([root])
 		while len(queue) > 0:
 			x = queue.popleft()
-				#exit(1)
 			if len(x.children) == 0:
 				smiles = x.smiles
 				if smiles not in starting_reactants:
@@ -203,7 +190,6 @@ def extract_starting_reactants(rxns):
 				template = x.children[0]
 				for y in template.children:
 					queue.append(y)
-					#visisted.add(y.id
 
 	return starting_reactants
 
@@ -231,12 +217,6 @@ for tem_node in tem_set:
 
 
 
-#print("test")
-#routes, templates = read_multistep_rxns("synthetic_routes.txt")
-#print(routes)
-#RxnTree = ReactionTree(routes[0])
-#print(routes[0])
-#RxnTree.show_reaction(RxnTree.molecule_nodes[0])
 
 
 '''

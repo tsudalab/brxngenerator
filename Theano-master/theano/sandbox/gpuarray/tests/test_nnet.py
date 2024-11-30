@@ -36,14 +36,8 @@ def test_GpuCrossentropySoftmaxArgmax1HotWithBias():
 
     b = T.fvector('b')
 
-    # we precompute the dot with big shape before to allow the test of
-    # GpuCrossentropySoftmax1HotWithBiasDx to don't fail with the error
-    # (the launch timed out and was terminated) on GPU card not
-    # powerful enough. We need the big shape to check for corner
-    # case.
     dot_result = T.fmatrix('dot_result')
 
-    # Seed numpy.random with config.unittests.rseed
     utt.seed_rng()
 
     xx = numpy.asarray(numpy.random.rand(batch_size, n_in),
@@ -94,7 +88,6 @@ def test_GpuCrossentropySoftmax1HotWithBiasDx():
     if not isinstance(mode_with_gpu, theano.compile.DebugMode):
         n_out = 4099
 
-    # Seed numpy.random with config.unittests.rseed
     utt.seed_rng()
 
     softmax_output_value = numpy.random.rand(batch_size,
@@ -112,8 +105,6 @@ def test_GpuCrossentropySoftmax1HotWithBiasDx():
 
     cpu_f = theano.function([softmax_output], op, mode=mode_without_gpu)
     gpu_f = theano.function([softmax_output], op, mode=mode_with_gpu)
-    # theano.printing.debugprint(cpu_f)
-    # theano.printing.debugprint(gpu_f)
 
     assert any([isinstance(node.op, T.nnet.CrossentropySoftmax1HotWithBiasDx)
                 for node in cpu_f.maker.fgraph.toposort()])
@@ -182,7 +173,6 @@ def softmax_with_bias_unittest_template(dtypeInput, dtypeBias):
         utt.assert_allclose(out, gout)
 
     cmp(2, 5)
-    # we need to test n>32*1024 to check that we make the block loop.
     cmp(2 << 15, 5)
     cmp(4074, 400)
     cmp(784, 784)
@@ -190,9 +180,7 @@ def softmax_with_bias_unittest_template(dtypeInput, dtypeBias):
     cmp(4, 1024)
     cmp(4, 2000)
     cmp(4, 2024)
-    # GTX285 don't have enough shared mem for this case.
     cmp(4, 4074)
-    # The GTX580, 680 and kepler don't have enough shared memory.
     cmp(2, 10000)
     cmp(128, 16 * 1024)
     cmp(128, 64 * 1024)
@@ -233,7 +221,6 @@ def softmax_unittest_template(dtypeInput):
         gout = f_gpu(data)
         utt.assert_allclose(out, gout)
 
-    # we need to test n>32*1024 to check that we make the block loop.
     cmp(2, 5)
     cmp(2 << 15, 5)
     cmp(4074, 400)
@@ -242,9 +229,7 @@ def softmax_unittest_template(dtypeInput):
     cmp(4, 1024)
     cmp(4, 2000)
     cmp(4, 2024)
-    # The GTX285 don't have enough shared memory.
     cmp(4, 4074)
-    # The GTX580, 680 and kepler don't have enough shared memory.
     cmp(2, 10000)
     cmp(128, 16 * 1024)
     cmp(128, 64 * 1024)
@@ -275,7 +260,6 @@ class test_SoftMax(unittest.TestCase):
         f_gpu = theano.function([x_gpu], f_gpu_z_out, mode=self.mode)
         self._check_types(f, f_gpu, T.nnet.Softmax, self.gpu_op)
 
-        # we need to test n>32*1024 to check that we make the block loop.
         cmp(1, 5, f, f_gpu)
         cmp(2, 5, f, f_gpu)
         cmp(10, 5, f, f_gpu)
@@ -288,13 +272,10 @@ class test_SoftMax(unittest.TestCase):
         cmp(4, 1024, f, f_gpu)
         cmp(4, 2000, f, f_gpu)
         cmp(4, 2024, f, f_gpu)
-        # The GTX285 don't have enough shared memory.
         cmp(4, 4074, f, f_gpu)
-        # The GTX580, 680 and kepler don't have enough shared memory.
         cmp(2, 10000, f, f_gpu)
         cmp(128, 16 * 1024, f, f_gpu)
         cmp(128, 64 * 1024, f, f_gpu)
-        # cudnn permits no more than 2^15 - 1 rows
         cmp((2 << 15) - 1, 5, f, f_gpu)
         cmp(5, 2 << 15, f, f_gpu)
 
@@ -336,5 +317,4 @@ class test_SoftMax(unittest.TestCase):
             z,
             self._cmp
         )
-        # Theano can handle that case, but cudnn can't
         self._cmp(0, 10, f, f_gpu)

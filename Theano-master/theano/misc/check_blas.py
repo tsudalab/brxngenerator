@@ -1,10 +1,4 @@
-#!/usr/bin/env python
 
-# print info to check we link with witch version of blas
-# test the speed of the blas gemm fct:
-# C=a*C+dot(A,B)*b
-# A,B,C matrix
-# a,b scalar
 from __future__ import absolute_import, print_function, division
 
 import os

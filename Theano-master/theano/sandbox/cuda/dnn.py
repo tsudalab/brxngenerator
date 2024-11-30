@@ -79,8 +79,6 @@ class DnnBase(GpuOp, COp):
 
     """
 
-    # dnn does not know about broadcasting, so we do not need to assert
-    # the input broadcasting pattern.
     check_broadcast = False
 
     def __init__(self):
@@ -162,10 +160,6 @@ class GpuDnnConvDesc(GpuOp):
         node = Apply(self, [img_shape, kern_shape],
                      [CDataType("cudnnConvolutionDescriptor_t",
                                 freefunc="cudnnDestroyConvolutionDescriptor")()])
-        # DebugMode cannot compare the values of CDataType variables, so by
-        # default it returns False all the time. To prevent DebugMode from
-        # complaining because of the MergeOptimizer, we make this variable
-        # always compare to True.
         out = node.outputs[0]
         out.tag.values_eq_approx = tensor.type.values_eq_approx_always_true
         return node
@@ -218,7 +212,6 @@ class GpuDnnConvDesc(GpuOp):
     %(fail)s
   }
 
-#if defined(CUDNN_VERSION) && CUDNN_VERSION >= 30
 
   int pad[%(nb_dim)d] = {%(pad_str)s};
   int subsample[%(nb_dim)d] = {%(subsample_str)s};
@@ -247,9 +240,7 @@ class GpuDnnConvDesc(GpuOp):
   pad, subsample, upscale,
   %(conv_flag)s, %(precision)s
   );
-#else
   PyErr_Format(PyExc_RuntimeError, "could not set op descriptor: CUDNN_VERSION must be >= 30");
-#endif
   if (err != CUDNN_STATUS_SUCCESS) {
     PyErr_Format(PyExc_RuntimeError, "could not set op descriptor: %%s",
                  cudnnGetErrorString(err));
@@ -264,7 +255,6 @@ class GpuDnnConvDesc(GpuOp):
     def c_code_cache_version(self):
         return (4, version())
 
-# scalar constants
 _zero = constant(numpy.asarray(0.0, dtype='float32'))
 _one = constant(numpy.asarray(1.0, dtype='float32'))
 
@@ -325,9 +315,6 @@ class GpuDnnConv(DnnBase, COp):
         if self.inplace:
             self.destroy_map = {0: [2]}
 
-        # In CuDNN version older than V3, the FFT implementation and the
-        # option to time the different implementations to get the fastest
-        # are both unavailable.
         if version() < (3000, 3000):
             if self.algo == 'fft':
                 raise RuntimeError("CuDNN FFT convolution requires CuDNN v3")
@@ -339,7 +326,6 @@ class GpuDnnConv(DnnBase, COp):
                 raise RuntimeError("CuDNN convolution timing requires CuDNN "
                                    "v3")
 
-        # The fft_tiling implementation is only available from CuDNN V4 onward
         if version() < (4000, 4000):
             if self.algo == 'fft_tiling':
                 raise RuntimeError("CuDNN tiled-FFT convolution requires "
@@ -378,24 +364,17 @@ class GpuDnnConv(DnnBase, COp):
             elif self.algo == 'large':
                 alg = 'CUDNN_CONVOLUTION_FWD_ALGO_GEMM'
             elif self.algo == 'direct':
-                # need v2
                 alg = 'CUDNN_CONVOLUTION_FWD_ALGO_DIRECT'
             elif self.algo == 'fft':
-                # need v3
                 alg = 'CUDNN_CONVOLUTION_FWD_ALGO_FFT'
             elif self.algo == 'fft_tiling':
-                # need v4
                 alg = 'CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING'
             elif self.algo in ['guess_once', 'guess_on_shape_change']:
-                # The convolution implementation should be choosen according
-                # to a heuristic
                 alg = 'CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM'
                 choose_alg = '1'
                 if self.algo == 'guess_once':
                     choose_alg_once = '1'
             elif self.algo in ['time_once', 'time_on_shape_change']:
-                # The convolution implementation should be choosen by timing
-                # every available implementation
                 alg = 'CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM'
                 choose_alg = '1'
                 choose_alg_time = '1'
@@ -448,7 +427,6 @@ class GpuDnnConv(DnnBase, COp):
                 DisconnectedType()(), d_alpha, d_beta]
 
     def connection_pattern(self, node):
-        # not connected to desc
         return [[1], [1], [1], [0], [1], [1]]
 
     @staticmethod
@@ -615,7 +593,6 @@ class GpuDnnConvGradW(DnnBase, COp):
                 DisconnectedType()(), d_alpha, d_beta)
 
     def connection_pattern(self, node):
-        # not connected to desc
         return [[1], [1], [1], [0], [1], [1]]
 
     def get_op_params(self):
@@ -632,25 +609,19 @@ class GpuDnnConvGradW(DnnBase, COp):
             alg = "0"
         else:
             if self.algo == 'none':
-                # non-deterministic
                 alg = 'CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0'
             elif self.algo == 'deterministic':
                 alg = 'CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1'
             elif self.algo == 'fft':
                 alg = 'CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT'
             elif self.algo == 'small':
-                # need v3, non-deterministic, small workspace
                 alg = 'CUDNN_CONVOLUTION_BWD_FILTER_ALGO_3'
             elif self.algo in ['guess_once', 'guess_on_shape_change']:
-                # The convolution implementation should be chosen according
-                # to a heuristic
                 alg = 'CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0'
                 choose_alg = '1'
                 if self.algo == 'guess_once':
                     choose_alg_once = '1'
             elif self.algo in ['time_once', 'time_on_shape_change']:
-                # The convolution implementation should be chosen according
-                # to timing
                 alg = 'CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0'
                 choose_alg = '1'
                 choose_alg_time = '1'
@@ -798,8 +769,6 @@ class GpuDnnConvGradI(DnnBase, COp):
         if self.inplace:
             self.destroy_map = {0: [2]}
 
-        # The small-workspace implementation is only available from CuDNN V4
-        # onward.
         if version() < (4000, 4000):
             if self.algo == 'fft_tiling':
                 raise RuntimeError("CuDNN's tiled-FFT convolution requires "
@@ -835,7 +804,6 @@ class GpuDnnConvGradI(DnnBase, COp):
                 DisconnectedType()(), d_alpha, d_beta)
 
     def connection_pattern(self, node):
-        # not connected to desc
         return [[1], [1], [1], [0], [1], [1]]
 
     def get_op_params(self):
@@ -856,21 +824,15 @@ class GpuDnnConvGradI(DnnBase, COp):
             elif self.algo == 'deterministic':
                 alg = 'CUDNN_CONVOLUTION_BWD_DATA_ALGO_1'
             elif self.algo == 'fft':
-                # need v3, big workspace
                 alg = 'CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT'
             elif self.algo == 'fft_tiling':
-                # need v4, big workspace, but less then fft
                 alg = 'CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT_TILING'
             elif self.algo in ['guess_once', 'guess_on_shape_change']:
-                # The convolution implementation should be chosen according
-                # to a heuristic
                 alg = 'CUDNN_CONVOLUTION_BWD_DATA_ALGO_0'
                 choose_alg = '1'
                 if self.algo == 'guess_once':
                     choose_alg_once = '1'
             elif self.algo in ['time_once', 'time_on_shape_change']:
-                # The convolution implementation should be chosen according
-                # to timing
                 alg = 'CUDNN_CONVOLUTION_BWD_DATA_ALGO_0'
                 choose_alg = '1'
                 choose_alg_time = '1'
@@ -1026,35 +988,27 @@ def dnn_conv(img, kerns, border_mode='valid', subsample=(1, 1),
         :attr:`config.dnn.conv.precision`.
 
     """
-    # For consistence, when using direction_hint too.
     if border_mode == (0, 0):
         border_mode = 'valid'
 
-    # Establish dtype in which to perform the computation of the convolution
     if precision is None:
         precision = theano.config.dnn.conv.precision
     if precision == 'as_input':
         precision = theano.scalar.upcast(img.dtype, kerns.dtype)
 
-    # Check if deprecated param 'workmem' is used
     if workmem is not None:
         warnings.warn(("dnn_conv: parameter 'workmem' is deprecated. Use "
                        "'algo' instead."), stacklevel=3)
         assert algo is None
         algo = workmem
 
-    # Ensure the value of direction_hint is supported
     assert direction_hint in [None, 'bprop weights', 'bprop inputs', 'forward']
 
     fgraph = getattr(img, 'fgraph', None) or getattr(kerns, 'fgraph', None)
     if (border_mode == 'valid' and subsample == (1, 1) and
             direction_hint == 'bprop weights'):
-        # Special case: We are asked to use GpuDnnConvGradW. We need to set
-        # up a suitable 'fake' convolution to compute the gradient for.
         img = gpu_contiguous(img.dimshuffle(1, 0, 2, 3))
         if conv_mode == 'conv':
-            # We need to flip manually. These 'kerns' are not the kernels
-            # that would be flipped by conv_mode='conv' in GpuDnnConvGradW.
             kerns = kerns[:, :, ::-1, ::-1]
         kerns = gpu_contiguous(kerns.dimshuffle(1, 0, 2, 3))
         shape2 = shape_i(img, 2, fgraph) - shape_i(kerns, 2, fgraph) + 1
@@ -1069,8 +1023,6 @@ def dnn_conv(img, kerns, border_mode='valid', subsample=(1, 1),
 
     elif (border_mode == 'full' and subsample == (1, 1) and
             direction_hint == 'bprop inputs'):
-        # Special case: We are asked to use GpuDnnConvGradI. We need to set
-        # up a suitable 'fake' convolution to compute the gradient for.
         img = gpu_contiguous(img)
         kerns = gpu_contiguous(kerns.dimshuffle(1, 0, 2, 3))
         conv_mode = 'cross' if conv_mode == 'conv' else 'conv'
@@ -1083,9 +1035,6 @@ def dnn_conv(img, kerns, border_mode='valid', subsample=(1, 1),
                                                                         kerns.shape)
         return GpuDnnConvGradI()(kerns, img, out, desc)
 
-    # Standard case: We use GpuDnnConv with suitable padding.
-    # contig_version will return a gpu_contiguous copy
-    # if the img contains negative strides
     img = gpu_contiguous(img)
     kerns = gpu_contiguous(kerns)
     desc = GpuDnnConvDesc(border_mode=border_mode, subsample=subsample,
@@ -1142,31 +1091,24 @@ def dnn_conv3d(img, kerns, border_mode='valid', subsample=(1, 1, 1),
     if border_mode == (0, 0):
         border_mode = 'valid'
 
-    # Establish dtype in which to perform the computation of the convolution
     if precision is None:
         precision = theano.config.dnn.conv.precision
     if precision == 'as_input':
         precision = theano.scalar.upcast(img.dtype, kerns.dtype)
 
-    # Check if deprecated param 'workmem' is used
     if workmem is not None:
         warnings.warn(("dnn_conv3d: parameter 'workmem' is deprecated. Use "
                        "'algo' instead."), stacklevel=3)
         assert algo is None
         algo = workmem
 
-    # Ensure the value of direction_hint is supported
     assert direction_hint in [None, 'bprop weights', 'forward']
 
     fgraph = getattr(img, 'fgraph', None) or getattr(kerns, 'fgraph', None)
     if (border_mode == 'valid' and subsample == (1, 1, 1) and
             direction_hint == 'bprop weights'):
-        # Special case: We are asked to use GpuDnnConvGradW. We need to set
-        # up a suitable 'fake' convolution to compute the gradient for.
         img = gpu_contiguous(img.dimshuffle(1, 0, 2, 3, 4))
         if conv_mode == 'conv':
-            # We need to flip manually. These 'kerns' are not the kernels
-            # that would be flipped by conv_mode='conv' in GpuDnnConvGradW.
             kerns = kerns[:, :, ::-1, ::-1, ::-1]
         kerns = gpu_contiguous(kerns.dimshuffle(1, 0, 2, 3, 4))
         shape2 = shape_i(img, 2, fgraph) - shape_i(kerns, 2, fgraph) + 1
@@ -1180,9 +1122,6 @@ def dnn_conv3d(img, kerns, border_mode='valid', subsample=(1, 1, 1),
         conv = GpuDnnConv3dGradW()(img, kerns, out, desc)
         return as_cuda_ndarray_variable(conv.dimshuffle(1, 0, 2, 3, 4))
 
-    # Standard case: We use GpuDnnConv with suitable padding.
-    # contig_version will return a gpu_contiguous copy
-    # if the img contains negative strides
     img = gpu_contiguous(img)
     kerns = gpu_contiguous(kerns)
     desc = GpuDnnConvDesc(border_mode=border_mode, subsample=subsample,
@@ -1326,10 +1265,6 @@ class GpuDnnPoolDesc(GpuOp):
         node = Apply(self, [],
                      [CDataType("cudnnPoolingDescriptor_t",
                                 freefunc="cudnnDestroyPoolingDescriptor")()])
-        # DebugMode cannot compare the values of CDataType variables, so by
-        # default it returns False all the time. To prevent DebugMode from
-        # complaining because of the MergeOptimizer, we make this variable
-        # always compare to True.
         out = node.outputs[0]
         out.tag.values_eq_approx = tensor.type.values_eq_approx_always_true
         return node
@@ -1412,7 +1347,6 @@ class GpuDnnPool(DnnBase):
     def prepare_node(self, node, storage_map, compute_map):
         if len(node.inputs) == 2:
             warnings.warn("Theano GPUDnnPoolGrad internal changed.", stacklevel=3)
-            # Old interface
             self.mode = node.inputs[1].owner.op.mode
             ws = theano.tensor.constant(node.inputs[1].owner.op.ws)
             st = theano.tensor.constant(node.inputs[1].owner.op.stride)
@@ -1606,7 +1540,6 @@ if (err != CUDNN_STATUS_SUCCESS) {
         return g_out, theano.gradient.DisconnectedType()(), theano.gradient.DisconnectedType()(), theano.gradient.DisconnectedType()()
 
     def connection_pattern(self, node):
-        # not connected to desc
         return [[1], [0], [0], [0]]
 
     def c_code_cache_version(self):
@@ -1649,7 +1582,6 @@ class GpuDnnPoolGrad(DnnBase):
     def prepare_node(self, node, storage_map, compute_map):
         if len(node.inputs) == 4:
             warnings.warn("Theano GPUDnnPoolGrad internal changed.", stacklevel=3)
-            # Old interface
             self.mode = node.inputs[3].owner.op.mode
             ws = theano.tensor.constant(node.inputs[3].owner.op.ws)
             st = theano.tensor.constant(node.inputs[3].owner.op.stride)
@@ -1755,9 +1687,6 @@ if (pool%(name)s != NULL) { cudnnDestroyPoolingDescriptor(pool%(name)s); }
 """ % dict(name=name)
 
     def c_code(self, node, name, inputs, outputs, sub):
-        # Here the name out and inp are based on the cudnn definition.
-        # Not the definition of this class.
-        # This make it complicated.
         out, inp, inp_grad, ws, stride, pad = inputs
 
         out_grad, = outputs
@@ -2021,7 +1950,6 @@ cudnnStatus_t err%(name)s;
         else:
             algo = "CUDNN_SOFTMAX_ACCURATE"
 
-        # Setup configuration variables.
         result = """
 cudnnStatus_t err%(name)s;
 cudnnTensorFormat_t format%(name)s = CUDNN_TENSOR_NCHW;
@@ -2035,7 +1963,6 @@ if (%(mode)d == 1)
   mode%(name)s = CUDNN_SOFTMAX_MODE_INSTANCE;
 """ % dict(name=name, tensor_format=tensor_format, mode=mode, algo=algo)
 
-        # Validate the input and build the input variables.
         for input_idx, input_name in enumerate(self.softmax_inputs):
             result += c_set_tensor4d(ins[input_idx], input_name + "_" + name,
                                      "err" + name, sub['fail'])
@@ -2047,7 +1974,6 @@ if (%(mode)d == 1)
             subs['name%d' % idx] = softmax_input
             subs['ins%d' % idx] = inputs[idx]
 
-        # Build and prepare the output variable.
         result += """
 if (CudaNdarray_prep_output(&%(outs)s, 4, CudaNdarray_HOST_DIMS(%(ins)s)) != 0)
 {
@@ -2058,7 +1984,6 @@ if (CudaNdarray_prep_output(&%(outs)s, 4, CudaNdarray_HOST_DIMS(%(ins)s)) != 0)
                                  "softmax_output_" + name,
                                  "err" + name, sub['fail'])
 
-        # Add on a call to the method that does the actual work.
         result += self.method() % subs
 
         return result
@@ -2098,7 +2023,6 @@ class GpuDnnSoftmax(GpuDnnSoftmaxBase):
 
     def method(self):
         return """
-#ifndef CUDNN_VERSION
 err%(name)s = cudnnSoftmaxForward(
   _handle,
   algo%(name)s,
@@ -2108,7 +2032,6 @@ err%(name)s = cudnnSoftmaxForward(
   softmax_output_%(name)s,
   CudaNdarray_DEV_DATA(%(outs)s)
 );
-#else
 {
 const float alpha = 1.;
 const float beta = 0.;
@@ -2124,7 +2047,6 @@ err%(name)s = cudnnSoftmaxForward(
   CudaNdarray_DEV_DATA(%(outs)s)
 );
 }
-#endif
 """
 
     def grad(self, inp, grads):
@@ -2168,7 +2090,6 @@ class GpuDnnSoftmaxGrad(GpuDnnSoftmaxBase):
 
     def method(self):
         return """
-#ifndef CUDNN_VERSION
 err%(name)s = cudnnSoftmaxBackward(
   _handle,
   algo%(name)s,
@@ -2180,7 +2101,6 @@ err%(name)s = cudnnSoftmaxBackward(
   softmax_output_%(name)s,
   CudaNdarray_DEV_DATA(%(outs)s)
 );
-#else
 {
 const float alpha = 1.;
 const float beta = 0.;
@@ -2198,13 +2118,10 @@ err%(name)s = cudnnSoftmaxBackward(
   CudaNdarray_DEV_DATA(%(outs)s)
 );
 }
-#endif
         """
 
 
-# Intentation for history
 if True:
-    # @register_opt('cudnn')  # this optimizer is registered in opt.py instead.
     @local_optimizer([GpuConv])
     def local_conv_dnn(node):
         if not dnn_available():
@@ -2224,9 +2141,6 @@ if True:
                     rval, node.outputs[0].type.broadcastable)
             return [rval]
 
-    # This optimizer is registered in opt.py as part of the meta-optimizer.
-    # It tries exactly the opposite code path of what local_conv_dnn() uses,
-    # because for some input/kernel shape configurations, this is faster.
     @local_optimizer([GpuConv])
     def local_conv_dnn_alternative(node):
         if not dnn_available():
@@ -2239,15 +2153,11 @@ if True:
             img, kern = node.inputs
             direction_hint = node.op.direction_hint
             if border_mode == 'full':
-                # for a full convolution, try using the forward pass instead
-                # of the backward pass wrt. inputs and vice versa
                 if direction_hint == 'bprop inputs':
                     direction_hint = 'forward'
                 else:
                     direction_hint = 'bprop inputs'
             elif border_mode == 'valid':
-                # for a valid convolution, try using the backward pass wrt.
-                # weights instead of the forward pass and vice versa
                 if direction_hint == 'bprop weights':
                     direction_hint = 'forward'
                 else:
@@ -2464,7 +2374,6 @@ if True:
     @register_opt('cudnn')
     @local_optimizer([GpuElemwise, LogSoftmax])
     def local_log_softmax_dnn(node):
-        # The log-softmax implementation is only available starting at CuDNN V3
         if not dnn_available() or version() < (3000, 3000):
             return
 
@@ -2487,13 +2396,11 @@ if True:
             if not dnn_available():
                 return
 
-            # Transform the input in the format expected by GpuDnnSoftmax
             inp = node.inputs[0].owner.inputs[0]
             if inp.ndim != 2:
                 return
             inp = inp.dimshuffle(0, 1, 'x', 'x')
 
-            # Apply GpuDnnSoftmax and return the result
             out = GpuDnnSoftmax('bc01', 'log', 'channel')(gpu_contiguous(inp))
             return [out.dimshuffle(0, 1)]
 
@@ -2501,8 +2408,6 @@ if True:
         def apply(self, fgraph):
             """ Raise a RuntimeError if cudnn can't be used"""
             if not dnn_available():
-                # Make an assert error as we want Theano to fail, not
-                # just skip this optimization.
                 raise AssertionError(
                     "cuDNN optimization was enabled, but Theano was not able"
                     " to use it. We got this error: \n" +
@@ -2538,7 +2443,6 @@ if True:
             return [out.dimshuffle(0, 1)]
 
 
-# AbstractConv Optimizations
 @local_optimizer([AbstractConv2d, AbstractConv2d_gradWeights,
                   AbstractConv2d_gradInputs])
 def local_abstractconv_cudnn(node):

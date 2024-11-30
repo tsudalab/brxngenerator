@@ -24,13 +24,11 @@ from theano.compile.profilemode import ProfileMode
 
 pydot_imported = False
 try:
-    # pydot-ng is a fork of pydot that is better maintained
     import pydot_ng as pd
     if pd.find_graphviz():
         pydot_imported = True
 except ImportError:
     try:
-        # fall back on pydot if necessary
         import pydot as pd
         if pd.find_graphviz():
             pydot_imported = True
@@ -170,7 +168,6 @@ N.B.:
 """, file=_file)
 
     for r, p, s, o in zip(results_to_print, profile_list, smap, order):
-        # Add the parent scan op to the list as well
         if (hasattr(r.owner, 'op') and
                 isinstance(r.owner.op, theano.scan_module.scan_op.Scan)):
                     scan_ops.append(r)
@@ -187,10 +184,7 @@ N.B.:
         print("Inner graphs of the scan ops:", file=_file)
 
         for s in scan_ops:
-            # prepare a dict which maps the scan op's inner inputs
-            # to its outer inputs.
             if hasattr(s.owner.op, 'fn'):
-                # If the op was compiled, print the optimized version.
                 inner_inputs = s.owner.op.fn.maker.fgraph.inputs
             else:
                 inner_inputs = s.owner.op.inputs
@@ -210,7 +204,6 @@ N.B.:
                 stop_on_name=stop_on_name,
                 scan_inner_to_outer_inputs=inner_to_outer_inputs)
             if hasattr(s.owner.op, 'fn'):
-                # If the op was compiled, print the optimized version.
                 outputs = s.owner.op.fn.maker.fgraph.outputs
             else:
                 outputs = s.owner.op.outputs
@@ -338,14 +331,6 @@ class OperatorPrinter:
             raise TypeError("operator %s cannot represent a variable that is "
                             "not the result of an operation" % self.operator)
 
-        # Precedence seems to be buggy, see #249
-        # So, in doubt, we parenthesize everything.
-        # outer_precedence = getattr(pstate, 'precedence', -999999)
-        # outer_assoc = getattr(pstate, 'assoc', 'none')
-        # if outer_precedence > self.precedence:
-        #    parenthesize = True
-        # else:
-        #    parenthesize = False
         parenthesize = True
 
         input_strings = []
@@ -533,9 +518,6 @@ class PPrinter:
                         name = 'out[%i]' % outputs.index(output)
                     else:
                         name = output.name
-                    # backport
-                    # name = 'out[%i]' % outputs.index(output) if output.name
-                    #  is None else output.name
                     current = output
                     try:
                         idx = 2000 + outputs.index(output)
@@ -595,8 +577,6 @@ pp = pprint
 Print to the terminal a math-like expression.
 """
 
-# colors not used: orange, amber#FFBF00, purple, pink,
-# used by default: green, blue, grey, red
 default_colorCodes = {'GpuFromHost': 'red',
                       'HostFromGpu': 'red',
                       'Scan': 'yellow',
@@ -788,8 +768,6 @@ def pydotprint(fct, outfile=None,
             if not var_with_name_simple:
                 varstr += str(var.type)
         else:
-            # a var id is needed as otherwise var with the same type will be
-            # merged in the graph.
             varstr = str(var.type)
         if len(varstr) > max_label_size:
             varstr = varstr[:max_label_size - 3] + '...'
@@ -809,7 +787,6 @@ def pydotprint(fct, outfile=None,
         prof_str = ''
         if mode:
             time = mode.profile_stats[fct].apply_time.get(node, 0)
-            # second, % total time in profiler, %fct time in profiler
             if mode.local_time == 0:
                 pt = 0
             else:
@@ -821,7 +798,6 @@ def pydotprint(fct, outfile=None,
             prof_str = '   (%.3fs,%.3f%%,%.3f%%)' % (time, pt, pf)
         elif profile:
             time = profile.apply_time.get(node, 0)
-            # second, %fct time in profiler
             if profile.fct_callcount == 0:
                 pf = 0
             else:
@@ -852,18 +828,14 @@ def pydotprint(fct, outfile=None,
 
         return applystr, apply_name_id[node]
 
-    # Update the inputs that have an update function
     input_update = {}
     reverse_input_update = {}
-    # Here outputs can be the original list, as we should not change
-    # it, we must copy it.
     outputs = list(outputs)
     if isinstance(fct, Function):
         function_inputs = zip(fct.maker.expanded_inputs, fct.maker.fgraph.inputs)
         for i, fg_ii in reversed(list(function_inputs)):
             if i.update is not None:
                 k = outputs.pop()
-                # Use the fgaph.inputs as it isn't the same as maker.inputs
                 input_update[k] = fg_ii
                 reverse_input_update[fg_ii] = k
 
@@ -912,8 +884,6 @@ def pydotprint(fct, outfile=None,
             if var.owner is None:
                 color = 'green'
                 if isinstance(var, SharedVariable):
-                    # Input are green, output blue
-                    # Mixing blue and green give cyan! (input and output var)
                     color = "cyan"
                 if high_contrast:
                     g.add_node(pd.Node(varid,
@@ -930,7 +900,6 @@ def pydotprint(fct, outfile=None,
             elif var.name or not compact or var in outputs:
                 g.add_edge(pd.Edge(varid, aid, **param))
             else:
-                # no name, so we don't make a var ellipse
                 if label:
                     label += " "
                 label += str(var.type)
@@ -962,7 +931,6 @@ def pydotprint(fct, outfile=None,
                                        shape=var_shape))
             elif len(var.clients) == 0:
                 g.add_edge(pd.Edge(aid, varid, **param))
-                # grey mean that output var isn't used
                 if high_contrast:
                     g.add_node(pd.Node(varid, style='filled',
                                        label=varstr,
@@ -980,10 +948,7 @@ def pydotprint(fct, outfile=None,
                     param['label'] = label
                 g.add_edge(pd.Edge(aid, varid, **param))
                 g.add_node(pd.Node(varid, shape=var_shape, label=varstr))
-#            else:
-            # don't add egde here as it is already added from the inputs.
 
-    # The var that represent updates, must be linked to the input var.
     for sha, up in input_update.items():
         _, shaid = var_name(sha)
         _, upid = var_name(up)
@@ -1002,11 +967,9 @@ def pydotprint(fct, outfile=None,
                     if isinstance(x.op, theano.scan_module.scan_op.Scan)]
         path, fn = os.path.split(outfile)
         basename = '.'.join(fn.split('.')[:-1])
-        # Safe way of doing things .. a file name may contain multiple .
         ext = fn[len(basename):]
 
         for idx, scan_op in scan_ops:
-            # is there a chance that name is not defined?
             if hasattr(scan_op.op, 'name'):
                 new_name = basename + '_' + scan_op.op.name + '_' + str(idx)
             else:
@@ -1026,7 +989,6 @@ def pydotprint(fct, outfile=None,
         try:
             g.write(outfile, prog='dot', format=format)
         except pd.InvocationException:
-            # based on https://github.com/Theano/Theano/issues/2988
             version = getattr(pd, '__version__', "")
             if version and [int(n) for n in version.split(".")] < [1, 0, 28]:
                 raise Exception("Old version of pydot detected, which can "
@@ -1089,8 +1051,6 @@ def pydotprint_variables(vars,
                 dstr = dstr[:dstr.index('\n')]
             varstr = '%s %s' % (dstr, str(var.type))
         else:
-            # a var id is needed as otherwise var with the same type will be
-            # merged in the graph.
             varstr = str(var.type)
 
         varstr += ' ' + str(len(var_str))
@@ -1188,8 +1148,6 @@ def pydotprint_variables(vars,
     try:
         g.write(outfile, prog='dot', format=format)
     except pd.InvocationException as e:
-        # Some version of pydot are bugged/don't work correctly with
-        # empty label. Provide a better user error message.
         version = getattr(pd, '__version__', "")
         if version == "1.0.28" and "label=]" in e.message:
             raise Exception("pydot 1.0.28 is know to be bugged. Use another "
@@ -1342,9 +1300,6 @@ def var_descriptor(obj, _prev_obs=None, _tag_generator=None):
     _prev_obs[id(obj)] = cur_tag
 
     if hasattr(obj, '__array__'):
-        # hashlib hashes only the contents of the buffer, but
-        # it can have different semantics depending on the strides
-        # of the ndarray
         name = '<ndarray:'
         name += 'strides=[' + ','.join(str(stride)
                                        for stride in obj.strides) + ']'
@@ -1357,14 +1312,10 @@ def var_descriptor(obj, _prev_obs=None, _tag_generator=None):
                          for ipt in obj.owner.inputs)
         name += ')'
     elif hasattr(obj, 'name') and obj.name is not None:
-        # Only print the name if there is no owner.
-        # This way adding a name to an intermediate node can't make
-        # a deeper graph get the same descriptor as a shallower one
         name = obj.name
     else:
         name = str(obj)
         if ' at 0x' in name:
-            # The __str__ method is encoding the object's id in its str
             name = position_independent_str(obj)
             if ' at 0x' in name:
                 print(name)
@@ -1393,10 +1344,6 @@ def hex_digest(x):
     """
     assert isinstance(x, np.ndarray)
     rval = hashlib.md5(x.tostring()).hexdigest()
-    # hex digest must be annotated with strides to avoid collisions
-    # because the buffer interface only exposes the raw data, not
-    # any info about the semantics of how that data should be arranged
-    # into a tensor
     rval = rval + '|strides=[' + ','.join(str(stride)
                                           for stride in x.strides) + ']'
     rval = rval + '|shape=[' + ','.join(str(s) for s in x.shape) + ']'

@@ -79,5 +79,3 @@ class ReactionNode:
 
     def serialize(self):
         return '%d' % (self.id)
-        # return '%d | value %.2f | target %.2f' % \
-        #        (self.id, self.v_self(), self.v_target())

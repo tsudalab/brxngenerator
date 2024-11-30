@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# Theano tutorial
-# Solution to Exercise in section 'Configuration Settings and Compiling Modes'
 
 from __future__ import absolute_import, print_function, division
 import numpy
@@ -17,17 +14,13 @@ D = (rng.randn(N, feats).astype(theano.config.floatX),
 rng.randint(size=N, low=0, high=2).astype(theano.config.floatX))
 training_steps = 10000
 
-# Declare Theano symbolic variables
 x = tt.matrix("x")
 y = tt.vector("y")
 w = theano.shared(rng.randn(feats).astype(theano.config.floatX), name="w")
 b = theano.shared(numpy.asarray(0., dtype=theano.config.floatX), name="b")
 x.tag.test_value = D[0]
 y.tag.test_value = D[1]
-#print "Initial model:"
-#print w.get_value(), b.get_value()
 
-# Construct Theano expression graph
 p_1 = 1 / (1 + tt.exp(-tt.dot(x, w) - b))  # Probability of having a one
 prediction = p_1 > 0.5  # The prediction that is done: 0 or 1
 xent = -y * tt.log(p_1) - (1 - y) * tt.log(1 - p_1)  # Cross-entropy
@@ -35,7 +28,6 @@ cost = tt.cast(xent.mean(), 'float32') + \
        0.01 * (w ** 2).sum()  # The cost to optimize
 gw, gb = tt.grad(cost, [w, b])
 
-# Compile expressions to functions
 train = theano.function(
             inputs=[x, y],
             outputs=[prediction, xent],
@@ -56,8 +48,6 @@ else:
 
 for i in range(training_steps):
     pred, err = train(D[0], D[1])
-#print "Final model:"
-#print w.get_value(), b.get_value()
 
 print("target values for D")
 print(D[1])

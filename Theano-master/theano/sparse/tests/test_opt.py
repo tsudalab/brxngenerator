@@ -136,8 +136,6 @@ def test_local_sampling_dot_csr():
             assert not any(isinstance(node.op, sparse.SamplingDot) for node
                        in f.maker.fgraph.toposort())
         else:
-            # SamplingDotCSR's C implementation needs blas, so it should not
-            # be inserted
             assert not any(isinstance(node.op, sparse.opt.SamplingDotCSR) for node
                        in f.maker.fgraph.toposort())
 
@@ -151,7 +149,6 @@ def test_local_dense_from_sparse_sparse_from_dense():
         s = op(m)
         o = theano.sparse.dense_from_sparse(s)
         f = theano.function([m], o, mode=mode)
-        # We should just have a deep copy.
         assert len(f.maker.fgraph.apply_nodes) == 1
         f([[1, 2], [3, 4]])
 

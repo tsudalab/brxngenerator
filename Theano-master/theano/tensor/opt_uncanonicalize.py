@@ -32,8 +32,6 @@ supposed to be canonical.
 """
 from __future__ import absolute_import, print_function, division
 
-# TODO: intelligent merge for mul/add
-# TODO: 0*x -> 0
 import logging
 
 from theano import gof
@@ -56,8 +54,6 @@ def local_max_and_argmax(node):
     """
     if node.op == T._max_and_argmax:
         if len(node.outputs[1].clients) == 0:
-            # MaxAndArgmax support variable axis,
-            # but CAReduce support only constant axis.
             if node.inputs[1].data is None:
                 axis = None
             else:

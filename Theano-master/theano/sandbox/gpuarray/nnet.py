@@ -715,7 +715,6 @@ class GpuSoftmax(GpuKernelBase, Op):
                   inline_softmax('N', 'buf', 'buf2', 'threadIdx.x',
                                  'blockDim.x', dtype=work_sm),
                   "for (int tx = threadIdx.x; tx< N; tx += blockDim.x){",
-                  # This set all value correctly
                   "sm[blockIDX * sm_s0 + tx * sm_s1] = %s(buf[tx])" % write_sm,
                   "}",
                   "__syncthreads()",

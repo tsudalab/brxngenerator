@@ -87,12 +87,9 @@ class GpuSubtensor(HideC, Subtensor):
         inp = inputs[0]
         indices = inputs[1:]
 
-        # pad out the index list to the same dimension as the input
         idx_list = self.idx_list + \
             ((slice(None),) * (inp_ndim - len(self.idx_list)))
 
-        # This case fails when we use pygpu_index(), so here is some
-        # special code
         if len(idx_list) == 0:
             return """
         Py_XDECREF(%(out)s);
@@ -210,8 +207,6 @@ class GpuIncSubtensor(GpuKernelBase, IncSubtensor):
         return node.outputs[0].type.context
 
     def create_iadd_node(self, node):
-        # We store a iadd_node in the op that contain the info needed
-        # for the inplace add.
         cop = theano.tensor.inplace.add_inplace
         gop = GpuElemwise(cop.scalar_op, copy.copy(cop.inplace_pattern),
                           "Gpu" + cop.name, cop.nfunc_spec)
@@ -243,17 +238,12 @@ class GpuIncSubtensor(GpuKernelBase, IncSubtensor):
             x = x.copy()
         sub_x = x.__getitem__(cdata)
         if sub_x.shape:
-            # we've sliced out an N-D tensor with N > 0
             if not self.set_instead_of_inc:
-                # sub_x += y
                 pygpu.elemwise.ielemwise2(sub_x, '+', y, broadcast=False)
             else:
-                # sub_x += -sub_x + y
                 x.__setitem__(cdata, y)
         else:
-            # scalar case
             if not self.set_instead_of_inc:
-                # x.__setitem__(cdata, sub_x + y)
                 tmp = pygpu.elemwise.elemwise2(sub_x, '+', y, sub_x,
                                                broadcast=False)
                 x.__setitem__(cdata, tmp)
@@ -528,11 +518,7 @@ class GpuAdvancedIncSubtensor1(HideC, tensor.AdvancedIncSubtensor1):
         k = pygpu.elemwise.ElemwiseKernel(a.context, args, oper)
         return k
 
-    # We can't use the parent version that loops on each index
-    # as we also need to loop when set_instead_of_inc is True and the
-    # parent doesn't loop in that case.
     def perform(self, node, inp, out_):
-        # TODO opt to make this inplace
         x, y, idx = inp
         out, = out_
 
@@ -544,14 +530,9 @@ class GpuAdvancedIncSubtensor1(HideC, tensor.AdvancedIncSubtensor1):
         if len(idx) == 0:
             return
 
-        # Make sure idx is not a GpuArray otherwise we cannot use its content
-        # to index x and y
         if isinstance(idx, gpuarray.GpuArray):
             idx = numpy.asarray(idx)
 
-        # If `y` has as many dimensions as `x`, then we want to iterate
-        # jointly on `x` and `y`. Otherwise, it means `y` should be
-        # broadcasted to fill all relevant rows of `x`.
         if y.ndim == x.ndim and y.shape[0] != 1:
             assert len(y) == len(idx)
             if self.set_instead_of_inc:
@@ -563,7 +544,6 @@ class GpuAdvancedIncSubtensor1(HideC, tensor.AdvancedIncSubtensor1):
                     k(x[i], y[j], broadcast=True)
         else:
             if y.ndim == x.ndim:
-                # First dim is always 1 in this case.
                 reshaped_y = y.reshape(y.shape[1:])
             else:
                 nb_dims_to_add = (x.ndim - 1) - y.ndim

@@ -9,7 +9,6 @@ from theano.tensor.type_other import NoneConst
 
 
 def test_equal_compuations():
-    # This was a bug report by a Theano user.
     c = NoneConst
     assert equal_computations([c], [c])
     m = theano.tensor.matrix()
@@ -18,9 +17,6 @@ def test_equal_compuations():
     assert equal_computations(max_argmax1, max_argmax2)
 
 
-#################
-# map_variables #
-#################
 
 class TestMapVariables(unittest.TestCase):
     @staticmethod
@@ -57,18 +53,12 @@ class TestMapVariables(unittest.TestCase):
     def test_scan(self):
         x = tensor.vector('x')
 
-        # we will insert a subgraph involving these variables into the inner
-        # graph of scan. since they were not previously in the inner graph,
-        # they are like non_sequences to scan(). scan() infers these and
-        # imports them into the inner graph properly, and map_variables()
-        # should do this as well.
         outer = tensor.scalar("outer")
         shared = theano.shared(
             numpy.array(1., dtype=theano.config.floatX),
             name="shared")
         constant = tensor.constant(1, name="constant")
 
-        # z will equal 1 so multiplying by it doesn't change any values
         z = outer * (shared + constant)
 
         def step(x, a):
@@ -78,8 +68,6 @@ class TestMapVariables(unittest.TestCase):
 
         s, _ = theano.scan(step, sequences=x,
                            outputs_info=[numpy.array(0.)])
-        # ensure z is owned by the outer graph so map_variables() will need to
-        # jump through additional hoops to placate FunctionGraph.
         t = z * s
         s2, = map_variables(self.replacer, [t])
         t2 = z * s2
@@ -91,15 +79,11 @@ class TestMapVariables(unittest.TestCase):
     def test_scan_with_shared_update(self):
         x = tensor.vector('x')
 
-        # counts how many times its value is used
         counter = theano.shared(0, name="shared")
         counter.update = counter + 1
 
         def step(x, a):
             r = a + x
-            # introducing a shared variable with an update into the
-            # inner graph is unsupported and the code must crash rather
-            # than silently produce the wrong result.
             r.tag.replacement = counter * (a - x)
             return r
 
@@ -111,20 +95,12 @@ class TestMapVariables(unittest.TestCase):
     def test_scan_with_shared_update2(self):
         x = tensor.vector('x')
 
-        # counts how many times its value is used
         counter = theano.shared(0, name="shared")
         counter.update = counter + 1
 
         def step(x, a):
             r = a + x
-            # introducing a shared variable with an update into the
-            # inner graph is unsupported and the code must crash rather
-            # than silently produce the wrong result.
             r.tag.replacement = counter * (a - x)
-            # the shared variable was already present, but the
-            # replacement changes the number of times it is used,
-            # which would have to change the updates, which is
-            # unsupported.
             return r + counter
 
         s, _ = theano.scan(step, sequences=x,
@@ -133,8 +109,6 @@ class TestMapVariables(unittest.TestCase):
                           map_variables, self.replacer, [s])
 
     def test_opfromgraph(self):
-        # as with the scan tests above, insert foreign inputs into the
-        # inner graph.
         outer = tensor.scalar("outer")
         shared = theano.shared(
             numpy.array(1., dtype=theano.config.floatX),
@@ -142,13 +116,11 @@ class TestMapVariables(unittest.TestCase):
         constant = tensor.constant(1., name="constant")
         z = outer * (shared + constant)
 
-        # construct the inner graph
         a = tensor.scalar()
         b = tensor.scalar()
         r = a + b
         r.tag.replacement = z * (a - b)
 
-        # construct the outer graph
         c = tensor.scalar()
         d = tensor.scalar()
         u = theano.OpFromGraph([a, b], [r])(c, d)
@@ -160,8 +132,6 @@ class TestMapVariables(unittest.TestCase):
         for m, n in itertools.combinations(range(10), 2):
             assert f(m, n, outer=0.5) == [m + n, m - n]
 
-        # test that the unsupported case of replacement with a shared
-        # variable with updates crashes
         shared.update = shared + 1
         self.assertRaises(NotImplementedError,
                           map_variables, self.replacer, [t])

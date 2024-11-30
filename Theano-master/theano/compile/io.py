@@ -97,7 +97,6 @@ class SymbolicInput(object):
         return str(self)
 
 
-# TODO: FB: I think this isn't used, confirm this and remove.
 class SymbolicInputKit(object):
     """
     Represents a group ("kit") of SymbolicInputs. If fed into function or
@@ -221,14 +220,9 @@ class In(SymbolicInput):
         content without being aware of it).
 
     """
-    # Note: the documentation above is duplicated in doc/topics/function.txt,
-    # try to keep it synchronized.
     def __init__(self, variable, name=None, value=None, update=None,
                  mutable=None, strict=False, allow_downcast=None,
                  autoname=True, implicit=None, borrow=None, shared=False):
-        # if shared, an input's value comes from its persistent
-        # storage, not from a default stored in the function or from
-        # the caller
         self.shared = shared
 
         if borrow is None:
@@ -236,9 +230,6 @@ class In(SymbolicInput):
         else:
             self.borrow = borrow
 
-        # mutable implies the output can be both aliased to the input and that
-        # the input can be destroyed. borrow simply implies the output can be
-        # aliased to the input. Thus mutable=True should require borrow=True.
         if mutable and not self.borrow:
             raise AssertionError(
                 "Symbolic input for variable %s (name=%s) has "

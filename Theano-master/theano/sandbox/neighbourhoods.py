@@ -116,29 +116,19 @@ class NeighbourhoodsFromImages(Op):
 
         return dims, num_strides
 
-    # for inverse mode
-    # "output" here actually referes to the Op's input shape (but it's inverse
-    # mode)
     def in_shape(self, output_shape):
         out_dims = list(output_shape[:self.n_dims_before])
         num_strides = []
 
-        # in the inverse case we don't worry about borders:
-        # they either have been filled with zeros, or have been cropped
         for i, ds in enumerate(self.dims_neighbourhoods):
-            # the number of strides performed by NeighFromImg is
-            # directly given by this shape
             num_strides.append(output_shape[self.n_dims_before + i])
 
-            # our Op's output image must be at least this wide
             at_least_width = num_strides[i] * self.strides[i]
 
-            # ... which gives us this number of neighbourhoods
             num_neigh = at_least_width // ds
             if at_least_width % ds != 0:
                 num_neigh += 1
 
-            # making the final Op's output dimension this wide
             out_dims.append(num_neigh * ds)
 
         return out_dims, num_strides
@@ -146,7 +136,6 @@ class NeighbourhoodsFromImages(Op):
     def make_node(self, x):
         x = theano.tensor.as_tensor_variable(x)
         if self.inverse:
-            # +1 in the inverse case
             if x.type.ndim != (self.n_dims_before +
                                len(self.dims_neighbourhoods) + 1):
                 raise TypeError()
@@ -160,7 +149,6 @@ class NeighbourhoodsFromImages(Op):
         x, = inp
         z, = out
         if self.inverse:
-            # +1 in the inverse case
             if len(x.shape) != (self.n_dims_before +
                                 len(self.dims_neighbourhoods) + 1):
                 raise ValueError("Images passed as input don't match the "
@@ -198,7 +186,6 @@ class NeighbourhoodsFromImages(Op):
         exec(self.code)
 
     def make_py_code(self):
-        # TODO : need description for method and return
         code = self._py_outerloops()
         for i in xrange(len(self.strides)):
             code += self._py_innerloop(i)
@@ -206,7 +193,6 @@ class NeighbourhoodsFromImages(Op):
         return code, builtins.compile(code, '<string>', 'exec')
 
     def _py_outerloops(self):
-        # TODO : need description for method, parameter and return
         code_before = ""
         for dim_idx in xrange(self.n_dims_before):
             code_before += ('\t' * (dim_idx)) + \
@@ -215,7 +201,6 @@ class NeighbourhoodsFromImages(Op):
         return code_before
 
     def _py_innerloop(self, inner_dim_no):
-        # TODO : need description for method, parameter and return
         base_indent = ('\t' * (self.n_dims_before + inner_dim_no * 2))
         code_before = base_indent + \
             "for stride_idx_%d in xrange(num_strides[%d]):\n" % \
@@ -235,12 +220,10 @@ class NeighbourhoodsFromImages(Op):
         return code_before
 
     def _py_flattened_idx(self):
-        # TODO : need description for method and return
         return "+".join(["neigh_strides[%d]*neigh_idx_%d" % (i, i)
                         for i in xrange(len(self.strides))])
 
     def _py_assignment(self):
-        # TODO : need description for method and return
         input_idx = "".join(["outer_idx_%d," % (i,)
                             for i in xrange(self.n_dims_before)])
         input_idx += "".join(["dim_%d_offset+neigh_idx_%d," %
@@ -250,15 +233,10 @@ class NeighbourhoodsFromImages(Op):
             ["stride_idx_%d," % (i,) for i in xrange(len(self.strides))])
         out_idx += self._py_flattened_idx()
 
-        # return_val = '\t' * (self.n_dims_before + len(self.strides)*2)
-        # return_val += "print "+input_idx+"'\\n',"+out_idx+"\n"
 
         return_val = '\t' * (self.n_dims_before + len(self.strides) * 2)
 
         if self.inverse:
-            # remember z and x are inversed:
-            # z is the Op's output, but has input_shape
-            # x is the Op's input, but has out_shape
             return_val += "z[0][%s] = x[%s]\n" % (input_idx, out_idx)
         else:
             return_val += "z[0][%s] = x[%s]\n" % (out_idx, input_idx)
@@ -267,7 +245,6 @@ class NeighbourhoodsFromImages(Op):
 
 
 class ImagesFromNeighbourhoods(NeighbourhoodsFromImages):
-    # TODO : need description for class, parameters
     def __init__(self, n_dims_before, dims_neighbourhoods,
                  strides=None, ignore_border=False):
         NeighbourhoodsFromImages.__init__(self, n_dims_before,
@@ -275,4 +252,3 @@ class ImagesFromNeighbourhoods(NeighbourhoodsFromImages):
                                           strides=strides,
                                           ignore_border=ignore_border,
                                           inverse=True)
-        # and that's all there is to it

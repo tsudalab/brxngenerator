@@ -9,8 +9,6 @@ from theano import tensor, function
 from theano.tests.unittest_tools import attr
 
 
-# this tests other ops to ensure they keep the dimensions of their
-# inputs correctly
 class TestKeepDims(unittest.TestCase):
 
     def makeKeepDims_local(self, x, y, axis):
@@ -43,12 +41,8 @@ class TestKeepDims(unittest.TestCase):
 
         x = tensor.dtensor3()
         a = numpy.random.rand(3, 2, 4)
-        # We don't need to test all opt and C code, as this is tested
-        # by the ops tests.
         mode = theano.compile.Mode(optimizer="fast_compile", linker="py")
 
-        # 'max_and_argmax' has two outputs and can be specified with either
-        # a single or every axis:
         for axis in [0, 1, 2, [0], [1], [2], None, [0, 1, 2],
                      [-1], [-2], [-3], [-1, -2, -3], [0, -1, -2],
                      [-2, -3, 2]]:
@@ -72,8 +66,6 @@ class TestKeepDims(unittest.TestCase):
             assert numpy.allclose(ans1, ans2)
             assert ans1.shape == ans2.shape
 
-        # the following ops can be specified with either a single axis or every
-        # axis:
         for op in ([tensor.argmax, tensor.argmin]):
             for axis in [0, 1, 2, [0], [1], [2], None, [0, 1, 2],
                          [-1], [-2], [-3], [-1, -2, -3], [0, -2, 2]]:
@@ -87,8 +79,6 @@ class TestKeepDims(unittest.TestCase):
                 assert numpy.allclose(ans1, ans2)
                 assert ans1.shape == ans2.shape
 
-        # the following ops can be specified with a freely specified axis
-        # parameter
         for op in ([tensor.sum, tensor.prod, tensor.mean, tensor.var,
                     tensor.std, tensor.all, tensor.any,
                     tensor.max, tensor.min]):

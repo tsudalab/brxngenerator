@@ -7,7 +7,6 @@ import getopt
 from collections import defaultdict
 
 if __name__ == '__main__':
-    # Equivalent of sys.path[0]/../..
     throot = os.path.abspath(
         os.path.join(sys.path[0], os.pardir, os.pardir))
 
@@ -32,7 +31,6 @@ if __name__ == '__main__':
         sys.exit(0)
 
     if not(options['--rst'] or options['--test']):
-        # Default is now rst
         options['--rst'] = True
 
     def mkdir(path):
@@ -49,7 +47,6 @@ if __name__ == '__main__':
     mkdir(outdir)
     os.chdir(outdir)
 
-    # Make sure the appropriate 'theano' directory is in the PYTHONPATH
     pythonpath = os.environ.get('PYTHONPATH', '')
     pythonpath = os.pathsep.join([throot, pythonpath])
     sys.path[0:0] = [throot]  # We must not use os.environ.
@@ -76,11 +73,9 @@ if __name__ == '__main__':
         call_sphinx('html', '.')
 
         if not options['--nopdf']:
-            # Generate latex file in a temp directory
             import tempfile
             workdir = tempfile.mkdtemp()
             call_sphinx('latex', workdir)
-            # Compile to PDF
             os.chdir(workdir)
             os.system('make')
             try:
@@ -97,5 +92,4 @@ if __name__ == '__main__':
         sys.path[0:0] = [os.path.join(throot, 'doc')]
         call_sphinx('doctest', '.')
 
-    # To go back to the original current directory.
     os.chdir(currentdir)

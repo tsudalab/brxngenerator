@@ -42,16 +42,12 @@ def as_gpuarray_variable(x, context_name):
         target context name for the result
 
     """
-    # If this is already some form of variable, try to avoid an extra transfer
     if isinstance(x, Variable):
         while True:
-            # If we are already a GpuArrayVariable in the right context
-            # then there is nothing to do.
             if (isinstance(x.type, GpuArrayType) and
                     x.type.context_name == context_name):
                 return x
 
-            # If x is the result of a transfer, try to dig through.
             if getattr(x, 'owner', None):
                 if isinstance(x.owner.op, HostFromGpu):
                     x = x.owner.inputs[0]
@@ -63,19 +59,14 @@ def as_gpuarray_variable(x, context_name):
                     x = x.owner.inputs[0]
                     continue
 
-            # If none of the conditions where met, then continue with
-            # the rest of the body
             break
 
-        # If we couldn't deal with transfers, then maybe it's a tensor
         if isinstance(x.type, tensor.TensorType):
             return GpuFromHost(context_name)(x)
 
-    # Try _as_GpuArrayVariable if possible
     if hasattr(x, '_as_GpuArrayVariable'):
         return x._as_GpuArrayVariable(context_name)
 
-    # If it didn't work try for a constant
     ctx = get_context(context_name)
 
     if isinstance(x, gpuarray.GpuArray):
@@ -96,9 +87,6 @@ def infer_context_name(*vars):
     Infer the context name to use from the inputs given
 
     """
-    # We try to infer the closest context first
-    # TODO: What to do in case of context conflicts?
-    #       We currently use a first found wins approach.
     todo = deque()
     todo.extendleft(vars)
     while todo:
@@ -112,7 +100,6 @@ def infer_context_name(*vars):
                 return v.owner.inputs[0].type.context_name
             if len(v.owner.inputs) == 1:
                 todo.extendleft(v.owner.inputs)
-    # If we can't find a context try None if it exists
     try:
         get_context(None)
         return None
@@ -290,8 +277,6 @@ class GpuKernelBase(object):
         cleanups = '\n'.join(self._generate_kernel_cleanup(k) for k in kernels)
         return cleanups
 
-    # This is a shorthand for if your op only has a fixed version
-    # You can reimplement it, but make sure to call kernel_version()
     def c_code_cache_version_apply(self, node):
         return (self.c_code_cache_version(), self.kernel_version(node))
 
@@ -563,7 +548,6 @@ class GpuAlloc(HideC, Alloc):
         return get_context(self.context_name)
 
     def __str__(self):
-        # Hide the memset parameter when not used to prevent confusion.
         if self.memset_0:
             m = "{memset_0=True}"
         else:
@@ -672,18 +656,9 @@ class GpuAlloc(HideC, Alloc):
         from . import subtensor, blas
         for client in node.outputs[0].clients:
             if client[0] == 'output':
-                # If the output is a constant, it will have to be deepcopied
-                # each time the function is called.  So we do not fold.
                 return False
-            # The following ops work inplace of their input id 0.
             elif (client[1] == 0 and
-                  # Ops that will work inplace on the Alloc. So if they
-                  # get constant_folded, they would copy the
-                  # constant and this is less efficients.
 
-                  # Not doing the constant folding could also lower
-                  # the peak memory usage, as we the "constant" won't
-                  # always exists.
                   isinstance(client[0].op,
                              (subtensor.GpuIncSubtensor,
                               subtensor.GpuAdvancedIncSubtensor1,
@@ -692,8 +667,6 @@ class GpuAlloc(HideC, Alloc):
                               blas.GpuGer)
                              )):
                 return False
-            # If the clients is a transfer, we don't want to fold. We
-            # let the moving opt finish before deciding what to do.
             elif isinstance(client[0].op, HostFromGpu):
                 return False
         return True
@@ -720,7 +693,6 @@ class GpuAllocEmpty(HideC, Alloc):
         output = GpuArrayType(dtype=self.dtype, broadcastable=bcast,
                               context_name=self.context_name)()
         output.tag.values_eq_approx = tensor.type.values_eq_approx_always_true
-        # The outut can contain nan/inf.
         output.type.filter_checks_isfinite = False
         output.tag.nan_guard_mode_check = False
         return Apply(self, sh, [output])
@@ -734,7 +706,6 @@ class GpuAllocEmpty(HideC, Alloc):
         sh = [int(i) for i in inputs]
         if out[0] is None or out[0].shape != sh:
             out[0] = pygpu.empty(sh, dtype=self.dtype, context=ctx)
-        # if out[0] is the right shape, we just return it
 
     def c_headers(self):
         return ['<gpuarray_helper.h>']
@@ -777,7 +748,6 @@ if (theano_prep_output(&%(zz)s, %(ndim)s, shape, %(type)s, GA_C_ORDER,
         return [node.inputs]
 
     def grad(self, *args):
-        # Don't reuse the grad implementation from Alloc
         raise NotImplementedError("grad disabled")
 
 
@@ -856,7 +826,6 @@ class GpuReshape(HideC, tensor.Reshape):
 
     _f16_ok = True
 
-    # __hash__, __eq__, __str__ come from tensor.Reshape
     def make_node(self, x, shp):
         ctx_name = infer_context_name(x)
         x = as_gpuarray_variable(x, context_name=ctx_name)
@@ -875,8 +844,6 @@ class GpuReshape(HideC, tensor.Reshape):
                              ', should be %i' % (len(shp), self.ndim), shp)
 
         if shp.prod() != x.size:
-            # We need to do check here to raise the same error as NumPy.
-            # We should make pygpu do the same.
             ss = 1
             nb_m1 = 0
             for i in shp:
@@ -1010,9 +977,6 @@ class GpuJoin(HideC, Join):
 
     def c_support_code(self):
         return """
-#if PY_MAJOR_VERSION >= 3
-#define PyInt_AsLong PyLong_AsLong
-#endif
 """
 
     def c_code(self, node, name, inputs, out_, sub):
@@ -1067,7 +1031,6 @@ class GpuSplit(HideC, Split):
                              context_name=x.type.context_name)()
                 for o in node.outputs]
         return Apply(self, [x] + node.inputs[1:], outs)
-    # we reuse the perform of the CPU op, which is suitable
 
 
 class GpuEye(GpuKernelBase, Op):
@@ -1098,7 +1061,6 @@ class GpuEye(GpuKernelBase, Op):
                              broadcastable=(False, False),
                              context_name=self.context_name)
 
-        # k != 0 isn't implemented on the GPU yet.
         assert tensor.get_scalar_constant_value(k) == 0
         return Apply(self, [n, m], [otype()])
 

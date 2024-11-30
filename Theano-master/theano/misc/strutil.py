@@ -17,9 +17,6 @@ def render_string(string, sub):
     try:
         finalCode = string % sub
     except Exception as E:
-        # If unable to render the string, render longer and longer
-        # initial substrings until we find the minimal initial substring
-        # that causes an error
         i = 0
         while i <= len(string):
             try:
@@ -43,10 +40,8 @@ def pretty_format(string):
         indent -= lines[i].count('}')
         if indent < 0:
             indent = 0
-        #
         lines[i] = ('    ' * indent) + lines[i]
         indent += lines[i].count('{')
-    #
 
     rval = '\n'.join(lines)
 

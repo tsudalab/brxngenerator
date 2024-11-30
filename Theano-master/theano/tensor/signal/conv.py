@@ -55,7 +55,6 @@ def conv2d(input, filters, image_shape=None, filter_shape=None,
     assert input.ndim in (2, 3)
     assert filters.ndim in (2, 3)
 
-    # use shape information if it is given to us ###
     if filter_shape and image_shape:
         if input.ndim == 3:
             bsize = image_shape[0]
@@ -72,7 +71,6 @@ def conv2d(input, filters, image_shape=None, filter_shape=None,
         nkern, kshp = None, None
         bsize, imshp = None, None
 
-    # reshape tensors to 4D, for compatibility with ConvOp ###
     if input.ndim == 3:
         sym_bsize = input.shape[0]
     else:
@@ -89,14 +87,12 @@ def conv2d(input, filters, image_shape=None, filter_shape=None,
     new_filter_shape = tensor.join(0, tensor.stack([sym_nkern, 1]), filters.shape[-2:])
     filters4D = tensor.reshape(filters, new_filter_shape, ndim=4)
 
-    # perform actual convolution ###
     op = conv.ConvOp(output_mode=border_mode,
                      dx=subsample[0], dy=subsample[1],
                      imshp=imshp, kshp=kshp, nkern=nkern, bsize=bsize, **kargs)
 
     output = op(input4D, filters4D)
 
-    # flatten to 3D tensor if convolving with single filter or single image
     if input.ndim == 2 and filters.ndim == 2:
         if theano.config.warn.signal_conv2d_interface:
             warnings.warn(

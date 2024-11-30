@@ -83,7 +83,6 @@ if 0:
                 runs = None
 
             def importer(node):
-                # print 'IMPORTING', node
                 self.backtrack(node, tasks)
             def pruner(node):
                 try:
@@ -94,9 +93,6 @@ if 0:
                 if new_r.owner and not r.clients:
                     self.backtrack(new_r.owner, tasks)
 
-    #         # == NOT IDEAL == #
-    #         for node in fgraph.apply_nodes:
-    #             importer(node)
 
             for node in fgraph.toposort():
                 tasks[node].extend(lopt for track, i, lopt in self.fetch_tracks0(node.op))
@@ -117,28 +113,10 @@ if 0:
                         break
             self.detach_updater(fgraph, u)
 
-#     def match(self, node, candidates):
-#         candidates[:] = [candidate
-#                          for candidate in candidates
-#                          if candidate.current.op is None or candidate.current.op == node.op]
-#         for candidate in candidates:
-#             if candidate.current.inputs is not None:
-#                 for in1, in2 in zip(candidate.current.inputs, node.inputs):
-#                     if isinstance(in1, string_types):
-#                         candidate.match[in1] = in2
-#         for client in node.clients:
 
 
-#         op = node.op
-#         patterns = self.pattern_base[(depth, op)].union(self.pattern_base[(depth, WILDCARD)])
-#         if not patterns:
-#             return patterns
-#         return self.match(node, depth + 1).intersection(patterns)
 
 
-#     def backtrack(self, node, q):
-#         for node2, i in node.clients:
-#             op2 = node2.op
 
 
 

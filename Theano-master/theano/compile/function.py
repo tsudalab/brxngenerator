@@ -240,7 +240,6 @@ def function(inputs, outputs=None, mode=None, updates=None, givens=None,
         output_keys = None
 
     if name is None:
-        # Determine possible file names
         source_file = re.sub('\.pyc?', '.py', __file__)
         compiled_file = source_file + 'c'
 
@@ -252,7 +251,6 @@ def function(inputs, outputs=None, mode=None, updates=None, givens=None,
             func_frame = stack[idx - 1]
             while "theano/gof" in func_frame[0] and idx > 0:
                 idx -= 1
-                # This can hapen if we call var.eval()
                 func_frame = stack[idx - 1]
             name = func_frame[0] + ':' + str(func_frame[1])
 
@@ -281,12 +279,10 @@ def function(inputs, outputs=None, mode=None, updates=None, givens=None,
                         "contained in a list, even when there is a single "
                         "input.")
 
-    # compute some features of the arguments:
     uses_tuple = any([isinstance(i, (list, tuple)) for i in inputs])
     uses_updates = bool(updates)
     uses_givens = bool(givens)
 
-    # See if we have any mutable / borrow inputs
     check_for_aliased_inputs = False
     for i in inputs:
         if (isinstance(i, In) and ((hasattr(i, 'borrow') and i.borrow) or
@@ -294,7 +290,6 @@ def function(inputs, outputs=None, mode=None, updates=None, givens=None,
             check_for_aliased_inputs = True
 
     if uses_tuple:
-        # we must use old semantics in this case.
         if profile:
             raise NotImplementedError("profiling not supported in old-style "
                                       "function")
@@ -306,8 +301,6 @@ def function(inputs, outputs=None, mode=None, updates=None, givens=None,
                            mode=mode,
                            accept_inplace=accept_inplace, name=name)
     else:
-        # note: pfunc will also call orig_function -- orig_function is
-        #      a choke point that all compilation must pass through
         fn = pfunc(params=inputs,
                    outputs=outputs,
                    mode=mode,
@@ -320,7 +313,5 @@ def function(inputs, outputs=None, mode=None, updates=None, givens=None,
                    on_unused_input=on_unused_input,
                    profile=profile,
                    output_keys=output_keys)
-    # We need to add the flag check_aliased inputs if we have any mutable or
-    # borrowed used defined inputs
     fn._check_for_aliased_inputs = check_for_aliased_inputs
     return fn

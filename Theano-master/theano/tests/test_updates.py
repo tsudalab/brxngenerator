@@ -18,7 +18,6 @@ class test_ifelse(unittest.TestCase):
 
         up = OrderedUpdates()
 
-        # keys have to be SharedVariables
         self.assertRaises(TypeError, up.__setitem__, 5, 7)
         self.assertRaises(TypeError, up.__setitem__, T.vector(), 7)
 
@@ -36,7 +35,6 @@ class test_ifelse(unittest.TestCase):
 
         up1[a] = 5
 
-        # test that addition works
         assert up1
         assert up1 + up2
         assert not up2
@@ -56,8 +54,6 @@ class test_ifelse(unittest.TestCase):
         assert a in (up1 + up2)
         assert b in (up1 + up2)
 
-        # this works even though there is a collision
-        # because values all match
         assert len(up1 + up1 + up1) == 1
 
         up2[a] = 8  # a gets different value in up1 and up2
@@ -67,5 +63,4 @@ class test_ifelse(unittest.TestCase):
         except KeyError:
             pass
 
-        # reassigning to a key works fine right?
         up2[a] = 10

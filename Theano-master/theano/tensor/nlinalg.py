@@ -97,7 +97,6 @@ class MatrixInverse(Op):
         x, = inputs
         xi = self(x)
         gz, = g_outputs
-        # TT.dot(gz.T,xi)
         return [-matrix_dot(xi, gz.T, xi).T]
 
     def R_op(self, inputs, eval_points):
@@ -170,7 +169,6 @@ class MatrixInversePSD(Op):
         x, = inputs
         xi = self(x)
         gz, = g_outputs
-        # TT.dot(gz.T,xi)
         return [-matrix_dot(xi, gz.T, xi).T]
 
     def R_op(self, inputs, eval_points):
@@ -274,7 +272,6 @@ class ExtractDiag(Op):
         implemented our own. """
         x, = ins
         z, = outs
-        # zero-dimensional matrices ...
         if x.shape[0] == 0 or x.shape[1] == 0:
             z[0] = node.outputs[0].type.value_zeros((0,))
             return
@@ -306,7 +303,6 @@ class ExtractDiag(Op):
         return [(shp,)]
 
 extract_diag = ExtractDiag()
-# TODO: optimization to insert ExtractDiag with view=True
 
 
 def diag(x):
@@ -453,11 +449,6 @@ class Eigh(Eig):
     def make_node(self, x):
         x = as_tensor_variable(x)
         assert x.ndim == 2
-        # Numpy's linalg.eigh may return either double or single
-        # presision eigenvalues depending on installed version of
-        # LAPACK.  Rather than trying to reproduce the (rather
-        # involved) logic, we just probe linalg.eigh with a trivial
-        # input.
         w_dtype = self._numop([[numpy.dtype(x.dtype).type()]])[0].dtype.name
         w = theano.tensor.vector(dtype=w_dtype)
         v = theano.tensor.matrix(dtype=x.dtype)
@@ -493,8 +484,6 @@ class Eigh(Eig):
         """
         x, = inputs
         w, v = self(x)
-        # Replace gradients wrt disconnected variables with
-        # zeros. This is a work-around for issue #1063.
         gw, gv = _zero_disconnected([w, v], g_outputs)
         return [EighGrad(self.UPLO)(x, w, v, gw, gv)]
 
@@ -556,20 +545,8 @@ class EighGrad(Op):
         g = sum(outer(v[:, n], v[:, n] * W[n] + G(n))
                 for n in xrange(N))
 
-        # Numpy's eigh(a, 'L') (eigh(a, 'U')) is a function of tril(a)
-        # (triu(a)) only.  This means that partial derivative of
-        # eigh(a, 'L') (eigh(a, 'U')) with respect to a[i,j] is zero
-        # for i < j (i > j).  At the same time, non-zero components of
-        # the gradient must account for the fact that variation of the
-        # opposite triangle contributes to variation of two elements
-        # of Hermitian (symmetric) matrix. The following line
-        # implements the necessary logic.
         out = self.tri0(g) + self.tri1(g).T
 
-        # The call to self.tri0 in perform upcast from float32 to
-        # float64 or from int* to int64 in numpy 1.6.1 but not in
-        # 1.6.2. We do not want version dependent dtype in Theano.
-        # We think it should be the same as the output.
         outputs[0][0] = numpy.asarray(out, dtype=node.outputs[0].dtype)
 
     def infer_shape(self, node, shapes):
@@ -726,7 +703,6 @@ class SVD(Op):
 
     """
 
-    # See doc in the docstring of the function just after this class.
     _numop = staticmethod(numpy.linalg.svd)
     __props__ = ('full_matrices', 'compute_uv')
 

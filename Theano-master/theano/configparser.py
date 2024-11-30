@@ -1,6 +1,3 @@
-# For flag of bool type, we consider the strings 'False', 'false' and '0'
-# as False, and the string s'True', 'true', '1' as True.
-# We also accept the bool type as its corresponding value!
 from __future__ import absolute_import, print_function, division
 
 import logging
@@ -25,9 +22,6 @@ class TheanoConfigWarning(Warning):
     warn = classmethod(warn)
 
 THEANO_FLAGS = os.getenv("THEANO_FLAGS", "")
-# The THEANO_FLAGS environment variable should be a list of comma-separated
-# [section.]option=value entries. If the section part is omitted, there should
-# be only one section that contains the given option.
 
 
 def parse_config_string(config_string, issue_warnings=True):
@@ -51,22 +45,16 @@ def parse_config_string(config_string, issue_warnings=True):
                     stacklevel=1)
         else:
             k, v = kv_tuple
-            # subsequent values for k will override earlier ones
             config_dict[k] = v
     return config_dict
 
 THEANO_FLAGS_DICT = parse_config_string(THEANO_FLAGS, issue_warnings=True)
 
 
-# THEANORC can contain a colon-delimited list of config files, like
-# THEANORC=~lisa/.theanorc:~/.theanorc
-# In that case, definitions in files on the right (here, ~/.theanorc) have
-# precedence over those in files on the left.
 def config_files_from_theanorc():
     rval = [os.path.expanduser(s) for s in
             os.getenv('THEANORC', '~/.theanorc').split(os.pathsep)]
     if os.getenv('THEANORC') is None and sys.platform == "win32":
-        # to don't need to change the filename and make it open easily
         rval.append(os.path.expanduser('~/.theanorc.txt'))
     return rval
 
@@ -82,9 +70,6 @@ theano_cfg = ConfigParser.SafeConfigParser(
      }
 )
 theano_cfg.read(config_files)
-# Having a raw version of the config around as well enables us to pass
-# through config values that contain format strings.
-# The time required to parse the config twice is negligible.
 theano_raw_cfg = ConfigParser.RawConfigParser()
 theano_raw_cfg.read(config_files)
 
@@ -117,7 +102,6 @@ def change_flags(**kwargs):
                     assert len(l) == 1
                     l[0].__set__(None, old_val[k])
 
-        # Make sure that the name of the decorated function remains the same.
         inner.__name__ = f.__name__
 
         return inner
@@ -135,7 +119,6 @@ def fetch_val_for_key(key, delete_key=False):
 
     """
 
-    # first try to find it in the FLAGS
     try:
         if delete_key:
             return THEANO_FLAGS_DICT.pop(key)
@@ -143,9 +126,7 @@ def fetch_val_for_key(key, delete_key=False):
     except KeyError:
         pass
 
-    # next try to find it in the config file
 
-    # config file keys can be of form option, or section.option
     key_tokens = key.rsplit('.', 1)
     if len(key_tokens) > 2:
         raise KeyError(key)
@@ -189,7 +170,6 @@ def get_config_md5():
 
 
 class TheanoConfigParser(object):
-    # properties are installed by AddConfigVar
     _i_am_a_config_class = True
 
     def __str__(self, print_doc=True):
@@ -197,22 +177,9 @@ class TheanoConfigParser(object):
         _config_print(self.__class__, sio, print_doc=print_doc)
         return sio.getvalue()
 
-# N.B. all instances of TheanoConfigParser give access to the same properties.
 config = TheanoConfigParser()
 
 
-# The data structure at work here is a tree of CLASSES with
-# CLASS ATTRIBUTES/PROPERTIES that are either a) INSTANTIATED
-# dynamically-generated CLASSES, or b) ConfigParam instances.  The root
-# of this tree is the TheanoConfigParser CLASS, and the internal nodes
-# are the SubObj classes created inside of AddConfigVar().
-# Why this design ?
-# - The config object is a true singleton.  Every instance of
-#   TheanoConfigParser is an empty instance that looks up attributes/properties
-#   in the [single] TheanoConfigParser.__dict__
-# - The subtrees provide the same interface as the root
-# - ConfigParser subclasses control get/set of config properties to guard
-#   against craziness.
 
 def AddConfigVar(name, doc, configparam, root=config, in_c_key=True):
     """Add a new variable to theano.config
@@ -241,18 +208,12 @@ def AddConfigVar(name, doc, configparam, root=config, in_c_key=True):
     :returns: None
     """
 
-    # This method also performs some of the work of initializing ConfigParam
-    # instances
 
     if root is config:
-        # only set the name in the first call, not the recursive ones
         configparam.fullname = name
     sections = name.split('.')
     if len(sections) > 1:
-        # set up a subobject
         if not hasattr(root, sections[0]):
-            # every internal node in the config tree is an instance of its own
-            # unique class
             class SubObj(object):
                 _i_am_a_config_class = True
             setattr(root.__class__, sections[0], SubObj())
@@ -270,16 +231,11 @@ def AddConfigVar(name, doc, configparam, root=config, in_c_key=True):
                                  configparam.fullname)
         configparam.doc = doc
         configparam.in_c_key = in_c_key
-        # Trigger a read of the value from config files and env vars
-        # This allow to filter wrong value from the user.
         if not callable(configparam.default):
             configparam.__get__(root, type(root), delete_key=True)
         else:
-            # We do not want to evaluate now the default value
-            # when it is a callable.
             try:
                 fetch_val_for_key(configparam.fullname)
-                # The user provided a value, filter it now.
                 configparam.__get__(root, type(root), delete_key=True)
             except KeyError:
                 pass
@@ -298,15 +254,7 @@ class ConfigParam(object):
         self.filter = filter
         self.allow_override = allow_override
         self.is_default = True
-        # N.B. --
-        # self.fullname  # set by AddConfigVar
-        # self.doc       # set by AddConfigVar
 
-        # Note that we do not call `self.filter` on the default value: this
-        # will be done automatically in AddConfigVar, potentially with a
-        # more appropriate user-provided default value.
-        # Calling `filter` here may actually be harmful if the default value is
-        # invalid and causes a crash or has unwanted side effects.
 
     def __get__(self, cls, type_, delete_key=False):
         if cls is None:
@@ -322,7 +270,6 @@ class ConfigParam(object):
                 else:
                     val_str = self.default
             self.__set__(cls, val_str)
-        # print "RVAL", self.val
         return self.val
 
     def __set__(self, cls, val):
@@ -330,7 +277,6 @@ class ConfigParam(object):
             raise Exception(
                 "Can't change the value of this config parameter "
                 "after initialization!")
-        # print "SETTING PARAM", self.fullname,(cls), val
         if self.filter:
             self.val = self.filter(val)
         else:
@@ -342,7 +288,6 @@ class EnumStr(ConfigParam):
         self.default = default
         self.all = (default,) + options
 
-        # All options should be strings
         for val in self.all:
             if not isinstance(val, string_types):
                 raise ValueError('Valid values for an EnumStr parameter '
@@ -403,7 +348,6 @@ def FloatParam(default, is_valid=None, allow_override=True):
 
 
 def BoolParam(default, is_valid=None, allow_override=True):
-    # see comment at the beginning of this file.
 
     def booltype(s):
         if s in ['False', 'false', '0', False]:

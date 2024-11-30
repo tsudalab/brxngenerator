@@ -48,7 +48,6 @@ class GpuConvGrad3D(GpuOp):
         V, d, WShape, dCdH = inputs
         print("GpuConvGrad3D python code (warning not updated to new format)")
 
-        # partial C / partial W[j,z,k,l,m] = sum_i sum_p sum_q sum_r (partial C /partial H[i,j,p,q,r] ) *  V[i,z,dr*p+k,dc*q+l,dt*r+m]
 
         batchSize = dCdH.shape[0]
         outputFilters = dCdH.shape[1]
@@ -64,14 +63,11 @@ class GpuConvGrad3D(GpuOp):
 
         dCdW = numpy.zeros(WShape, dtype=V.dtype)
 
-        # block
         for j in xrange(0, WShape[0]):
             for z in xrange(0, WShape[1]):
                 for k in xrange(0, WShape[2]):
                     for l in xrange(0, WShape[3]):
-                        # threads
                         for m in xrange(0, WShape[4]):
-                            # thread
                             for i in xrange(0, batchSize):
                                 for p in xrange(0, outputHeight):
                                     for q in xrange(0, outputWidth):
@@ -282,9 +278,6 @@ if(!work_complete){
         return strutil.render_string(codeSource, locals())
 
     def c_support_code_apply(self, node, nodename):
-        # This code is not sensitive to the ignore_border flag.
-        # It runs for every position in the output z, and then computes the gradient for the
-        # input pixels that were downsampled to that z-position.
         codeSource =  """
 __global__ void
 //thread block size = WShape[4]
@@ -334,14 +327,11 @@ convgrad_rows_stack( float* img, float* dCdH, float* dCdW,
 
 }
 /*
-        #block
         for j in xrange(0,WShape[0]):
             for z in xrange(0,WShape[1]):
                 for k in xrange(0,WShape[2]):
                     for l in xrange(0,WShape[3]):
-                        #threads
                         for m in xrange(0,WShape[4]):
-                            #thread
                             for i in xrange(0,batchSize):
                                 for p in xrange(0,outputHeight):
                                     for q in xrange(0,outputWidth):
@@ -366,5 +356,4 @@ def local_gpu_conv_grad3d(node):
                     d,
                     WShape,
                     as_cuda_ndarray_variable(dCdH)))]
-# Not enabled by default as we don't want people to use it.
 gpu_optimizer.register("local_gpu_conv_grad3d", local_gpu_conv_grad3d)

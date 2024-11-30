@@ -4,7 +4,6 @@ import sys
 import unittest
 
 import numpy
-# Skip test if cuda_ndarray is not available.
 from nose.plugins.skip import SkipTest
 from nose.tools import assert_raises
 
@@ -36,8 +35,6 @@ imported_scipy_special = False
 try:
     import scipy.special
     imported_scipy_special = True
-# Importing scipy.special may raise ValueError.
-# See http://projects.scipy.org/scipy/ticket/1739
 except (ImportError, ValueError):
     pass
 
@@ -77,19 +74,16 @@ def test_local_remove_all_assert():
     x = theano.tensor.fmatrix()
     a = theano.tensor.opt.assert_op(x, theano.tensor.eq(x, 0).any())
 
-    # By default `unsafe` should not be there
     f = theano.function([x], a, mode=mode_with_gpu)
     topo = f.maker.fgraph.toposort()
     a_op = [n for n in topo if isinstance(n.op, theano.tensor.opt.Assert)]
     assert len(a_op) == 1
 
-    # Put `unsafe`
     f = theano.function([x], a, mode=mode_with_gpu.including('unsafe'))
     topo = f.maker.fgraph.toposort()
     a_op = [n for n in topo if isinstance(n.op, theano.tensor.opt.Assert)]
     assert len(a_op) == 0
 
-    # Remove `unsafe`
     f = theano.function([x], a, mode=mode_with_gpu.excluding('unsafe'))
     topo = f.maker.fgraph.toposort()
     a_op = [n for n in topo if isinstance(n.op, theano.tensor.opt.Assert)]
@@ -120,7 +114,6 @@ def test_local_assert_no_cpu_op():
 
     old = config.assert_no_cpu_op
     old2 = config.on_opt_error
-    # If the flag is raise
     try:
         config.assert_no_cpu_op = 'raise'
         config.on_opt_error = 'ignore'
@@ -131,7 +124,6 @@ def test_local_assert_no_cpu_op():
         config.assert_no_cpu_op = old
         config.on_opt_error = old2
 
-    # If the flag is ignore
     try:
         config.assert_no_cpu_op = 'ignore'
         theano.function([], out, mode=mode_local_assert)
@@ -190,12 +182,7 @@ class Test_local_elemwise_alloc(test_opt.Test_local_elemwise_alloc):
         super(Test_local_elemwise_alloc, self).setUp()
         self.fast_run_mode = mode_with_gpu
 
-        # self.vec = tensor.vector('vec', dtype=dtype)
-        # self.mat = tensor.matrix('mat', dtype=dtype)
-        # self.tens = tensor.tensor3('tens', dtype=dtype)
 
-        # self.alloc_wo_dep = basic_ops.gpu_alloc(self.vec, 2, 2)
-        # self.alloc_w_dep = basic_ops.gpu_alloc(self.vec, *self.mat.shape)
 
         self.alloc_wo_dep = basic_ops.gpu_alloc(self.vec, 2, 2)
         self.alloc_w_dep = basic_ops.gpu_alloc(self.vec, *self.mat.shape)
@@ -226,7 +213,6 @@ def test_alloc_memset_0():
     o = numpy.ones((1,), dtype='float32')
     ones = numpy.ones((2,), dtype='float32')
 
-    # Test with 0
     a = basic_ops.gpu_alloc(cuda.gpu_from_host(tensor.constant(z)), i)
     f = theano.function([i], a, mode=mode_with_gpu)
     topo = f.maker.fgraph.toposort()
@@ -234,7 +220,6 @@ def test_alloc_memset_0():
     assert isinstance(topo[0].op, basic_ops.GpuAlloc) and topo[0].op.memset_0
     assert (numpy.asarray(f(6)) == 0).all()
 
-    # Test with 1
     a = basic_ops.gpu_alloc(cuda.gpu_from_host(tensor.constant(o)), i)
     f = theano.function([i], a, mode=mode_with_gpu)
     topo = f.maker.fgraph.toposort()
@@ -243,7 +228,6 @@ def test_alloc_memset_0():
     assert not topo[0].op.memset_0
     assert (numpy.asarray(f(6)) == 1).all()
 
-    # Test with 1, 1
     a = basic_ops.gpu_alloc(cuda.gpu_from_host(tensor.constant(ones)), i)
     f = theano.function([i], a, mode=mode_with_gpu)
     topo = f.maker.fgraph.toposort()
@@ -290,7 +274,6 @@ def test_softmax_with_bias():
 
 
 def test_opt_gpujoin_onlyajoin():
-    # from a bug in normal sampling
     _a = numpy.asarray([[1, 2], [3, 4]], dtype='float32')
     _b = numpy.asarray([[5, 6, 7], [8, 9, 10]], dtype='float32')
     a = cuda.shared_constructor(_a)
@@ -309,7 +292,6 @@ def test_opt_gpujoin_onlyajoin():
 
     assert numpy.all(f() == numpy.concatenate([_a, _b], axis=1))
 
-    # test mixed dtype
     _b = numpy.asarray([[5, 6, 7], [8, 9, 10]], dtype='float64')
     b = theano.tensor.constant(_b)
 
@@ -326,7 +308,6 @@ def test_opt_gpujoin_onlyajoin():
 
 
 def test_opt_gpujoin_joinvectors_elemwise_then_minusone():
-    # from a bug in gpu normal sampling
     _a = numpy.asarray([1, 2, 3, 4], dtype='float32')
     _b = numpy.asarray([5, 6, 7, 8], dtype='float32')
     a = cuda.shared_constructor(_a)
@@ -358,7 +339,6 @@ def test_opt_gpujoin_joinvectors_negativeaxes():
     Test that negative axis concatenation works as expected.
     """
 
-    # Test case for one-dimensional vectors
     rng = numpy.random.RandomState(22)
     x1 = rng.rand(5)
     x2 = rng.rand(10)
@@ -370,7 +350,6 @@ def test_opt_gpujoin_joinvectors_negativeaxes():
 
     assert(numpy.allclose(f(), numpy.concatenate([x1, x2], axis=-1)))
 
-    # Test case for two-dimensional vectors
     x1 = rng.rand(5, 10)
     x2 = rng.rand(10, 10)
     t1 = cuda.shared_constructor(numpy.asarray(x1, "float32"))
@@ -381,8 +360,6 @@ def test_opt_gpujoin_joinvectors_negativeaxes():
 
     assert(numpy.allclose(f(), numpy.concatenate([x1, x2], axis=-2)))
 
-    # Now check that a value error is raised when vectors don't match
-    # along the negative concatenation axis
     try:
         t = tensor.concatenate([t1, t2], axis=-1)
         f = theano.function(inputs=[], outputs=t)
@@ -391,8 +368,6 @@ def test_opt_gpujoin_joinvectors_negativeaxes():
     except ValueError:
         assert(True)
 
-    # Finally check that a value error is raised when negative
-    # axis is larger in absolute value than smallest number of dims
     try:
         t = tensor.concatenate([t1, t2], axis=-3)
         f = theano.function(inputs=[], outputs=t)
@@ -403,38 +378,30 @@ def test_opt_gpujoin_joinvectors_negativeaxes():
 
 
 def test_local_gpu_subtensor():
-    # Test shared forced on CPU.
     t = tensor._shared(numpy.zeros(20, "float32"))
     f = theano.function([], t[3:4], mode=mode_with_gpu)
     topo = f.maker.fgraph.toposort()
     assert any([type(node.op) is tensor.Subtensor for node in topo])
     assert not any([isinstance(node.op, cuda.GpuSubtensor) for node in topo])
 
-    # Test graph input.
     t = tensor.fmatrix()
     f = theano.function([t], t[3:4], mode=mode_with_gpu)
     topo = f.maker.fgraph.toposort()
     assert any([type(node.op) is tensor.Subtensor for node in topo])
     assert not any([isinstance(node.op, cuda.GpuSubtensor) for node in topo])
 
-    # Test multiple use of the input
-    # We want the subtensor to be on the GPU to prevent multiple transfer.
     t = tensor.fmatrix()
     f = theano.function([t], [t[3:4], t+1], mode=mode_with_gpu)
     topo = f.maker.fgraph.toposort()
     assert not any([type(node.op) is tensor.Subtensor for node in topo])
     assert any([isinstance(node.op, cuda.GpuSubtensor) for node in topo])
 
-    # Test multiple use of the input + input as output
-    # We want the subtensor to be on the GPU to prevent multiple transfer.
     t = tensor.fmatrix()
     f = theano.function([t], [t[3:4], t+1, t], mode=mode_with_gpu)
     topo = f.maker.fgraph.toposort()
     assert not any([type(node.op) is tensor.Subtensor for node in topo])
     assert any([isinstance(node.op, cuda.GpuSubtensor) for node in topo])
 
-    # Test shared forced on CPU end we do computation on the output of
-    # the subtensor.
     t = tensor._shared(numpy.zeros(20, "float32"))
     f = theano.function([], t[3:4]+1, mode=mode_with_gpu)
     topo = f.maker.fgraph.toposort()
@@ -445,52 +412,38 @@ def test_local_gpu_subtensor():
 
 def test_local_gpu_split():
     """ Test that the GpuSplit op is being applied and works """
-    # Construct symbolic split
     x = tensor.fvector()
     splits = tensor.lvector()
     ra, rb, rc = tensor.split(x, splits, n_splits=3, axis=0)
-    # Compile function to use CPU
     f = theano.function([x, splits], [ra, rb, rc], mode=mode_without_gpu)
-    # Get values for CPU version
     cpu_res = f([0, 1, 2, 3, 4, 5], [3, 2, 1])
     l = f.maker.fgraph.toposort()
-    # Ensure that one op is theano.tensor.Split
     assert any([isinstance(o.op, theano.tensor.Split) for o in l])
-    # GPU version
     f = theano.function([x, splits], [ra, rb, rc], mode=mode_with_gpu)
     gpu_res = f([0, 1, 2, 3, 4, 5], [3, 2, 1])
     l = f.maker.fgraph.toposort()
     assert any([isinstance(o.op, cuda.GpuSplit) for o in l])
-    # Check equality
     assert all([(cpu == gpu).all() for cpu, gpu in zip(cpu_res, gpu_res)])
 
-    # Test the other path of the optimizer, when it is the output that
-    # is moved to the GPU.
     ra = cuda.gpu_from_host(ra)
     f = theano.function([x, splits], [ra, rb, rc],
                         mode=mode_with_gpu.excluding("InputToGpuOptimizer"))
     gpu_res = f([0, 1, 2, 3, 4, 5], [3, 2, 1])
     l = f.maker.fgraph.toposort()
     assert any([isinstance(o.op, cuda.GpuSplit) for o in l])
-    # Check equality
     assert all([(cpu == gpu).all() for cpu, gpu in zip(cpu_res, gpu_res)])
 
-    # Test that split with only 1 output work
     ra = tensor.split(x, splits, n_splits=1, axis=0)
     f = theano.function([x, splits], [ra], mode=mode_without_gpu)
     cpu_res = f([0, 1, 2, 3, 4, 5], [6])
     l = f.maker.fgraph.toposort()
-    # Ensure that no op is theano.tensor.Split or GpuSplit, they get
-    # optimized away.
     assert not any([isinstance(o.op, (theano.tensor.Split,
                                       cuda.GpuSplit)) for o in l])
-    # GPU version
     f = theano.function([x, splits], [ra], mode=mode_with_gpu)
     gpu_res = f([0, 1, 2, 3, 4, 5], [6])
     l = f.maker.fgraph.toposort()
     assert not any([isinstance(o.op, (theano.tensor.Split,
                                       cuda.GpuSplit)) for o in l])
-    # Check equality
     assert all([(cpu == gpu).all() for cpu, gpu in zip(cpu_res, gpu_res)])
 
 
@@ -498,9 +451,6 @@ def test_print_op():
     """ Test that print ops don't block gpu optimization"""
     b = tensor.fmatrix()
     f = theano.function([b], theano.printing.Print()(b)*2, mode=mode_with_gpu)
-    # theano.printing.debugprint(f)
-    # print f.maker.fgraph.toposort()
-#[GpuFromHost(<TensorType(float32, matrix)>), <theano.printing.Print object at 0x3581210>(GpuFromHost.0), GpuElemwise{mul}(CudaNdarray{[[ 2.]]}, <theano.printing.Print object at 0x3581210>.0), HostFromGpu(GpuElemwise{mul}.0)]
     topo = f.maker.fgraph.toposort()
     assert topo[0].op == cuda.gpu_from_host
     assert isinstance(topo[1].op, theano.printing.Print)
@@ -513,16 +463,12 @@ def test_pdbbreakpoint_op():
     """ Test that PdbBreakpoint ops don't block gpu optimization"""
     b = tensor.fmatrix()
 
-    # Create a function composed of a breakpoint followed by
-    # some computation
     condition = tensor.gt(b.sum(), 0)
     b_monitored = PdbBreakpoint(name='TestBreakpoint')(condition, b)
     output = b_monitored ** 2
 
     f = theano.function([b], output, mode=mode_with_gpu)
 
-    # Ensure that, in the compiled function, the computation following the
-    # breakpoint has been moved to the gpu.
     topo = f.maker.fgraph.toposort()
     assert isinstance(topo[-2].op, cuda.GpuElemwise)
     assert topo[-1].op == cuda.host_from_gpu
@@ -571,12 +517,9 @@ def test_huge_elemwise_fusion():
     assert sum([isinstance(node.op, cuda.GpuElemwise) for node in topo]) == 2
     assert isinstance(topo[-3].op.scalar_op, theano.scalar.basic.Sub)
     assert isinstance(topo[-2].op.scalar_op, theano.scalar.basic.Composite)
-    # let debugmode catch errors
     gen = lambda: theano._asarray(numpy.random.rand(*shape), dtype='float32')
     f(*[gen() for i in range(nb_in)])
 
-    # Test the case where we can't put the computation on the gpu! their is too
-    # many dimensions to the input to have 2 inputs to the op!
 
     shape = (1, 2, 3, 4, 5, 6, 7, 2, 2, 3, 2, 1, 2, 2, 2,)
     ttype = tensor.tensor(dtype='float32', broadcastable=(False,) * len(shape))
@@ -587,7 +530,6 @@ def test_huge_elemwise_fusion():
     assert len(topo) == 1
     assert sum([isinstance(node.op, cuda.GpuElemwise) for node in topo]) == 0
     assert sum([isinstance(node.op, tensor.Elemwise) for node in topo]) == 1
-    # let debugmode catch errors
     gen = lambda: theano._asarray(numpy.random.rand(*shape), dtype='float32')
     f(gen(), gen(), gen(), gen(), gen(), gen(), gen())
 
@@ -601,9 +543,6 @@ def test_huge_elemwise_fusion():
                   (2, 2, 2, 2),
                   (2, 2, 2, 2, 2),  # 5d
                   (2, 2, 2, 2, 2, 2),
-#                  (2, 2, 2, 2, 2, 2, 2),
-#                  (2, 2, 2, 2, 2, 2, 2, 2),
-#                  (2, 2, 2, 1, 1, 1, 1, 2, 2),  # 9d
                   ]:
         vals = [cuda.shared_constructor(gen(shape)) for x in range(max_var)]
         for use_tan in [True, False]:
@@ -617,14 +556,12 @@ def test_huge_elemwise_fusion():
                     out = cuda.gpu_from_host(out)
                 f = pfunc([], [out], mode=mode_with_gpu)
                 topo = f.maker.fgraph.toposort()
-                # print shape, nb_var, use_tan, len(topo)
                 assert (sum([isinstance(node.op, cuda.GpuElemwise)
                              for node in topo]) == len(topo) or
                         (nb_var == 1 and use_tan is False))
                 assert sum([isinstance(node.op, tensor.Elemwise)
                             for node in topo]) == 0
 
-                # let debugmode catch errors
                 f()
 
 
@@ -640,16 +577,12 @@ def test_local_gpu_elemwise_0():
     b_v = (numpy.random.rand(4, 5) * 10).astype("float32")
     c_v = (numpy.random.rand(4, 5) * 10).astype("float32")
 
-    # Due to optimization order, this composite is created when all
-    # the op are on the gpu.
     f = theano.function([a, b, c], a + b + c, mode=mode_with_gpu)
     topo = f.maker.fgraph.toposort()
     assert sum(isinstance(node.op, cuda.GpuElemwise) for node in topo) == 1
     assert sum(isinstance(node.op, tensor.Elemwise) for node in topo) == 1
     utt.assert_allclose(f(a_v, b_v, c_v), a_v + b_v + c_v)
 
-    # Now test with the composite already on the cpu before we move it
-    # to the gpu
     a_s = theano.scalar.int8()
     b_s = theano.scalar.float32()
     c_s = theano.scalar.float32()
@@ -661,7 +594,6 @@ def test_local_gpu_elemwise_0():
     assert sum(isinstance(node.op, tensor.Elemwise) for node in topo) == 1
     utt.assert_allclose(f(a_v, b_v, c_v), a_v + b_v + c_v)
 
-    # Test multiple output
     a_s = theano.scalar.float32()
     a = tensor.fmatrix()
     from theano.scalar.basic import identity
@@ -677,7 +609,6 @@ def test_local_gpu_elemwise_0():
     utt.assert_allclose(out[1], c_v)
     utt.assert_allclose(out[2], b_v)
 
-    # Test multiple output
     out_s = theano.scalar.Composite([a_s, b_s, c_s], [a_s + b_s, a_s * c_s])
     outs_op = tensor.Elemwise(out_s)
     f = theano.function([a, b, c], outs_op(a, b, c), mode=mode_with_gpu)
@@ -688,7 +619,6 @@ def test_local_gpu_elemwise_0():
     utt.assert_allclose(out[0], a_v + b_v)
     utt.assert_allclose(out[1], a_v * c_v)
 
-    # Test non-contiguous input
     c = cuda.shared_constructor(c_v)
     f = theano.function([a, b], outs_op(a[::2], b[::2], c[::2]),
                         mode=mode_with_gpu)
@@ -710,7 +640,6 @@ def test_elemwise_fusion():
         print(i, node, file=sys.stdout)
     assert len(topo) == 4
     assert isinstance(topo[2].op.scalar_op, theano.scalar.basic.Composite)
-    # let debugmode catch errors
     f(theano._asarray(numpy.random.rand(*shape), dtype='float32'),
       theano._asarray(numpy.random.rand(*shape), dtype='float32'))
 
@@ -730,14 +659,6 @@ class TestIfElse(theano.tests.test_ifelse.test_ifelse):
 
 def test_incsubtensor_mixed():
 
-    # This catches a bug that occurred when incrementing
-    # a float32 tensor by a float64 tensor.
-    # The result is defined to be float32, so it is OK
-    # to downcast the float64 increment in order to
-    # transfer it to the GPU.
-    # The bug was that the optimization called GpuFromHost
-    # without casting first, causing the optimization to
-    # fail.
     X = tensor.fmatrix()
     Y = tensor.dmatrix()
     Z = tensor.inc_subtensor(X[0:1, 0:1], Y)
@@ -810,7 +731,6 @@ def test_local_gpu_dot_to_dot22dot():
 
         assert numpy.allclose(numpy.dot(a0, b0), out)
 
-        # Try with a matrix equal to a0, but with strides in both dims
         a.set_value(a0)
         a.set_value(
             a.get_value(borrow=True,

@@ -10,8 +10,6 @@ import requests
 import getpass
 import json
 
-# Keyring stores passwords by a 'username', but we're not storing a username and
-# password
 fake_username = 'ipython_tools'
 
 token = None

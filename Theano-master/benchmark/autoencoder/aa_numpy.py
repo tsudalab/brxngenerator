@@ -1,11 +1,9 @@
-#!/usr/bin/env python
 from __future__ import absolute_import, print_function, division
 import numpy as N
 import sys
 import time
 from six.moves import xrange
 
-# c: aa.cc
 
 neg, nout, nhid, niter = [int(a) for a in sys.argv[1:]]
 lr = 0.01

@@ -237,7 +237,6 @@ def conv2d_grad_wrt_inputs(output_grad,
     filters = as_tensor_variable(filters)
     output_grad = as_tensor_variable(output_grad)
 
-    # checking the type of input_shape
     for dim in [0, 1]:
         assert isinstance(input_shape[dim], (theano.tensor.TensorConstant,
                                              integer_types, type(None)))
@@ -246,14 +245,11 @@ def conv2d_grad_wrt_inputs(output_grad,
                                              theano.tensor.TensorConstant,
                                              integer_types))
 
-    # checking the type of filter_shape
     if filter_shape is not None:
         for dim in [0, 1, 2, 3]:
             assert isinstance(filter_shape[dim], (theano.tensor.TensorConstant,
                                                   integer_types, type(None)))
 
-    # setting the last two dimensions of input_shape to None, if
-    # the type of these dimensions is TensorVariable.
     numerical_input_shape = list(input_shape)
     for dim in [2, 3]:
         if isinstance(input_shape[dim], theano.tensor.TensorVariable):
@@ -360,7 +356,6 @@ def conv2d_grad_wrt_weights(input,
     input = as_tensor_variable(input)
     output_grad = as_tensor_variable(output_grad)
 
-    # checking the type of filter_shape
     for dim in [0, 1]:
         assert isinstance(filter_shape[dim], (theano.tensor.TensorConstant,
                                               integer_types, type(None)))
@@ -369,14 +364,11 @@ def conv2d_grad_wrt_weights(input,
                                               theano.tensor.TensorConstant,
                                               integer_types))
 
-    # checking the type of input_shape
     if input_shape is not None:
         for dim in [0, 1, 2, 3]:
             assert isinstance(input_shape[dim], (theano.tensor.TensorConstant,
                                                  integer_types, type(None)))
 
-    # setting the last two dimensions of filter_shape to None, if
-    # the type of these dimensions is TensorVariable.
     numerical_filter_shape = list(filter_shape)
     for dim in [2, 3]:
         if isinstance(filter_shape[dim], theano.tensor.TensorVariable):
@@ -517,11 +509,8 @@ def bilinear_upsampling(input,
     row, col = input.shape[2:]
     up_input = input.reshape((-1, 1, row, col))
 
-    # concatenating the first and last row and column
-    # first and last row
     concat_mat = T.concatenate((up_input[:, :, :1, :], up_input,
                                 up_input[:, :, -1:, :]), axis=2)
-    # first and last col
     concat_mat = T.concatenate((concat_mat[:, :, :, :1], concat_mat,
                                 concat_mat[:, :, :, -1:]), axis=3)
     concat_col = col + 2
@@ -530,7 +519,6 @@ def bilinear_upsampling(input,
 
     if use_1D_kernel:
         kern = bilinear_kernel_1D(ratio=ratio, normalize=True)
-        # upsampling rows
         upsampled_row = conv2d_grad_wrt_inputs(output_grad=concat_mat,
                                                filters=kern[np.newaxis,
                                                             np.newaxis, :,
@@ -542,7 +530,6 @@ def bilinear_upsampling(input,
                                                border_mode=(pad, 0),
                                                subsample=(ratio, 1),
                                                filter_flip=True)
-        # upsampling cols
         upsampled_mat = conv2d_grad_wrt_inputs(output_grad=upsampled_row,
                                                filters=kern[np.newaxis,
                                                             np.newaxis,
@@ -646,7 +633,6 @@ class BaseAbstractConv2d(Op):
         self.imshp = tuple(imshp) if imshp else (None,) * 4
         for imshp_i in self.imshp:
             if imshp_i is not None:
-                # Components of imshp should be constant or ints
                 try:
                     get_scalar_constant_value(imshp_i,
                                               only_process_constants=True)
@@ -658,7 +644,6 @@ class BaseAbstractConv2d(Op):
         self.kshp = tuple(kshp) if kshp else (None,) * 4
         for kshp_i in self.kshp:
             if kshp_i is not None:
-                # Components of kshp should be constant or ints
                 try:
                     get_scalar_constant_value(kshp_i,
                                               only_process_constants=True)
@@ -676,22 +661,15 @@ class BaseAbstractConv2d(Op):
 
     def flops(self, inp, outp):
         """ Useful with the hack in profilemode to print the MFlops"""
-        # if the output shape is correct, then this gives the correct
-        # flops for any direction, sampling, padding, and border mode
         inputs, filters = inp
         outputs, = outp
         assert inputs[1] == filters[1]
-        # nb mul and add by output pixel
         flops = filters[2] * filters[3] * 2
-        # nb flops by output image
         flops *= outputs[2] * outputs[3]
-        # nb patch multiplied
         flops *= inputs[1] * filters[0] * inputs[0]
         return flops
 
     def do_constant_folding(self, node):
-        # Disable constant folding since there is no implementation.
-        # This may change in the future.
         return False
 
     def conv2d(self, img, kern, mode="valid"):
@@ -718,7 +696,6 @@ class BaseAbstractConv2d(Op):
             for b in xrange(img.shape[0]):
                 for n in xrange(kern.shape[0]):
                     for im0 in xrange(img.shape[1]):
-                        # some cast generates a warning here
                         out[b, n, ...] += _convolve2d(img[b, im0, ...],
                                                       kern[n, im0, ...],
                                                       1, val, bval, 0)
@@ -742,7 +719,6 @@ class AbstractConv2d(BaseAbstractConv2d):
                                              filter_flip)
 
     def make_node(self, img, kern):
-        # Make sure both inputs are Variables with the same Type
         if not isinstance(img, theano.Variable):
             img = as_tensor_variable(img)
         if not isinstance(kern, theano.Variable):
@@ -821,11 +797,6 @@ class AbstractConv2d(BaseAbstractConv2d):
 
             bottom, top, weights.shape[-2:])
 
-        # Make sure that the broadcastable pattern of the inputs is used
-        # for the gradients, even if the grad opts are not able to infer
-        # that the dimensions are broadcastable.
-        # Also make sure that the gradient lives on the same device than
-        # the corresponding input.
         d_bottom = patternbroadcast(d_bottom, bottom.broadcastable)
         d_bottom = bottom.type.filter_variable(d_bottom)
         d_weights = patternbroadcast(d_weights, weights.broadcastable)
@@ -836,7 +807,6 @@ class AbstractConv2d(BaseAbstractConv2d):
         imshp = input_shapes[0]
         kshp = input_shapes[1]
 
-        # replace symbolic shapes with known constant shapes
         if self.imshp is not None:
             imshp = [imshp[i] if self.imshp[i] is None else self.imshp[i]
                      for i in range(4)]
@@ -869,9 +839,7 @@ class AbstractConv2d_gradWeights(BaseAbstractConv2d):
                                                          subsample,
                                                          filter_flip)
 
-    # Update shape/height_width
     def make_node(self, img, topgrad, shape):
-        # Make sure both inputs are Variables with the same Type
         if not isinstance(img, theano.Variable):
             img = as_tensor_variable(img)
         if not isinstance(topgrad, theano.Variable):
@@ -952,11 +920,6 @@ class AbstractConv2d_gradWeights(BaseAbstractConv2d):
                                self.border_mode,
                                self.subsample,
                                self.filter_flip)(bottom, weights)
-        # Make sure that the broadcastable pattern of the inputs is used
-        # for the gradients, even if the grad opts are not able to infer
-        # that the dimensions are broadcastable.
-        # Also make sure that the gradient lives on the same device than
-        # the corresponding input.
         d_bottom = patternbroadcast(d_bottom, bottom.broadcastable)
         d_bottom = bottom.type.filter_variable(d_bottom)
         d_top = patternbroadcast(d_top, top.broadcastable)
@@ -969,10 +932,6 @@ class AbstractConv2d_gradWeights(BaseAbstractConv2d):
         return [[1], [1], [0]]  # no connection to height, width
 
     def infer_shape(self, node, input_shapes):
-        # We use self.kshp (that was passed when creating the Op) if possible,
-        # or fall back to the `shape` input of the node.
-        # TODO: when there is no subsampling, try to infer the kernel shape
-        # from the shapes of inputs.
         imshp = input_shapes[0]
         topshp = input_shapes[1]
         kshp = self.kshp[:] if self.kshp is not None else [None] * 4
@@ -1004,9 +963,7 @@ class AbstractConv2d_gradInputs(BaseAbstractConv2d):
                                                         subsample,
                                                         filter_flip)
 
-    # Update shape/height_width
     def make_node(self, kern, topgrad, shape):
-        # Make sure both inputs are Variables with the same Type
         if not isinstance(kern, theano.Variable):
             kern = as_tensor_variable(kern)
         if not isinstance(topgrad, theano.Variable):
@@ -1076,11 +1033,6 @@ class AbstractConv2d_gradInputs(BaseAbstractConv2d):
         d_top = AbstractConv2d(self.imshp, self.kshp,
                                self.border_mode, self.subsample)(
                                    bottom, weights)
-        # Make sure that the broadcastable pattern of the inputs is used
-        # for the gradients, even if the grad opts are not able to infer
-        # that the dimensions are broadcastable.
-        # Also make sure that the gradient lives on the same device than
-        # the corresponding input.
         d_weights = patternbroadcast(d_weights, weights.broadcastable)
         d_weights = weights.type.filter_variable(d_weights)
         d_top = patternbroadcast(d_top, top.broadcastable)
@@ -1093,10 +1045,6 @@ class AbstractConv2d_gradInputs(BaseAbstractConv2d):
         return [[1], [1], [0]]  # no connection to height, width
 
     def infer_shape(self, node, input_shapes):
-        # We use self.imshp (that was passed when creating the Op) if possible,
-        # or fall back to the `shape` input of the node.
-        # TODO: when there is no subsampling, try to infer the image shape
-        # from the shapes of inputs.
         kshp = input_shapes[0]
         topshp = input_shapes[1]
         imshp = self.imshp[:] if self.imshp is not None else [None] * 4

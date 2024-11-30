@@ -54,7 +54,6 @@ class T_Scan(TestCase):
         W = numpy.asarray(W, dtype='float32')
         W_in = numpy.asarray(W_in, dtype='float32')
 
-        # compute the output in numpy
         v_out = numpy.zeros((4,))
         v_out[0] = v_u[0] * W_in + v_x0 * W
         for step in xrange(1, 4):
@@ -63,7 +62,6 @@ class T_Scan(TestCase):
         theano_values = f2(v_u, v_x0, W_in, W)
         utt.assert_allclose(theano_values, v_out)
 
-        # TO DEL
         topo = f2.maker.fgraph.toposort()
         scan_node = [node for node in topo
                      if isinstance(node.op, theano.scan_module.scan_op.Scan)]
@@ -82,7 +80,6 @@ class T_Scan(TestCase):
         scan_node = scan_node[0]
         scan_node_topo = scan_node.op.fn.maker.fgraph.toposort()
 
-        # check that there is no gpu transfer in the inner loop.
         assert any([isinstance(node.op, GpuElemwise)
                     for node in scan_node_topo])
         assert not any([isinstance(node.op, HostFromGpu)
@@ -90,7 +87,6 @@ class T_Scan(TestCase):
         assert not any([isinstance(node.op, GpuFromHost)
                         for node in scan_node_topo])
 
-    # This second version test the second case in the optimizer to the gpu.
     def test_one_sequence_one_output_weights_gpu2(self):
         def f_rnn(u_t, x_tm1, W_in, W):
             return u_t * W_in + x_tm1 * W
@@ -114,14 +110,12 @@ class T_Scan(TestCase):
                              allow_input_downcast=True,
                              mode=mode_with_gpu)
 
-        # get random initial values
         rng = numpy.random.RandomState(utt.fetch_seed())
         v_u = rng.uniform(size=(4,), low=-5., high=5.)
         v_x0 = rng.uniform()
         W = rng.uniform()
         W_in = rng.uniform()
 
-        # compute the output in numpy
         v_out = numpy.zeros((4,))
         v_out[0] = v_u[0] * W_in + v_x0 * W
         for step in xrange(1, 4):
@@ -142,7 +136,6 @@ class T_Scan(TestCase):
         scan_node = scan_node[0]
         scan_node_topo = scan_node.op.fn.maker.fgraph.toposort()
 
-        # check that there is no gpu transfer in the inner loop.
         assert any([isinstance(node.op, GpuElemwise)
                     for node in scan_node_topo])
         assert not any([isinstance(node.op, HostFromGpu)
@@ -150,8 +143,6 @@ class T_Scan(TestCase):
         assert not any([isinstance(node.op, GpuFromHost)
                         for node in scan_node_topo])
 
-    # This third test checks that scan can deal with a mixture of dtypes as
-    # outputs when is running on GPU
     def test_gpu3_mixture_dtype_outputs(self):
         def f_rnn(u_t, x_tm1, W_in, W):
             return (u_t * W_in + x_tm1 * W,
@@ -176,14 +167,12 @@ class T_Scan(TestCase):
                              allow_input_downcast=True,
                              mode=mode_with_gpu)
 
-        # get random initial values
         rng = numpy.random.RandomState(utt.fetch_seed())
         v_u = rng.uniform(size=(4,), low=-5., high=5.)
         v_x0 = rng.uniform()
         W = rng.uniform()
         W_in = rng.uniform()
 
-        # compute the output in numpy
         v_out1 = numpy.zeros((4,))
         v_out2 = numpy.zeros((4,), dtype='int64')
         v_out1[0] = v_u[0] * W_in + v_x0 * W
@@ -205,7 +194,6 @@ class T_Scan(TestCase):
 
         scan_node_topo = scan_node.op.fn.maker.fgraph.toposort()
 
-        # check that there is no gpu transfer in the inner loop.
         assert not any([isinstance(node.op, HostFromGpu)
                         for node in scan_node_topo])
         assert not any([isinstance(node.op, GpuFromHost)
@@ -237,6 +225,4 @@ class T_Scan(TestCase):
                                allow_input_downcast=True,
                                mode=mode_with_gpu)
 
-        # I leave this to tested by debugmode, this test was anyway
-        # more of does the graph compile kind of test
         my_f()

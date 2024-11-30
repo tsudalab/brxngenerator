@@ -103,8 +103,6 @@ class Images2Neibs(Op):
         if self.mode in ['valid', 'ignore_borders']:
             if (neib_shape is neib_step or
                 neib_shape == neib_step or
-                # Theano Constant == do not compare the data
-                # the equals function do that.
                 (hasattr(neib_shape, "equals") and
                  neib_shape.equals(neib_step))):
                 return [neibs2images(gz, neib_shape, x.shape, mode=self.mode),
@@ -112,7 +110,6 @@ class Images2Neibs(Op):
                         grad_undefined(self, 2, neib_step)]
 
         if self.mode in ['valid']:
-            # Iterate over neighborhood positions, summing contributions.
             def pos2map(pidx, pgz, prior_result, neib_shape, neib_step):
                 '''
                 Helper function that adds gradient contribution from a single
@@ -128,7 +125,6 @@ class Images2Neibs(Op):
                 batch_size, num_channels, rows, cols = prior_result.shape
                 i = pidx // ncols
                 j = pidx - (i * ncols)
-                # This position does not touch some img pixels in valid mode.
                 result_indices = prior_result[:, :,
                                               i:(rows - nrows + i + 1):rstep,
                                               j:(cols - ncols + j + 1):cstep]
@@ -157,7 +153,6 @@ class Images2Neibs(Op):
     def perform(self, node, inp, out_):
         ten4, neib_shape, neib_step = inp
         z, = out_
-        # GpuImages2Neibs should not run this perform in DebugMode
         if type(self) != Images2Neibs:
             raise theano.gof.utils.MethodNotDefined()
 
@@ -204,14 +199,10 @@ class Images2Neibs(Op):
                     "neib_shape[1]=%d, neib_step[1]=%d and"
                     " ten4.shape[3]=%d not consistent" %
                     (d, step_y, ten4.shape[3]))
-            # number of patch in height
             grid_c = 1 + ((ten4.shape[2] - c) // step_x)
-            # number of patch in width
             grid_d = 1 + ((ten4.shape[3] - d) // step_y)
         elif mode == "ignore_borders":
-            # number of patch in height
             grid_c = 1 + ((ten4.shape[2] - c) // step_x)
-            # number of patch in width
             grid_d = 1 + ((ten4.shape[3] - d) // step_y)
         else:
             raise TypeError("Images2Neibs: unknow mode '%s'" % mode)
@@ -229,9 +220,7 @@ class Images2Neibs(Op):
         wrap_centered_idx_shift_y = d // 2
         for n in range(nb_batch):
             for s in range(nb_stack):
-                # loop over the number of patch in height
                 for a in range(grid_c):
-                    # loop over the number of patch in width
                     for b in range(grid_d):
                         z_row = b + grid_d * (a + grid_c * (s + nb_stack * n))
                         for i in range(c):
@@ -278,9 +267,6 @@ class Images2Neibs(Op):
         fail = sub['fail']
         mode = self.mode
         return """
-#ifndef CEIL_INTDIV
-#define CEIL_INTDIV(a, b) ((a/b) + ((a %% b) ? 1: 0))
-#endif
 
         int grid_c = -1; //number of patch in height
         int grid_d = -1; //number of patch in width
@@ -534,17 +520,13 @@ def images2neibs(ten4, neib_shape, neib_step=None, mode='valid'):
 
     .. code-block:: python
 
-        # Defining variables
         images = T.tensor4('images')
         neibs = images2neibs(images, neib_shape=(5, 5))
 
-        # Constructing theano function
         window_function = theano.function([images], neibs)
 
-        # Input tensor (one image 10x10)
         im_val = np.arange(100.).reshape((1, 1, 10, 10))
 
-        # Function application
         neibs_val = window_function(im_val)
 
     .. note:: The underlying code will construct a 2D tensor of disjoint
@@ -599,9 +581,7 @@ def neibs2images(neibs, neib_shape, original_shape, mode='valid'):
     .. code-block:: python
 
         im_new = neibs2images(neibs, (5, 5), im_val.shape)
-        # Theano function definition
         inv_window = theano.function([neibs], im_new)
-        # Function application
         im_new_val = inv_window(neibs_val)
 
     .. note:: The code will output the initial image array.
@@ -621,14 +601,11 @@ def neibs2images(neibs, neib_shape, original_shape, mode='valid'):
         valid_shape[2] = (valid_shape[2] // neib_shape[0]) * neib_shape[0]
         valid_shape[3] = (valid_shape[3] // neib_shape[1]) * neib_shape[1]
         output_4d = output_2d.reshape(valid_shape)
-        # padding the borders with zeros
         for d in [2, 3]:
             pad_shape = list(output_4d.shape)
             pad_shape[d] = original_shape[d] - valid_shape[d]
             output_4d = T.concatenate([output_4d, T.zeros(pad_shape)], axis=d)
     elif mode == 'valid':
-        # TODO: we do not implement all mode with this code.
-        # Add a check for the good cases.
         output_4d = output_2d.reshape(original_shape)
     else:
         raise NotImplementedError("neibs2images do not support mode=%s" % mode)

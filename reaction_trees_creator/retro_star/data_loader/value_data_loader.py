@@ -7,7 +7,6 @@ from torch.utils.data import Dataset, DataLoader
 
 
 def unpack_fps(packed_fps):
-    # packed_fps = np.array(packed_fps)
     shape = (*(packed_fps.shape[:-1]), -1)
     fps = np.unpackbits(packed_fps.reshape((-1, packed_fps.shape[-1])),
                         axis=-1)
@@ -29,7 +28,6 @@ class ValueDataset(Dataset):
 
         self.reaction_costs = data_dict['reaction_costs']
         self.target_values = data_dict['target_values']
-        # self.reactant_fps = unpack_fps(data_dict['reactant_fps'])
         self.reactant_packed_fps = data_dict['reactant_fps']
         self.reactant_masks = data_dict['reactant_masks']
         self.reactant_fps = None

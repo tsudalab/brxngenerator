@@ -25,7 +25,6 @@ def test_get_diagonal_subtensor_view(wrap=lambda a: a):
     x = wrap(x)
     xv01 = get_diagonal_subtensor_view(x, 0, 1)
 
-    # test that it works in 2d
     assert numpy.all(numpy.asarray(xv01) == [[12, 9, 6, 3], [16, 13, 10, 7]])
 
     x = numpy.arange(24).reshape(4, 3, 2)
@@ -33,9 +32,6 @@ def test_get_diagonal_subtensor_view(wrap=lambda a: a):
     xv02 = get_diagonal_subtensor_view(x, 0, 2)
     xv12 = get_diagonal_subtensor_view(x, 1, 2)
 
-    # print 'x', x
-    # print 'xv01', xv01
-    # print 'xv02', xv02
     assert numpy.all(numpy.asarray(xv01) == [
         [[12, 13], [8, 9], [4, 5]],
         [[18, 19], [14, 15], [10, 11]]])
@@ -46,8 +42,6 @@ def test_get_diagonal_subtensor_view(wrap=lambda a: a):
         [[18, 13], [20, 15], [22, 17]],
         ])
 
-    # diagonal views of each leading matrix is the same
-    # as the slices out of the diagonal view of the entire 3d tensor
     for xi, xvi in zip(x, xv12):
         assert numpy.all(xvi == get_diagonal_subtensor_view(xi, 0, 1))
 
@@ -69,7 +63,6 @@ def pyconv3d(signals, filters):
                 r_i = rval[ns, :, nf, :, :]
                 o_i = ndimage.convolve(s_i, f_i, mode='constant', cval=1)
                 o_i_sh0 = o_i.shape[0]
-                # print s_i.shape, f_i.shape, r_i.shape, o_i.shape
                 r_i += o_i[Tf2:o_i_sh0-Tf2, Hf2:-Hf2, Wf2:-Wf2]
     return rval
 
@@ -128,7 +121,6 @@ def test_conv3d(mode=mode_without_gpu, shared=theano.tensor._shared):
     filters = numpy.random.rand(Nf, Tf, C, Hf, Wf).astype('float32')
     utt.verify_grad(conv3d, [signals, filters], eps=1e-1, mode=mode)
 
-    ### Additional Test that covers the case of patched implementation for filter with Tf=1
     Ns, Ts, C, Hs, Ws = 3, 10, 3, 32, 32
     Nf, Tf, C, Hf, Wf = 32, 1 , 3, 5 , 5
 

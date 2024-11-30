@@ -23,7 +23,6 @@ try:
 except ImportError:
     pygpu = None
 
-# This is for documentation not to depend on the availability of pygpu
 from .type import (GpuArrayType, GpuArrayVariable, GpuArrayConstant,
                    GpuArraySharedVariable, gpuarray_shared_constructor,
                    reg_context, get_context, ContextNotDefined)
@@ -58,11 +57,8 @@ def init_dev(dev, name=None):
                 gmem = min(config.gpuarray.preallocate, 0.98) * ctx.total_gmem
             else:
                 gmem = config.gpuarray.preallocate * (1024*1024)
-            # This will allocate and immediatly free an object of size gmem
-            # which will reserve that amount of memory on the GPU.
             pygpu.empty((gmem,), dtype='int8', context=ctx)
     context = init_dev.devmap[dev]
-    # This will map the context name to the real context object.
     reg_context(name, context)
     pygpu_activated = True
     if config.print_active_device:
@@ -72,7 +68,6 @@ def init_dev(dev, name=None):
             cudnn_version = " (CuDNN not available)"
             try:
                 cudnn_version = dnn.version()
-                # 4100 should not print warning with cudnn 4 final.
                 if cudnn_version > 4100:
                     warn = ("Your CuDNN version is more recent than Theano."
                             " If you see problems, try updating Theano or"
@@ -86,7 +81,6 @@ def init_dev(dev, name=None):
         if warn:
             warnings.warn(warn)
 
-# This maps things like 'cuda0' to the context object on that device.
 init_dev.devmap = {}
 
 if pygpu:

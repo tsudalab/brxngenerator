@@ -5,7 +5,6 @@ import theano
 from theano import tensor
 from theano.sandbox import cuda
 
-# Skip test if cuda_ndarray is not available.
 from nose.plugins.skip import SkipTest
 import theano.sandbox.cuda as cuda_ndarray
 if cuda_ndarray.cuda_available == False:
@@ -16,11 +15,6 @@ class TestGradient(unittest.TestCase):
     verbose = 0
 
     def test_gpu_out_multiple_clients(self):
-        # Test that when the output of gpu_from_host is used by more
-        # than one Op, the gradient still works.
-        # A problem used to be that GpuFromHost.grad expected the output
-        # gradient to be on GPU, but the summation of the different
-        # incoming gradients was done on CPU.
 
         x = tensor.fmatrix('x')
         z = cuda.gpu_from_host(x)

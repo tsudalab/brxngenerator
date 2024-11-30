@@ -30,7 +30,6 @@ if __name__ == '__main__':
     lr = args.learning_rate
     print('Loading data...')
     prod_to_rules = defaultdict(set)
-    ### read the template data.
     with open(template_path, 'r') as f:
         for l in tqdm(f, desc="reading the mapping from prod to rules"):
             rule, prod = l.strip().split('\t')

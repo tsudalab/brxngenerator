@@ -8,7 +8,6 @@ from theano.gof.type import CDataType
 
 from nose.plugins.skip import SkipTest
 
-# todo: test generic
 
 
 class ProdOp(Op):
@@ -69,7 +68,6 @@ def test_cdata():
     if theano.config.mode == "FAST_COMPILE":
         mode = "FAST_RUN"
 
-    # This should be a passthrough function for vectors
     f = theano.function([i], i2, mode=mode)
 
     v = numpy.random.randn(9).astype('float32')

@@ -106,7 +106,6 @@ def atoms_are_different(atom1, atom2):
     if atom1.GetNumRadicalElectrons() != atom2.GetNumRadicalElectrons(): return True
     if atom1.GetIsAromatic() != atom2.GetIsAromatic(): return True 
 
-    # Check bonds and nearest neighbor identity
     bonds1 = sorted([bond_to_label(bond) for bond in atom1.GetBonds()]) 
     bonds2 = sorted([bond_to_label(bond) for bond in atom2.GetBonds()]) 
     if bonds1 != bonds2: return True

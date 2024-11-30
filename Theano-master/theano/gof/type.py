@@ -13,9 +13,6 @@ from theano.gof import utils
 from theano.gof.utils import MethodNotDefined, object2
 from theano.gof import graph
 
-########
-# Type #
-########
 from theano.gof.op import CLinkerObject
 
 __docformat__ = "restructuredtext en"
@@ -269,10 +266,8 @@ class PureType(object):
 
     """
 
-    # the type that will be created by call to make_variable.
     Variable = graph.Variable
 
-    # the type that will be created by call to make_constant
     Constant = graph.Constant
 
     def filter(self, data, strict=False, allow_downcast=None):
@@ -298,12 +293,7 @@ class PureType(object):
         """
         raise MethodNotDefined("filter", type(self), self.__class__.__name__)
 
-    # If filter_inplace is defined, it will be called instead of
-    # filter() This is to allow reusing the old allocated memory. As
-    # of this writing this is used only when we transfer new data to a
-    # shared variable on the gpu.
 
-    # def filter_inplace(value, storage, strict=False, allow_downcast=None)
 
     def filter_variable(self, other, allow_convert=True):
         """
@@ -317,8 +307,6 @@ class PureType(object):
 
         """
         if not isinstance(other, graph.Variable):
-            # The value is not a Variable: we cast it into
-            # a Constant of the appropriate Type.
             other = self.Constant(type=self, data=other)
 
         if other.type != self and allow_convert:
@@ -436,13 +424,11 @@ class PureType(object):
         """
         return self.values_eq(a, b)
 
-#    def get_shape_info(self, obj):
         """
         Optional function. See TensorType().get_shape_info for definition.
 
         """
 
-#    def get_size(self, shape_info):
         """
         Optional function. See TensorType().get_size for definition.
 
@@ -471,10 +457,8 @@ class Type(object2, PureType, CLinkerType):
 
     .. code-block:: python
 
-        # Declare a symbolic floating-point vector using __call__
         b = tensor.fvector()
 
-        # Create a second Variable with the same Type instance
         c = tensor.fvector()
 
     Whenever you create a symbolic variable in theano (technically,
@@ -507,11 +491,6 @@ class SingletonType(Type):
     __instance = None
 
     def __new__(cls):
-        # If sub-subclass of SingletonType don't redeclare __instance
-        # when we look for it, we will find it in the subclass.  We
-        # don't want that, so we check the class.  When we add one, we
-        # add one only to the current class, so all is working
-        # correctly.
         if cls.__instance is None or not isinstance(cls.__instance, cls):
             cls.__instance = Type.__new__(cls)
         return cls.__instance
@@ -519,9 +498,6 @@ class SingletonType(Type):
     def __str__(self):
         return self.__class__.__name__
 
-    # even if we try to make a singleton, this do not always work.  So
-    # we compare the type. See test_type_other.test_none_Constant for
-    # an exmple. So we need to implement __eq__ and __hash__
     def __eq__(self, other):
         if self is other:
             return True
@@ -706,8 +682,6 @@ if (py_%(name)s == NULL) { %(freefunc)s(%(name)s); }
         return s % dict(name=name, freefunc=freefunc)
 
     def c_cleanup(self, name, sub):
-        # No need to do anything here since the CObject/Capsule will
-        # free the data for us when released.
         return ""
 
     def c_code_cache_version(self):
@@ -719,12 +693,8 @@ if (py_%(name)s == NULL) { %(freefunc)s(%(name)s); }
 
 class CDataTypeConstant(graph.Constant):
     def merge_signature(self):
-        # We don't want to merge constants that don't point to the
-        # same object.
         return id(self.data)
 
     def signature(self):
-        # There is no way to put the data in the signature, so we
-        # don't even try
         return (self.type,)
 CDataType.Constant = CDataTypeConstant

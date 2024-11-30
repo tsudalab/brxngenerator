@@ -12,13 +12,8 @@ from theano.tests.unittest_tools import attr
 
 
 class TestConv2D(utt.InferShapeTester):
-    # This class contains tests for the legacy 2d convolution,
-    # but will also be inherited from for other implementations
     mode = None
     dtype = theano.config.floatX
-    # This will be set to the appropriate function in the inherited classes.
-    # The call to `staticmethod` is necessary to prevent Python from passing
-    # `self` as the first argument.
     conv2d = staticmethod(conv.conv2d)
 
     def setUp(self):
@@ -60,11 +55,8 @@ class TestConv2D(utt.InferShapeTester):
         if not filters:
             filters = self.filters
 
-        ############# THEANO IMPLEMENTATION ############
 
-        # we create a symbolic function so that verify_grad can work
         def sym_conv2d(input, filters):
-            # define theano graph and function
             input.name = 'input'
             filters.name = 'filters'
             rval =  conv.conv2d(input, filters, image_shape, filter_shape,
@@ -77,7 +69,6 @@ class TestConv2D(utt.InferShapeTester):
         output.name = 'conv2d(%s,%s)' % (input.name, filters.name)
         theano_conv = theano.function([input, filters], output, mode=self.mode)
 
-        # initialize input and compute result
         image_data = numpy.random.random(N_image_shape).astype(self.dtype)
         filter_data = numpy.random.random(N_filter_shape).astype(self.dtype)
         try:
@@ -91,7 +82,6 @@ class TestConv2D(utt.InferShapeTester):
                 raise Exception(
                 "ConvOp should have generated an error")
 
-        ############# REFERENCE IMPLEMENTATION ############
         s = 1.
         orig_image_data = image_data
         if border_mode is not 'full':
@@ -99,12 +89,10 @@ class TestConv2D(utt.InferShapeTester):
         out_shape2d = numpy.array(N_image_shape[-2:]) +\
                       s * numpy.array(N_filter_shape[-2:]) - s
         out_shape2d = numpy.ceil(out_shape2d / numpy.array(subsample))
-        # avoid numpy deprecation
         out_shape2d = out_shape2d.astype('int32')
         out_shape = (N_image_shape[0], N_filter_shape[0]) + tuple(out_shape2d)
         ref_output = numpy.zeros(out_shape)
 
-        # loop over output feature maps
         ref_output.fill(0)
         if border_mode == 'full':
             image_data2 = numpy.zeros((N_image_shape[0], N_image_shape[1],
@@ -130,7 +118,6 @@ class TestConv2D(utt.InferShapeTester):
 
         self.assertTrue(_allclose(theano_output, ref_output))
 
-        ############# TEST GRADIENT ############
         if verify_grad:
             utt.verify_grad(sym_conv2d, [orig_image_data, filter_data])
 
@@ -153,7 +140,6 @@ class TestConv2D(utt.InferShapeTester):
         self.validate((3, 2, 7, 5), (5, 2, 3, 2), 'valid', verify_grad=False)
         self.validate((3, 2, 8, 8), (4, 2, 5, 5), 'full', verify_grad=False)
         self.validate((3, 2, 7, 5), (5, 2, 2, 3), 'full')
-        # test filter same size as input
 
     def test_uint_image_shape_datatype(self):
         """Tests for uint datatype in image_shape.
@@ -217,7 +203,6 @@ class TestConv2D(utt.InferShapeTester):
         """
         Test mini-batch unrolling for various legal values.
         """
-        # mini-batch of size 6 is multiple of 2 and 3. Should work.
         self.validate((6, 2, 3, 3), (3, 2, 2, 2), 'valid',
              unroll_batch=2, verify_grad=False)
         self.validate((6, 2, 3, 3), (3, 2, 2, 2), 'valid',
@@ -227,7 +212,6 @@ class TestConv2D(utt.InferShapeTester):
         """
         Test kernel unrolling for various legal values.
         """
-        # 6 filters is a multiple of 2 and 3. Should work.
         self.validate((2, 3, 3, 3), (6, 3, 2, 2), 'valid', unroll_kern=2,
              verify_grad=False)
         self.validate((2, 3, 3, 3), (6, 3, 2, 2), 'valid', unroll_kern=3,
@@ -238,12 +222,10 @@ class TestConv2D(utt.InferShapeTester):
         legal values.
 
         """
-        # mini-batch of size 6 is multiple of 2 and 3. Should work.
         self.validate((6, 2, 3, 3), (3, 2, 2, 2), 'valid',
              unroll_batch=2, unroll_kern=3, verify_grad=False)
         self.validate((6, 2, 3, 3), (3, 2, 2, 2), 'valid',
              unroll_batch=3, unroll_kern=3, verify_grad=False)
-        # 6 filters is a multiple of 2 and 3. Should work.
         self.validate((2, 3, 3, 3), (6, 3, 2, 2), 'valid',
              unroll_batch=2, unroll_kern=2, verify_grad=False)
         self.validate((2, 3, 3, 3), (6, 3, 2, 2), 'valid',
@@ -255,7 +237,6 @@ class TestConv2D(utt.InferShapeTester):
         generate errors
 
         """
-        # mini-batch of size 6 is multiple of 2 and 3. Should work.
         self.validate((6, 2, 3, 3), (3, 2, 2, 2), 'valid',
                       unroll_batch=2, unroll_kern=3,
                       N_image_shape=(7, 2, 3, 3), N_filter_shape=(3, 2, 2, 2),
@@ -283,7 +264,6 @@ class TestConv2D(utt.InferShapeTester):
         self.validate((3, 2, 7, 5), (5, 2, 2, 3), 'valid', subsample=(2, 1))
         self.validate((1, 1, 6, 6), (1, 1, 3, 3), 'valid', subsample=(3, 3))
 
-        # Fails as of 2012-07-11
         self.assertRaises(NotImplementedError, self.validate, (1, 1, 6, 6),
                           (1, 1, 3, 3), 'full', subsample=(3, 3))
 
@@ -446,8 +426,6 @@ class TestConv2D(utt.InferShapeTester):
                 print("OpenMP", openmp)
                 image_shapes = [(1, 5, 6, 6),
                                 (10, 5, 6, 6),
-                                #(10, 10, 16, 16),
-                                #(10, 10, 32, 32)
                 ]
                 print("image_shape", image_shapes)
                 for image_shape in image_shapes:
@@ -474,8 +452,6 @@ class TestConv2D(utt.InferShapeTester):
                     print()
 
     def test_infer_shape(self):
-    # Note: infer_shape is incomplete and thus input and filter shapes
-    # must be provided explicitly
 
         def rand(*shape):
             r = numpy.asarray(numpy.random.rand(*shape), dtype='float64')
@@ -557,9 +533,6 @@ class TestConv2D(utt.InferShapeTester):
 class TestDefaultConv2D(TestConv2D):
     conv2d = staticmethod(theano.tensor.nnet.conv2d)
 
-# Test that broadcasting of gradients works correctly when using the
-# nnet.conv2d() interface. This was reported in #3763, and uses the example
-# code from that ticket.
 def test_broadcast_grad():
     rng = numpy.random.RandomState(utt.fetch_seed())
     x1 = T.tensor4('x')

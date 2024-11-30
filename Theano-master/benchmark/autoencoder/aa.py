@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from __future__ import absolute_import, print_function, division
 import numpy
 import sys
@@ -13,8 +12,6 @@ from theano import gof, Op, Apply
 
 from theano.tensor import blas, opt
 
-# numpy: aa_numpy.py
-# c : aa.cc
 
 
 if 0:
@@ -121,7 +118,6 @@ if 0:
 
         def __call__(self, env):
             self.merge(env)
-            #eliminate identities
             if 0:
                 print('SKIPPING optimizations')
             else:
@@ -152,12 +148,10 @@ def print_graph_linker(print_prog=True):
                 inputs = theano.gof.graph.inputs(outputs)
                 print('node ', i, node, end=' ')
                 print(':'.join([imap[inp.owner] for inp in node.inputs]))
-                #print theano.sandbox.pprint.pp.process_graph(inputs, outputs)
         return theano.sandbox.wraplinker.WrapLinkerMany(
                 [theano.gof.OpWiseCLinker()],
                 [theano.sandbox.wraplinker.run_all
                     ,blah
-                    #,theano.sandbox.wraplinker.numpy_notall_isfinite
                     ])
     else:
         return theano.gof.OpWiseCLinker()
@@ -191,7 +185,6 @@ class M(module.Module):
 
 mod = M()
 mode = 'FAST_RUN'
-#mode = ProfileMode(optimizer='fast_run', linker=theano.gof.OpWiseCLinker())
 mode = Mode(optimizer='fast_run', linker=theano.gof.OpWiseCLinker(nice_errors=True))
 mode = Mode(optimizer='fast_run', linker='c')
 mode = Mode(optimizer='fast_run', linker='c|py')

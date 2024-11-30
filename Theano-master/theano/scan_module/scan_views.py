@@ -18,14 +18,11 @@ import logging
 
 from theano.scan_module import scan
 
-# Logging function for sending warning or info
 _logger = logging.getLogger('theano.scan_module.scan_views')
 
 
-################ Declaration of Views for Scan #######################
 
 
-# The ``map`` view of Scan Op.
 
 
 def map(fn,
@@ -70,7 +67,6 @@ def map(fn,
                      name=name)
 
 
-# The ``reduce`` view of Scan Op.
 def reduce(fn,
            sequences,
            outputs_info,
@@ -119,7 +115,6 @@ def reduce(fn,
         return rval[0][-1], rval[1]
 
 
-# The ``foldl`` view of Scan Op.
 def foldl(fn,
           sequences,
           outputs_info,
@@ -158,7 +153,6 @@ def foldl(fn,
                   name=name)
 
 
-# The ``foldl`` view of Scan Op.
 def foldr(fn,
           sequences,
           outputs_info,

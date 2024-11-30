@@ -14,9 +14,7 @@ import theano.tensor as T
 class IfElseIfElseIf(PureOp):
 
     def __init__(self, inplace=False):
-        # check destroyhandler and others to ensure that a view_map with
         self.inplace = inplace
-        # multiple inputs can work
         assert not self.inplace
 
     def make_node(self, c1, t1, c2, t2, c3, t3, f3):
@@ -107,7 +105,6 @@ def test_ifelse():
 
     notimpl = NotImplementedOp()
     lazys = [True]
-    # We need lazy to end up being True for this test.
     if theano.config.vm.lazy in [True, None]:
         lazys = [True, None]
     cloops = [True, False]
@@ -120,17 +117,12 @@ def test_ifelse():
                          mode=Mode(linker=linker, optimizer='fast_run'))
 
             try:
-                # print "case 1"
                 f(1, 'a', 'b')
                 assert False
             except NotImplementedOp.E:
                 pass
-            # print "... passed"
 
-            # print "case 2"
-            # print f(0, 'a', 'b')
             assert f(0, 'a', 'b') == 'b'
-            # print "... passed"
 
 
 def more_complex_test():

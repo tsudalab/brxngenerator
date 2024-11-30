@@ -44,7 +44,6 @@ class TestCumsumOp(utt.InferShapeTester):
         x = T.tensor3('x')
         a = np.random.random((3, 5, 2)).astype(config.floatX)
 
-        # Test axis out of bounds
         self.assertRaises(ValueError, cumsum, x, axis=3)
         self.assertRaises(ValueError, cumsum, x, axis=-4)
 
@@ -59,7 +58,6 @@ class TestCumsumOp(utt.InferShapeTester):
         x = T.tensor3('x')
         a = np.random.random((3, 5, 2)).astype(config.floatX)
 
-        # Test axis=None
         self._compile_and_check([x],
                                 [self.op(x)],
                                 [a],
@@ -91,7 +89,6 @@ class TestCumprodOp(utt.InferShapeTester):
         x = T.tensor3('x')
         a = np.random.random((3, 5, 2)).astype(config.floatX)
 
-        # Test axis out of bounds
         self.assertRaises(ValueError, cumprod, x, axis=3)
         self.assertRaises(ValueError, cumprod, x, axis=-4)
 
@@ -106,7 +103,6 @@ class TestCumprodOp(utt.InferShapeTester):
         x = T.tensor3('x')
         a = np.random.random((3, 5, 2)).astype(config.floatX)
 
-        # Test axis=None
         self._compile_and_check([x],
                                 [self.op(x)],
                                 [a],
@@ -164,7 +160,6 @@ class TestBinCountOp(utt.InferShapeTester):
             f4 = theano.function([x], bincount(x, minlength=5))
             assert (ref(a, minlength=55) == f3(a)).all()
             assert (ref(a, minlength=5) == f4(a)).all()
-            # skip the following test when using unsigned ints
             if not dtype.startswith('u'):
                 a[0] = -1
                 f5 = theano.function([x], bincount(x, assert_nonneg=True))
@@ -174,8 +169,6 @@ class TestBinCountOp(utt.InferShapeTester):
         w = T.vector('w')
         for dtype in ('int8', 'int16', 'int32', 'int64',
                       'uint8', 'uint16', 'uint32', 'uint64'):
-            # uint64 always fails
-            # int64 and uint32 also fail if python int are 32-bit
             int_bitwidth = theano.configdefaults.python_int_bitwidth()
             if int_bitwidth == 64:
                 numpy_unsupported_dtypes = ('uint64',)
@@ -207,8 +200,6 @@ class TestBinCountOp(utt.InferShapeTester):
     @attr('slow')
     def test_infer_shape(self):
         for dtype in tensor.discrete_dtypes:
-            # uint64 always fails
-            # int64 and uint32 also fail if python int are 32-bit
             int_bitwidth = theano.configdefaults.python_int_bitwidth()
             if int_bitwidth == 64:
                 numpy_unsupported_dtypes = ('uint64',)
@@ -344,7 +335,6 @@ class SqueezeTester(utt.InferShapeTester):
             utt.verify_grad(self.op, [data])
 
     def test_var_interface(self):
-        # same as test_op, but use a_theano_var.squeeze.
         for shape, broadcast in zip(self.shape_list, self.broadcast_list):
             data = numpy.random.random(size=shape).astype(theano.config.floatX)
             variable = tensor.TensorType(theano.config.floatX, broadcast)()
@@ -407,8 +397,6 @@ class TestRepeatOp(utt.InferShapeTester):
         super(TestRepeatOp, self).setUp()
         self.op_class = RepeatOp
         self.op = RepeatOp()
-        # uint64 always fails
-        # int64 and uint32 also fail if python int are 32-bit
         ptr_bitwidth = theano.configdefaults.local_bitwidth()
         if ptr_bitwidth == 64:
             self.numpy_unsupported_dtypes = ('uint64',)
@@ -451,7 +439,6 @@ class TestRepeatOp(utt.InferShapeTester):
                             assert np.allclose(np.repeat(a, r, axis=axis),
                                                f(a, r))
 
-                        #check when r is a list of single integer, e.g. [3].
                         r = np.random.random_integers(10, size=()).astype(dtype) + 2
                         f = theano.function([x],
                                             repeat(x, [r], axis=axis))
@@ -460,7 +447,6 @@ class TestRepeatOp(utt.InferShapeTester):
                         assert not np.any([isinstance(n.op, RepeatOp) 
                                            for n in f.maker.fgraph.toposort()])
                            
-                        # check when r is  theano tensortype that broadcastable is (True,)
                         r_var = theano.tensor.TensorType(broadcastable=(True,),
                                                          dtype=dtype)()
                         r = np.random.random_integers(5, size=(1,)).astype(dtype)
@@ -569,18 +555,15 @@ class TestFillDiagonal(utt.InferShapeTester):
             a = numpy.random.rand(*shp).astype(config.floatX)
             val = numpy.cast[config.floatX](numpy.random.rand())
             out = f(a, val)
-            # We can't use numpy.fill_diagonal as it is bugged.
             assert numpy.allclose(numpy.diag(out), val)
             assert (out == val).sum() == min(a.shape)
 
-        # test for 3d tensor
         a = numpy.random.rand(3, 3, 3).astype(config.floatX)
         x = tensor.tensor3()
         y = tensor.scalar()
         f = function([x, y], fill_diagonal(x, y))
         val = numpy.cast[config.floatX](numpy.random.rand() + 10)
         out = f(a, val)
-        # We can't use numpy.fill_diagonal as it is bugged.
         assert out[0, 0, 0] == val
         assert out[1, 1, 1] == val
         assert out[2, 2, 2] == val
@@ -604,7 +587,6 @@ class TestFillDiagonal(utt.InferShapeTester):
                                  numpy.random.rand()],
                                 self.op_class)
         self._compile_and_check([z, y], [self.op(z, y)],
-                                # must be square when nd>2
                                 [numpy.random.rand(8, 8, 8),
                                  numpy.random.rand()],
                                 self.op_class,
@@ -631,7 +613,6 @@ class TestFillDiagonalOffset(utt.InferShapeTester):
                 a = numpy.random.rand(*shp).astype(config.floatX)
                 val = numpy.cast[config.floatX](numpy.random.rand())
                 out = f(a, val, test_offset)
-                # We can't use numpy.fill_diagonal as it is bugged.
                 assert numpy.allclose(numpy.diag(out, test_offset), val)
                 if test_offset >= 0:
                    assert (out == val).sum() == min( min(a.shape),
@@ -642,7 +623,6 @@ class TestFillDiagonalOffset(utt.InferShapeTester):
 
     def test_gradient(self):
         for test_offset in (-5, -4, -1, 0, 1, 4, 5):
-            # input 'offset' will not be tested
             def fill_diagonal_with_fix_offset( a, val):
                 return fill_diagonal_offset( a, val, test_offset)
 
@@ -736,7 +716,6 @@ class test_Unique(utt.InferShapeTester):
         for op, outs_expected in zip(self.ops, list_outs_expected) :
             f = theano.function(inputs=[x], outputs=op(x, return_list=True))
             outs = f(inp)
-            # Compare the result computed to the expected value.
             for out, out_exp in zip(outs, outs_expected):
                 utt.assert_allclose(out, out_exp)
         
@@ -759,7 +738,6 @@ class test_Unique(utt.InferShapeTester):
         for op, outs_expected in zip(self.ops, list_outs_expected):
             f = theano.function(inputs=[x], outputs=op(x, return_list=True))
             outs = f(inp)
-            # Compare the result computed to the expected value.
             for out, out_exp in zip(outs, outs_expected):
                 utt.assert_allclose(out, out_exp)
         

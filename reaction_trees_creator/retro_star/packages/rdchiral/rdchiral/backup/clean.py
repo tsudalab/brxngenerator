@@ -7,9 +7,6 @@ from rdchiral.utils import vprint, PLEVEL
 
 
 def canonicalize_outcome_smiles(smiles, ensure=True):
-    # Uniquify via SMILES string - a little sloppy
-    # Need a full SMILES->MOL->SMILES cycle to get a true canonical string
-    # also, split by '.' and sort when outcome contains multiple molecules
     if ensure: 
         outcome = Chem.MolFromSmiles(smiles)
         if outcome is None:
@@ -34,14 +31,12 @@ def combine_enantiomers_into_racemic(final_outcomes):
 
     for smiles in list(final_outcomes)[:]:
 
-        # Look for @@ tetrahedral center
         for match in re.finditer(r'@@', smiles):
             smiles_inv = '%s@%s' % (smiles[:match.start()], smiles[match.end():])
             if smiles_inv in final_outcomes:
                 if smiles in final_outcomes:
                     final_outcomes.remove(smiles)
                 final_outcomes.remove(smiles_inv)
-                # Re-parse smiles so that hydrogens can become implicit
                 smiles = smiles[:match.start()] + smiles[match.end():]
                 outcome = Chem.MolFromSmiles(smiles)
                 if outcome is None:
@@ -49,11 +44,8 @@ def combine_enantiomers_into_racemic(final_outcomes):
                 smiles = '.'.join(sorted(Chem.MolToSmiles(outcome, True).split('.')))
                 final_outcomes.add(smiles)
 
-        # Look for // or \\ trans bond
-        # where [^=\.] is any non-double bond or period or slash
         for match in chain(re.finditer(r'(\/)([^=\.\\\/]+=[^=\.\\\/]+)(\/)', smiles), 
                 re.finditer(r'(\\)([^=\.\\\/]+=[^=\.\\\/]+)(\\)', smiles)):
-            # See if cis version is present in list of outcomes
             opposite = {'\\': '/', '/': '\\'}
             smiles_cis1 = '%s%s%s%s%s' % (smiles[:match.start()], 
                 match.group(1), match.group(2), opposite[match.group(3)],
@@ -61,11 +53,9 @@ def combine_enantiomers_into_racemic(final_outcomes):
             smiles_cis2 = '%s%s%s%s%s' % (smiles[:match.start()], 
                 opposite[match.group(1)], match.group(2), match.group(3),
                 smiles[match.end():])
-            # Also look for equivalent trans
             smiles_trans2 = '%s%s%s%s%s' % (smiles[:match.start()], 
                 opposite[match.group(1)], match.group(2), 
                 opposite[match.group(3)], smiles[match.end():])
-            # Kind of weird remove conditionals...
             remove = False
             if smiles_cis1 in final_outcomes:
                 final_outcomes.remove(smiles_cis1)

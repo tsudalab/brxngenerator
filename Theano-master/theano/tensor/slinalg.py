@@ -9,7 +9,6 @@ try:
     import scipy.linalg
     imported_scipy = True
 except ImportError:
-    # some ops (e.g. Cholesky, Solve, A_Xinv_b) won't work
     imported_scipy = False
 
 from theano import tensor
@@ -37,9 +36,6 @@ class Cholesky(Op):
     L = cholesky(X, lower=True) implies dot(L, L.T) == X.
 
     """
-    # TODO: inplace
-    # TODO: for specific dtypes
-    # TODO: LAPACK wrapper with in-place behavior, for solve also
 
     __props__ = ('lower', 'destructive')
 
@@ -184,7 +180,6 @@ class Solve(Op):
             rval = scipy.linalg.solve(A, b)
         output_storage[0][0] = rval
 
-    # computes shape of x where x = inv(A) * b
     def infer_shape(self, node, shapes):
         Ashape, Bshape = shapes
         rows = Ashape[1]
@@ -196,10 +191,7 @@ class Solve(Op):
 
 solve = Solve()  # general solve
 
-# TODO : SolveTriangular
 
-# TODO: Optimizations to replace multiplication by matrix inverse
-#      with solve() Op (still unwritten)
 
 
 class Eigvalsh(Op):
@@ -259,13 +251,6 @@ class EigvalshGrad(Op):
 
     """
 
-    # Note: This Op (EigvalshGrad), should be removed and replaced with a graph
-    # of theano ops that is constructed directly in Eigvalsh.grad.
-    # But this can only be done once scipy.linalg.eigh is available as an Op
-    # (currently the Eigh uses numpy.linalg.eigh, which doesn't let you
-    # pass the right-hand-side matrix for a generalized eigenproblem.) See the
-    # discussion on github at
-    # https://github.com/Theano/Theano/pull/1846#discussion-diff-12486764
 
     __props__ = ('lower',)
 
@@ -300,7 +285,6 @@ class EigvalshGrad(Op):
         gA = v.dot(numpy.diag(gw).dot(v.T))
         gB = - v.dot(numpy.diag(gw * w).dot(v.T))
 
-        # See EighGrad comments for an explanation of these lines
         out1 = self.tri0(gA) + self.tri1(gA).T
         out2 = self.tri0(gB) + self.tri1(gB).T
         outputs[0][0] = numpy.asarray(out1, dtype=node.outputs[0].dtype)
@@ -405,9 +389,6 @@ class ExpmGrad(Op):
         return [shapes[0]]
 
     def perform(self, node, inputs, outputs):
-        # Kalbfleisch and Lawless, J. Am. Stat. Assoc. 80 (1985) Equation 3.4
-        # Kind of... You need to do some algebra from there to arrive at
-        # this expression.
         (A, gA) = inputs
         (out,) = outputs
         w, V = scipy.linalg.eig(A, right=True)

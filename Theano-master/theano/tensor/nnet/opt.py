@@ -23,7 +23,6 @@ from theano.tensor.opt import (copy_stack_trace,
 from theano.tensor import TensorType
 from theano.tensor import opt
 
-# Cpu implementation
 from theano.tensor.nnet.conv import conv2d, ConvOp
 from theano.tensor.nnet.ConvGrad3D import convGrad3D
 from theano.tensor.nnet.ConvTransp3D import convTransp3D
@@ -63,7 +62,6 @@ compile.optdb.register('local_inplace_sparse_block_outer',
                        60, 'fast_run', 'inplace')  # DEBUG
 
 
-# Conv opts
 @local_optimizer([AbstractConv2d])
 def local_abstractconv_gemm(node):
     if theano.config.cxx == "" or not theano.config.blas.ldflags:
@@ -75,7 +73,6 @@ def local_abstractconv_gemm(node):
        not isinstance(kern.type, TensorType):
         return None
 
-    # need to flip the kernel if necessary
     if node.op.filter_flip:
         kern = kern[:, :, ::-1, ::-1]
     rval = CorrMM(border_mode=node.op.border_mode,
@@ -100,7 +97,6 @@ def local_abstractconv_gradweight_gemm(node):
                               subsample=node.op.subsample)(img, topgrad, shape)
     copy_stack_trace(node.outputs[0], rval)
 
-    # need to flip the kernel if necessary
     if node.op.filter_flip:
         rval = rval[:, :, ::-1, ::-1]
     rval = theano.tensor.patternbroadcast(rval, node.outputs[0].broadcastable)
@@ -120,7 +116,6 @@ def local_abstractconv_gradinputs_gemm(node):
        not isinstance(topgrad.type, TensorType):
         return None
 
-    # need to flip the kernel if necessary
     if node.op.filter_flip:
         kern = kern[:, :, ::-1, ::-1]
     rval = CorrMM_gradInputs(border_mode=node.op.border_mode,
@@ -144,7 +139,6 @@ def local_conv2d_cpu(node):
     if node.op.border_mode not in ['full', 'valid']:
         return None
     if not node.op.filter_flip:
-        # Not tested yet
         return None
 
     rval = conv2d(img, kern,
@@ -169,16 +163,10 @@ def local_conv2d_gradweight_cpu(node):
     if node.op.border_mode not in ['full', 'valid']:
         return None
     if not node.op.filter_flip:
-        # Not tested yet
         return
 
     if node.op.border_mode == 'valid' and \
             (node.op.subsample != (1, 1)):
-        # Use the gradient as defined in conv3D, because the implementation
-        # by Conv is slow (about 3x slower than conv3D, and probably 10x
-        # slower than it could be), and incorrect when subsample > 2.
-        # build a "node", that should be equivalent to the one given by
-        # self.make_node, but using convGrad3D instead.
         shuffled_img = img.dimshuffle(0, 2, 3, 'x', 1)
         shuffled_topgrad = topgrad.dimshuffle(0, 2, 3, 'x', 1)
         rval = convGrad3D(V=shuffled_img,
@@ -199,7 +187,6 @@ def local_conv2d_gradweight_cpu(node):
 
     dx, dy = node.op.subsample
     if dx not in (1, 2) or dy not in (1, 2):
-        # Not implemented in the gradient of ConvOp
         return None
 
     if node.op.imshp is None:
@@ -214,10 +201,8 @@ def local_conv2d_gradweight_cpu(node):
 
     if None in op_imshp or None in op_kshp:
         if (dx, dy) != (1, 1):
-            # We cannot infer the shapes
             return None
 
-    # Determine gradient on kernels
     assert len(op_imshp) == 4 and len(op_kshp) == 4
 
     outshp = get_conv_output_shape(op_imshp, op_kshp,
@@ -250,7 +235,6 @@ def local_conv2d_gradweight_cpu(node):
         raise NotImplementedError(
             'Only [full,valid] modes are currently supported.')
 
-    # Flip the kernels
     filters = filters[:, :, ::-1, ::-1]
 
     dw = ConvOp(imshp, kshp, nkern, bsize, 1, 1, output_mode='valid',
@@ -285,10 +269,8 @@ def local_conv2d_gradinputs_cpu(node):
     if node.op.border_mode not in ['full', 'valid']:
         return None
     if not node.op.filter_flip:
-        # Not tested yet
         return None
 
-    # Conv 3d implementation, needed when subsample > 2
     if node.op.border_mode == 'valid' and node.op.subsample != (1, 1):
         kern = kern[:, :, ::-1, ::-1]
         shuffled_kern = kern.dimshuffle(0, 2, 3, 'x', 1)
@@ -307,10 +289,8 @@ def local_conv2d_gradinputs_cpu(node):
         copy_stack_trace(node.outputs[0], rval)
         return [rval]
 
-    # Conv2d Implementation
     dx, dy = node.op.subsample
     if dx not in (1, 2) or dy not in (1, 2):
-        # Not implemented in the gradient of ConvOp
         return None
 
     if node.op.imshp is None:
@@ -359,13 +339,10 @@ def local_conv2d_gradinputs_cpu(node):
     return [din]
 
 
-# Register Cpu Optmization
 conv_groupopt = theano.gof.optdb.LocalGroupDB()
 conv_groupopt.__name__ = "conv_opts"
 register_specialize_device(conv_groupopt, 'fast_compile', 'fast_run')
 
-# GEMM-based convolution
-# It can be disabled by excluding 'conv_gemm'.
 conv_groupopt.register('local_abstractconv_gemm', local_abstractconv_gemm, 30,
                        'conv_gemm', 'fast_compile', 'fast_run')
 conv_groupopt.register('local_abstractconv_gradweight_gemm',
@@ -374,7 +351,6 @@ conv_groupopt.register('local_abstractconv_gradweight_gemm',
 conv_groupopt.register('local_abstractconv_gradinputs_gemm',
                        local_abstractconv_gradinputs_gemm, 30,
                        'conv_gemm', 'fast_compile', 'fast_run')
-# Legacy convolution
 conv_groupopt.register('local_conv2d_cpu', local_conv2d_cpu, 40,
                        'fast_compile', 'fast_run')
 conv_groupopt.register('local_conv2d_gradweight_cpu',
@@ -385,7 +361,6 @@ conv_groupopt.register('local_conv2d_gradinputs_cpu',
                        'fast_compile', 'fast_run')
 
 
-# Verify that no AbstractConv are present in the graph
 @local_optimizer([AbstractConv2d,
                   AbstractConv2d_gradWeights,
                   AbstractConv2d_gradInputs])

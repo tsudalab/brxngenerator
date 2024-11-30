@@ -33,9 +33,6 @@ class BlockSparse_Gemv_and_Outer(
         self.gemv_class = GpuSparseBlockGemv
         self.outer_class = GpuSparseBlockOuter
 
-    # This test is temporarily disabled since we disabled the output_merge
-    # and alpha_merge optimizations for blocksparse due to brokeness.
-    # Re-enable when those are re-added.
     def Xtest_blocksparse_grad_merge(self):
         b = tensor.fmatrix()
         h = tensor.ftensor3()
@@ -55,24 +52,20 @@ class BlockSparse_Gemv_and_Outer(
         f1 = theano.function([h, iIdx, b, oIdx], updates=[(W, upd)],
                              mode=mode_with_gpu)
 
-        # Make sure the lr update was merged.
         assert isinstance(f1.maker.fgraph.outputs[0].owner.op,
                           GpuSparseBlockOuter)
 
-        # Exclude the merge optimizations.
         mode = mode_with_gpu.excluding('local_merge_blocksparse_alpha')
         mode = mode.excluding('local_merge_blocksparse_output')
 
         f2 = theano.function([h, iIdx, b, oIdx], updates=[(W, upd)], mode=mode)
 
-        # Make sure the lr update is not merged.
         assert not isinstance(f2.maker.fgraph.outputs[0].owner.op,
                               GpuSparseBlockOuter)
 
         f2(h_val, iIdx_val, b_val, oIdx_val)
         W_ref = W.get_value()
 
-        # reset the var
         W.set_value(W_val)
         f1(h_val, iIdx_val, b_val, oIdx_val)
         W_opt = W.get_value()

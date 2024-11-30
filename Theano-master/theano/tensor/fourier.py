@@ -112,20 +112,13 @@ class Fourier(gof.Op):
                                       ' only for axis being a Theano constant'
                                       % self.__class__.__name__)
         axis = int(axis.data)
-        # notice that the number of actual elements in wrto is independent of
-        # possible padding or truncation:
         elem = tensor.arange(0, tensor.shape(a)[axis], 1)
-        # accounts for padding:
         freq = tensor.arange(0, n, 1)
         outer = tensor.outer(freq, elem)
         pow_outer = tensor.exp(((-2 * math.pi * 1j) * outer) / (1. * n))
         res = tensor.tensordot(grad, pow_outer, (axis, 0))
 
-        # This would be simpler but not implemented by theano:
-        # res = tensor.switch(tensor.lt(n, tensor.shape(a)[axis]),
-        # tensor.set_subtensor(res[...,n::], 0, False, False), res)
 
-        # Instead we resort to that to account for truncation:
         flip_shape = list(numpy.arange(0, a.ndim)[::-1])
         res = res.dimshuffle(flip_shape)
         res = tensor.switch(tensor.lt(n, tensor.shape(a)[axis]),
@@ -133,7 +126,6 @@ class Fourier(gof.Op):
                             res)
         res = res.dimshuffle(flip_shape)
 
-        # insures that gradient shape conforms to input shape:
         out_shape = list(numpy.arange(0, axis)) + [a.ndim - 1] +\
             list(numpy.arange(axis, a.ndim - 1))
         res = res.dimshuffle(*out_shape)

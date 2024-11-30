@@ -96,10 +96,8 @@ def test_speed():
 
         numpy_version(x, steps_a)
         t0 = time.time()
-        # print numpy_version(x, steps_a)
         t1 = time.time()
         t2 = time.time()
-        # print numpy_version(x, steps_b)
         t3 = time.time()
         t_a = t1 - t0
         t_b = t3 - t2
@@ -219,9 +217,6 @@ def test_allow_gc_cvm():
 
 run_memory_usage_tests = False
 if run_memory_usage_tests:
-    # these are not normal unit tests, do not run them as part of standard
-    # suite.  I ran them while looking at top, and stopped when memory usage
-    # was stable.
     def test_leak2():
         import theano.sandbox.cuda as cuda
         for i in xrange(1000000):
@@ -238,10 +233,7 @@ if run_memory_usage_tests:
             sys.stdout.flush()
 
     def test_no_leak_many_graphs():
-        # Verify no memory leaks when creating and deleting a lot of functions
 
-        # This isn't really a unit test, you have to run it and look at top to
-        # see if there's a leak
         for i in xrange(10000):
             x = tensor.vector()
             z = x
@@ -261,10 +253,7 @@ if run_memory_usage_tests:
                 f([5.0])
 
     def test_no_leak_many_call_lazy():
-        # Verify no memory leaks when calling a function a lot of times
 
-        # This isn't really a unit test, you have to run it and look at top to
-        # see if there's a leak
 
         def build_graph(x, depth=5):
             z = x
@@ -298,10 +287,7 @@ if run_memory_usage_tests:
                     lambda: vm.VM_Linker(allow_gc=False, use_cloop=False))
 
     def test_no_leak_many_call_nonlazy():
-        # Verify no memory leaks when calling a function a lot of times
 
-        # This isn't really a unit test, you have to run it and look at top to
-        # see if there's a leak.
 
         def build_graph(x, depth=5):
             z = x
@@ -369,7 +355,6 @@ def test_reallocation():
     x = tensor.scalar('x')
     y = tensor.scalar('y')
     z = tensor.tanh(3 * x + y) + tensor.cosh(x + 5 * y)
-    # The functinality is currently implement for non lazy and non c VM only.
     for l in [vm.VM_Linker(allow_gc=False, lazy=False, use_cloop=False),
               vm.VM_Linker(allow_gc=True, lazy=False, use_cloop=False)]:
         m = theano.compile.get_mode(theano.Mode(linker=l))

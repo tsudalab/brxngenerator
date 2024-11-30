@@ -20,8 +20,6 @@ __docformat__ = "restructuredtext en"
 logger = logging.getLogger('theano.updates')
 
 
-# Must be an OrderedDict or updates will be applied in a non-deterministic
-# order.
 class OrderedUpdates(OrderedDict):
     """
     Dict-like mapping from SharedVariable keys to their new values.
@@ -33,7 +31,6 @@ class OrderedUpdates(OrderedDict):
                 isinstance(key[0], dict) and
                 len(key[0]) > 1 and
                 not isinstance(key[0], OrderedDict)):
-            # Warn when using as input a non-ordered dictionary.
             warnings.warn('Initializing an `OrderedUpdates` from a '
                           'non-ordered dictionary with 2+ elements could '
                           'make your code non-deterministic. You can use '
@@ -49,12 +46,6 @@ class OrderedUpdates(OrderedDict):
     def __setitem__(self, key, value):
         if isinstance(key, SharedVariable):
 
-            # TODO: consider doing error-checking on value.
-            # insist that it is a Theano variable? Have the right type?
-            # This could have weird consequences - for example a
-            # GPU SharedVariable is customarily associated with a TensorType
-            # value. Should it be cast to a GPU value right away?  Should
-            # literals be transformed into constants immediately?
 
             return super(OrderedUpdates, self).__setitem__(key, value)
         else:
@@ -67,7 +58,6 @@ class OrderedUpdates(OrderedDict):
         if (isinstance(other, dict) and
                 len(other) > 1 and
                 not isinstance(other, OrderedDict)):
-            # Warn about non-determinism.
             warnings.warn('Updating an `OrderedUpdates` with a '
                           'non-ordered dictionary with 2+ elements could '
                           'make your code non-deterministic',

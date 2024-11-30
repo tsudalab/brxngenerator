@@ -40,7 +40,6 @@ def molstar(target_mol, target_mol_id, starting_mols, expand_fn, value_fn,
                 reactants = result['reactants']
                 scores = result['scores']
                 costs = 0.0 - np.log(np.clip(np.array(scores), 1e-3, 1.0))
-                # costs = 1.0 - np.array(scores)
                 if 'templates' in result.keys():
                     templates = result['templates']
                 else:
@@ -57,7 +56,6 @@ def molstar(target_mol, target_mol_id, starting_mols, expand_fn, value_fn,
                 if succ:
                     break
 
-                # found optimal route
                 if mol_tree.root.succ_value <= mol_tree.search_status:
                     break
 

@@ -37,7 +37,6 @@ def test_NanGuardMode():
 
     fun(a)  # normal values
 
-    # Temporarily silence logger
     _logger = logging.getLogger("theano.compile.nanguardmode")
     try:
         _logger.propagate = False

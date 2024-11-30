@@ -74,7 +74,6 @@ def contains_nan(arr, node=None):
         if (hasattr(theano.sandbox, 'rng_mrg') and
             isinstance(
                 node.op,
-                # It store ints in float container
                 theano.sandbox.rng_mrg.GPU_mrg_uniform)):
             return False
         else:
@@ -118,7 +117,6 @@ def contains_inf(arr, node=None):
         if (hasattr(theano.sandbox, 'rng_mrg') and
             isinstance(
                 node.op,
-                # It store ints in float container
                 theano.sandbox.rng_mrg.GPU_mrg_uniform)):
             return False
         else:
@@ -148,9 +146,6 @@ def compile_gpu_func(nan_is_error, inf_is_error, big_is_error):
                 mode='FAST_RUN'
             )
         except RuntimeError:
-            # This can happen if cuda is available, but the
-            # device is in exclusive mode and used by another
-            # process.
             cuda_compile_failed = True
     if inf_is_error and not cuda_compile_failed and f_gpumax is None:
         try:
@@ -159,9 +154,6 @@ def compile_gpu_func(nan_is_error, inf_is_error, big_is_error):
                 mode='FAST_RUN'
             )
         except RuntimeError:
-            # This can happen if cuda is available, but the
-            # device is in exclusive mode and used by another
-            # process.
             cuda_compile_failed = True
     if big_is_error and not cuda_compile_failed and f_gpuabsmax is None:
         try:
@@ -170,9 +162,6 @@ def compile_gpu_func(nan_is_error, inf_is_error, big_is_error):
                 mode='FAST_RUN'
                 )
         except RuntimeError:
-            # This can happen if cuda is available, but the
-            # device is in exclusive mode and used by another
-            # process.
             cuda_compile_failed = True
 
 
@@ -196,8 +185,6 @@ class NanGuardMode(Mode):
     ----
         We ignore the linker parameter
     """
-    # We currently loose the 3 first params frequently, when calling
-    # mode.including() and variant.
     def __init__(self, nan_is_error=None, inf_is_error=None, big_is_error=None,
                  optimizer='default', linker=None):
         self.provided_optimizer = optimizer
@@ -294,9 +281,6 @@ class NanGuardMode(Mode):
             """
             inputs = fn.inputs
             for x, var in zip(inputs, node.inputs):
-                # If the input is the result of computation, then we
-                # don't need to check it. It is already done after the
-                # computation.
                 if (var.owner is None and
                         getattr(var.tag, 'nan_guard_mode_check', True)):
                     do_check_on(x[0], node, fn, True)

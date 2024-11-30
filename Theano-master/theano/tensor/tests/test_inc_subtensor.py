@@ -69,8 +69,6 @@ class Test_inc_subtensor(unittest.TestCase):
         a = tt.col()
         increment = tt.vector()
 
-        # These symbolic graphs legitimate, as long as increment has exactly
-        # one element. So it should fail at runtime, not at compile time.
         rng = numpy.random.RandomState(utt.fetch_seed())
 
         def rng_randX(*shape):
@@ -80,9 +78,7 @@ class Test_inc_subtensor(unittest.TestCase):
             for base in (a[:], a[0]):
                 out = op(base, increment)
                 f = theano.function([a, increment], out)
-                # This one should work
                 f(rng_randX(3, 1), rng_randX(1))
-                # These ones should not
                 self.assertRaises(ValueError,
                                   f, rng_randX(3, 1), rng_randX(2))
                 self.assertRaises(ValueError,
@@ -122,7 +118,6 @@ class Test_inc_subtensor(unittest.TestCase):
 
             utt.assert_allclose(result, expected_result)
 
-            # Test when we broadcast the result
             resut = method(a[sl1, sl2], increment)
 
             f = theano.function([a, increment, sl2_end], resut)
@@ -149,25 +144,21 @@ class Test_inc_subtensor(unittest.TestCase):
             return just_numeric_args
 
         for f_slice in [inc_slice, set_slice]:
-            # vector
             utt.verify_grad(
                 f_slice(slice(2, 4, None)),
                 (numpy.asarray([0, 1, 2, 3, 4, 5.]),
                  numpy.asarray([9, 9.]), ))
 
-            # matrix
             utt.verify_grad(
                 f_slice(slice(1, 2, None), slice(None, None, None)),
                 (numpy.asarray([[0, 1], [2, 3], [4, 5.]]),
                  numpy.asarray([[9, 9.]]), ))
 
-            # single element
             utt.verify_grad(
                 f_slice(2, 1),
                 (numpy.asarray([[0, 1], [2, 3], [4, 5.]]),
                  numpy.asarray(9.),))
 
-            # broadcast
             utt.verify_grad(
                 f_slice(2),
                 (numpy.asarray([[0, 1], [2, 3], [4, 5.]]),

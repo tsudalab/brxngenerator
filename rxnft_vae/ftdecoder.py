@@ -20,7 +20,6 @@ class FTDecoder(nn.Module):
 			self.embedding = nn.Embedding(self.ftvocab_size, hidden_size)
 		else:
 			self.embedding = embedding
-		# GRU weights
 		self.W_z = nn.Linear(2 * hidden_size, hidden_size)
 		self.U_r = nn.Linear(hidden_size, hidden_size, bias=False)
 		self.W_r = nn.Linear(hidden_size, hidden_size)
@@ -34,7 +33,6 @@ class FTDecoder(nn.Module):
 
 		self.pred_loss = nn.CrossEntropyLoss(size_average=False)
 		self.stop_loss = nn.BCEWithLogitsLoss(size_average=False)
-		#self.dropout = nn.Dropout(self.dropout_p)
 
 	def get_trace(self, node):
 		super_root = FragmentNode("")
@@ -48,7 +46,6 @@ class FTDecoder(nn.Module):
 		init_hidden = create_var(torch.zeros(1, self.hidden_size))
 		zero_pad = create_var(torch.zeros(1,1,self.hidden_size))
 
-		# root prediction
 		root_hidden = torch.cat([init_hidden, tree_vec], dim=1)
 
 		root_hidden = nn.ReLU()(self.W(root_hidden))
@@ -79,25 +76,20 @@ class FTDecoder(nn.Module):
 			cur_x = create_var(torch.LongTensor([node_x.wid]))
 			cur_x = self.embedding(cur_x)
 
-			# predict stop
 			cur_h = cur_h_nei.sum(dim=1)
 			stop_hidden = torch.cat([cur_x, cur_h, tree_vec], dim=1)
 			stop_hidden = nn.ReLU()(self.U(stop_hidden))
 			stop_score = nn.Sigmoid()(self.U_s(stop_hidden)*20).squeeze()
 
 			if prob_decode:
-				#print(1.0 - stop_score)
 				backtrack = (torch.bernoulli(1.0 - stop_score)==1)
 			else:
 				backtrack = (stop_score.item() < 0.5)
 			if not backtrack:
-				# predict next clique
 				new_h = GRU(cur_x, cur_h_nei, self.W_z, self.W_r, self.U_r, self.W_h)
 				pred_hidden = torch.cat([new_h, tree_vec], dim=1)
 				pred_hidden = nn.ReLU()(self.W(pred_hidden))
-				#print(self.W_o(pred_hidden)*20)
 				pred_score = nn.Softmax()(self.W_o(pred_hidden)*20)
-				#print(pred_score)
 				if prob_decode:
 					sort_wid = torch.multinomial(pred_score, 5)
 					sort_wid=sort_wid[0,:]
@@ -123,7 +115,6 @@ class FTDecoder(nn.Module):
 					h[(node_x.idx, node_y.idx)] = new_h[0]
 					stack.append((node_y, next_slots))
 					all_nodes.append(node_y)
-					#tree.nodes.append(node_y)
 					nodes[id] = self.ftvocab.get_smiles(next_wid)
 					id+=1
 					edges.append((node_x.idx, node_y.idx))
@@ -174,7 +165,6 @@ class FTDecoder(nn.Module):
 			for node in tree.nodes:
 				node.neighbors=[]
 
-		# predict root
 		pred_tree_vecs.append(tree_vecs)
 		pred_targets.extend([tree.nodes[0].wid for tree in tree_batch])
 		pred_hiddens.append(create_var(torch.zeros(len(tree_batch), self.hidden_size)))
@@ -225,14 +215,12 @@ class FTDecoder(nn.Module):
 				if direction==1:
 					pred_target.append(node_y.wid)
 					pred_list.append(i)
-			# hidden states for stop prediction
 			cur_batch = create_var(torch.LongTensor(batch_list))
 			cur_tree_vec = tree_vecs.index_select(0, cur_batch)
 			stop_hidden = torch.cat([cur_x, cur_o, cur_tree_vec], dim=1)
 			stop_hiddens.append(stop_hidden)
 			stop_targets.extend(stop_target)
 
-			# hidden states for clique prediction
 			if len(pred_list) > 0:
 				batch_list = [batch_list[i] for i in pred_list]
 				cur_batch = create_var(torch.LongTensor(batch_list))
@@ -241,7 +229,6 @@ class FTDecoder(nn.Module):
 				cur_pred = create_var(torch.LongTensor(pred_list))
 				pred_hiddens.append(new_h.index_select(0, cur_pred))
 				pred_targets.extend(pred_target)
-		# last stop at root
 		cur_x, cur_o_nei =[],[]
 		for tree in tree_batch:
 			node_x = tree.nodes[0]
@@ -259,7 +246,6 @@ class FTDecoder(nn.Module):
 		stop_hiddens.append(stop_hidden)
 		stop_targets.extend([0]*len(tree_batch))
 
-		# predict next clique
 		pred_hiddens = torch.cat(pred_hiddens, dim=0)
 		pred_tree_vecs = torch.cat(pred_tree_vecs, dim=0)
 		pred_vecs = torch.cat([pred_hiddens, pred_tree_vecs], dim=1)
@@ -272,7 +258,6 @@ class FTDecoder(nn.Module):
 		pred_acc = torch.eq(preds, pred_targets).float()
 		pred_acc = torch.sum(pred_acc)/pred_targets.nelement()
 
-		# predict stop
 		stop_hiddens = torch.cat(stop_hiddens, dim=0)
 		stop_vecs = nn.ReLU()(self.U(stop_hiddens))
 		stop_scores = self.U_s(stop_vecs).squeeze()

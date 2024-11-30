@@ -41,7 +41,6 @@ class BROKEN_ON_PURPOSE_Add(gof.Op):
         a, b = inp
         out, = out_
         z = a + b
-        # ERROR TO ADD THIS CRAPPY OFFSET
         if self.py_offset:
             out[0] = z + 0.5
         else:
@@ -87,10 +86,8 @@ class BROKEN_ON_PURPOSE_Add(gof.Op):
         }
         """ % dict(locals(), **sub)
 
-# inconsistent is a invalid op, whose perform and c_code do not match
 inconsistent = BROKEN_ON_PURPOSE_Add(False)
 
-# off_by_half is a good op, that is different from theano.sparse.sd_csc
 off_by_half = BROKEN_ON_PURPOSE_Add(True)
 
 
@@ -161,16 +158,11 @@ class WeirdBrokenOp(gof.Op):
 
         if self.behaviour == 'times2':
             behaviour = "     Dz[m * Sz] = 2 * Da[m * Sa]; "
-            # out[0] = a * 2
         elif self.behaviour == 'times2_inplace':
-            # out[0] = a
-            # out[0] *= 2
             behaviour = "     Dz[m * Sz] = 2 * Da[m * Sa]; "
         elif self.behaviour == 'times1':
-            # out[0] = a * 1
             behaviour = "     Dz[m * Sz] = Da[m * Sa]; "
         elif self.behaviour == 'times1_inplace':
-            # out[0] = a
             behaviour = ""
         else:
             raise ValueError(self.behaviour)
@@ -190,7 +182,6 @@ wb1 = WeirdBrokenOp('times1')
 
 
 def test_badthunkoutput():
-    # Check if the c and python code is consistent.
     a = theano.tensor.dvector()
     b = theano.tensor.dvector()
 
@@ -201,7 +192,6 @@ def test_badthunkoutput():
                                      inconsistent(a, b),
                                      mode=debugmode.DebugMode(check_c_code=theano.config.cxx))
 
-    # this should evaluate with no error
     f_good([1.0, 2.0, 3.0], [2, 3, 4])
     if not theano.config.cxx:
         raise SkipTest("G++ not available, so we need to skip this test.")
@@ -209,7 +199,6 @@ def test_badthunkoutput():
     try:
         f_inconsistent([1.0, 2.0, 3.0], [2, 3, 4])
     except debugmode.BadThunkOutput as e:
-        # print repr(e)
         assert e.r.owner.op is inconsistent
         return  # TEST PASS
 
@@ -276,7 +265,6 @@ def test_badoptimization_opt_err():
 
 def test_stochasticoptimization():
 
-    # this optimization alternates between triggering and not triggering.
 
     last_time_replaced = [False]
 
@@ -423,8 +411,6 @@ class Test_ViewMap(unittest.TestCase):
             pass
 
     def test_aliased_outputs_ok(self):
-        # here aliased outputs is ok because they are both aliased to an input
-        # as well
         class CustomOp(gof.Op):
             view_map = {0: [0], 1: [0]}
 
@@ -449,8 +435,6 @@ class Test_ViewMap(unittest.TestCase):
         assert numpy.all(r1 == [2, 3, 4])
 
     def test_aliased_outputs_ok_output(self):
-        # here aliased outputs is ok because they are both outputs of the
-        # function as a whole and thus not destroy-able
         class CustomOp(gof.Op):
             def make_node(self, a, b):
                 c = a.type()
@@ -474,9 +458,6 @@ class Test_ViewMap(unittest.TestCase):
         assert numpy.all(r1 == [4, 6, 8])
 
     def test_aliased_outputs_ok_shadow(self):
-        # here the alias between outputs is ok because one of them is not used
-        # for subsequent computation.  This is like the case where we use one
-        # output as a memory buffer to serve another output.
         class CustomOp(gof.Op):
             def make_node(self, a, b):
                 c = a.type()
@@ -499,9 +480,6 @@ class Test_ViewMap(unittest.TestCase):
         assert numpy.all(r0 == [2, 4, 6, 8])
 
     def test_aliased_outputs_bad(self):
-        # here the alias between outputs is not ok because destroying one
-        # destroys the other, but there's no way to warn theano about it
-        # through the view_map mechanism.
         class CustomOp(gof.Op):
             def make_node(self, a, b):
                 c = a.type()
@@ -527,15 +505,8 @@ class Test_ViewMap(unittest.TestCase):
             f([1, 2, 3, 4], [5, 6, 7, 8])
             assert False  # DebugMode should have caught the error
         except debugmode.BadViewMap:
-            # print e
             pass
 
-        # the situation can be rescued by picking one of the inputs and
-        # pretending that it is aliased to both the outputs.
-        # This unfairly disables any destructive operations on the
-        # input, but guarantees correctness.
-        # custom_op.view_map = {0:[0], 1:[1]}
-        # f([1,2,3,4],[5,6,7,8])
 
 
 class Test_check_isfinite(unittest.TestCase):
@@ -554,13 +525,8 @@ class Test_check_isfinite(unittest.TestCase):
         f = theano.function([x], (x + 2) * 5, mode='DEBUG_MODE')
         g = theano.function([x], theano.tensor.log(x), mode='DEBUG_MODE')
 
-        # this should work
         f(numpy.log([3, 4, 5]).astype(config.floatX))
 
-        # if TensorType.filter_checks_isfinite were true, these would raise
-        # ValueError
-        # if not, DebugMode will check internally, and raise InvalidValueError
-        # passing an invalid value as an input should trigger ValueError
         self.assertRaises(debugmode.InvalidValueError, f,
                           numpy.log([3, -4, 5]).astype(config.floatX))
         self.assertRaises(debugmode.InvalidValueError, f,
@@ -568,16 +534,12 @@ class Test_check_isfinite(unittest.TestCase):
         self.assertRaises(debugmode.InvalidValueError, f,
                           (numpy.asarray([1.0, 1.0, 1.0]) / 0).astype(config.floatX))
 
-        # generating an invalid value internally should trigger
-        # InvalidValueError
         self.assertRaises(debugmode.InvalidValueError, g,
                           numpy.asarray([3, -4, 5], dtype=config.floatX))
 
-        # this should disable the exception
         theano.tensor.TensorType.filter_checks_isfinite = False
         theano.compile.mode.predefined_modes[
             'DEBUG_MODE'].check_isfinite = False
-        # insert several Inf
         f(numpy.asarray(numpy.asarray([1.0, 1.0, 1.0]) / 0,
                         dtype=config.floatX))
 
@@ -586,12 +548,9 @@ class Test_check_isfinite(unittest.TestCase):
         f = theano.function([x], (x + 2) * 5,
                             mode=debugmode.DebugMode(check_isfinite=False))
 
-        # nan should go through
         f(numpy.log([3, -4, 5]))
 
-        # inf should go through
         infs = numpy.asarray([1.0, 1., 1.]) / 0
-        # print infs
         f(infs)
         return
 
@@ -610,11 +569,9 @@ class BrokenCImplementationAdd(gof.Op):
         return r
 
     def perform(self, node, inp, out_):
-        # print 'executing python perform'
         a, b = inp
         out, = out_
         z = a + b
-        # print 'out[0] was:', out[0]
         out[0] = z
 
     def c_code_cache_version(self):
@@ -713,7 +670,6 @@ class VecAsRowAndCol(gof.Op):
         if (c[0] is None) or (c[0].shape != (lv, 1)):
             c[0] = node.outputs[1].type.value_zeros((lv, 1))
 
-        # Python loop because CudaNdarrays do not support newaxis
         for i in range(lv):
             r[0][0, i] = v[i]
             c[0][i, 0] = v[i]
@@ -727,23 +683,17 @@ class Test_preallocated_output(unittest.TestCase):
         a = theano.tensor.fmatrix('a')
         b = theano.tensor.fmatrix('b')
         z = BrokenCImplementationAdd()(a, b)
-        # In this test, we do not want z to be an output of the graph.
         out = theano.tensor.dot(z, numpy.eye(7))
 
         a_val = self.rng.randn(7, 7).astype('float32')
         b_val = self.rng.randn(7, 7).astype('float32')
 
-        # Should work
         mode = debugmode.DebugMode(
             check_preallocated_output=['c_contiguous'])
 
         f = theano.function([a, b], out, mode=mode)
         f(a_val, b_val)
-        # print 'out_val =', out_val
-        # print out_val.strides
 
-        # Should raise an Exception, since the output buffer is
-        # used incorrectly.
         mode = debugmode.DebugMode(
             check_preallocated_output=['f_contiguous'])
 
@@ -752,12 +702,9 @@ class Test_preallocated_output(unittest.TestCase):
         if theano.config.cxx:
             self.assertRaises(debugmode.BadThunkOutput, f, a_val, b_val)
         else:
-            # The python code of this op is good.
             f(a_val, b_val)
 
     def test_f_contiguous_out(self):
-        # Same test as test_f_contiguous, but check that it works
-        # even if z _is_ the output of the graph
         a = theano.tensor.fmatrix('a')
         b = theano.tensor.fmatrix('b')
         out = BrokenCImplementationAdd()(a, b)
@@ -765,17 +712,12 @@ class Test_preallocated_output(unittest.TestCase):
         a_val = self.rng.randn(7, 7).astype('float32')
         b_val = self.rng.randn(7, 7).astype('float32')
 
-        # Should work
         mode = debugmode.DebugMode(
             check_preallocated_output=['c_contiguous'])
 
         f = theano.function([a, b], out, mode=mode)
         f(a_val, b_val)
-        # print 'out_val =', out_val
-        # print out_val.strides
 
-        # Should raise an Exception, since the output buffer is
-        # used incorrectly.
         mode = debugmode.DebugMode(
             check_preallocated_output=['f_contiguous'])
 
@@ -784,7 +726,6 @@ class Test_preallocated_output(unittest.TestCase):
         if theano.config.cxx:
             self.assertRaises(debugmode.BadThunkOutput, f, a_val, b_val)
         else:
-            # The python code of this op is good.
             f(a_val, b_val)
 
     def test_output_broadcast_tensor(self):
@@ -800,10 +741,6 @@ class Test_preallocated_output(unittest.TestCase):
         if not cuda.cuda_available:
             raise SkipTest("Optional package Cuda disabled")
         if cuda.use.device_number is None:
-            # We should normally set VecAsRowAndCol as a GPUOp But we
-            # don't want to do this here as this will disable others
-            # tests in this file.  So we manually init the GPU if
-            # needed to remove warning.
             cuda.use("gpu",
                      force=True,
                      default_to_move_computation_to_gpu=False,

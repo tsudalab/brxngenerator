@@ -11,7 +11,6 @@ from six.moves import StringIO
 try:
     from nose.plugins.attrib import attr
 except ImportError:
-    # This is an old version of nose
     def attr(tag):
         def func(f):
             return f
@@ -82,16 +81,6 @@ def verify_grad(op, pt, n_tests=2, rng=None, *args, **kwargs):
         rng = numpy.random
     T.verify_grad(op, pt, n_tests, rng, *args, **kwargs)
 
-#
-# This supports the following syntax:
-#
-# try:
-#     verify_grad(...)
-# except verify_grad.E_grad, e:
-#     print e.num_grad.gf
-#     print e.analytic_grad
-#     raise
-#
 verify_grad.E_grad = T.verify_grad.E_grad
 
 
@@ -124,11 +113,7 @@ class TestOptimizationMixin(object):
         raise SkipTest(msg)
 
 
-# This object name should not start with Test.
-# Otherwise nosetests will execute it!
 class T_OpContractMixin(object):
-    # self.ops should be a list of instantiations of an Op class to test.
-    # self.other_op should be an op which is different from every op
     other_op = T.add
 
     def copy(self, x):
@@ -174,13 +159,9 @@ class T_OpContractMixin(object):
 class InferShapeTester(unittest.TestCase):
     def setUp(self):
         seed_rng()
-        # Take into account any mode that may be defined in a child class
-        # and it can be None
         mode = getattr(self, 'mode', None)
         if mode is None:
             mode = theano.compile.get_default_mode()
-        # This mode seems to be the minimal one including the shape_i
-        # optimizations, if we don't want to enumerate them explicitly.
         self.mode = mode.including("canonicalize")
 
     def _compile_and_check(self, inputs, outputs, numeric_inputs, cls,
@@ -210,8 +191,6 @@ class InferShapeTester(unittest.TestCase):
                     inp = var.type.filter(inp)
                 if not hasattr(inp, "shape"):
                     continue
-                # remove broadcasted dims as it is sure they can't be
-                # changed to prevent the same dim problem.
                 if hasattr(var.type, "broadcastable"):
                     shp = [inp.shape[i] for i in range(inp.ndim)
                            if not var.type.broadcastable[i]]
@@ -230,14 +209,11 @@ class InferShapeTester(unittest.TestCase):
         outputs_function = theano.function(inputs, outputs, mode=mode)
         shapes_function = theano.function(inputs, [o.shape for o in outputs],
                                           mode=mode)
-        # theano.printing.debugprint(shapes_function)
-        # Check that the Op is removed from the compiled function.
         if check_topo:
             topo_shape = shapes_function.maker.fgraph.toposort()
             assert not any(isinstance(t.op, cls) for t in topo_shape)
         topo_out = outputs_function.maker.fgraph.toposort()
         assert any(isinstance(t.op, cls) for t in topo_out)
-        # Check that the shape produced agrees with the actual shape.
         numeric_outputs = outputs_function(*numeric_inputs)
         numeric_shapes = shapes_function(*numeric_inputs)
         for out, shape in zip(numeric_outputs, numeric_shapes):
@@ -260,7 +236,6 @@ def str_diagnostic(expected, value, rtol, atol):
         print(expected.max(), end=' ', file=ssio)
         print(numpy.isinf(expected).sum(), end=' ', file=ssio)
         print(numpy.isnan(expected).sum(), end=' ', file=ssio)
-        # only if all succeeds to we add anything to sio
         print(ssio.getvalue(), file=sio)
     except Exception:
         pass
@@ -274,7 +249,6 @@ def str_diagnostic(expected, value, rtol, atol):
         print(value.max(), end=' ', file=ssio)
         print(numpy.isinf(value).sum(), end=' ', file=ssio)
         print(numpy.isnan(value).sum(), end=' ', file=ssio)
-        # only if all succeeds to we add anything to sio
         print(ssio.getvalue(), file=sio)
     except Exception:
         pass
@@ -297,7 +271,6 @@ def str_diagnostic(expected, value, rtol, atol):
         print("  Mean Rel Diff: ", numpy.mean(reldiff), file=ssio)
         print("  Median Rel Diff: ", numpy.median(reldiff), file=ssio)
         print("  Std Rel Diff: ", numpy.std(reldiff), file=ssio)
-        # only if all succeeds to we add anything to sio
         print(ssio.getvalue(), file=sio)
     except Exception:
         pass
@@ -352,25 +325,12 @@ class AttemptManyTimes:
 
     def __call__(self, fct):
 
-        # Wrap fct in a function that will attempt to run it multiple
-        # times and return the result if the test passes enough times
-        # of propagate the raised exception if it doesn't.
         @wraps(fct)
         def attempt_multiple_times(*args, **kwargs):
 
-            # Keep a copy of the current seed for unittests so that we can use
-            # a different seed for every run of the decorated test and restore
-            # the original after
             original_seed = config.unittests.rseed
             current_seed = original_seed
 
-            # If the decorator has received only one, unnamed, argument
-            # and that argument has an atribute _testMethodName, it means
-            # that the unit test on which the decorator is used is in a test
-            # class. This means that the setup() method of that class will
-            # need to be called before any attempts to execute the test in
-            # case it relies on data randomly generated in the class' setup()
-            # method.
             if (len(args) == 1 and hasattr(args[0], "_testMethodName")):
                 test_in_class = True
                 class_instance = args[0]
@@ -380,12 +340,8 @@ class AttemptManyTimes:
             n_fail = 0
             n_success = 0
 
-            # Attempt to call the test function multiple times. If it does
-            # raise any exception for at least one attempt, it passes. If it
-            # raises an exception at every attempt, it fails.
             for i in range(self.n_attempts):
                 try:
-                    # Attempt to make the test use the current seed
                     config.unittests.rseed = current_seed
                     if test_in_class and hasattr(class_instance, "setUp"):
                         class_instance.setUp()
@@ -399,19 +355,14 @@ class AttemptManyTimes:
                 except Exception:
                     n_fail += 1
 
-                    # If there is not enough attempts remaining to achieve the
-                    # required number of successes, propagate the original
-                    # exception
                     if n_fail + self.n_req_successes > self.n_attempts:
                         raise
 
                 finally:
-                    # Clean up after the test
                     config.unittests.rseed = original_seed
                     if test_in_class and hasattr(class_instance, "tearDown"):
                         class_instance.tearDown()
 
-                    # Update the current_seed
                     if current_seed not in [None, "random"]:
                         current_seed = str(int(current_seed) + 1)
 

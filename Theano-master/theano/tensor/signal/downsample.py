@@ -12,8 +12,6 @@ MaxPoolGrad = pool.MaxPoolGrad
 AveragePoolGrad = pool.AveragePoolGrad
 
 
-# This is for compatibility with pickled things.  It should go away at
-# some point.
 class DownsampleFactorMaxGrad(object):
     def __new__(self, ds, ignore_border, st=None, padding=(0, 0), mode='max'):
         if mode == 'max':

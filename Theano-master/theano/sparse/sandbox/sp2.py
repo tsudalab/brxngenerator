@@ -13,7 +13,6 @@ from theano.sparse.basic import (
     _is_sparse_variable, _is_dense_variable, CSC, CSR,
     csm_properties, csm_data, csm_indices, csm_indptr, csm_shape,
     _is_sparse,
-    # To maintain compatibility
     Remove0, remove0,
     Cast, bcast, wcast, icast, lcast, fcast, dcast, ccast, zcast,
     HStack, hstack, VStack, vstack,
@@ -25,15 +24,7 @@ from theano.sparse.basic import (
     StructuredAddSV, structured_add_s_v,
     SamplingDot, sampling_dot)
 
-# Probability Ops are currently back in sandbox, because they do not respect
-# Theano's Op contract, as their behaviour is not reproducible: calling
-# the perform() method twice with the same argument will yield different
-# results.
-# from theano.sparse.basic import (
-#    Multinomial, multinomial, Poisson, poisson,
-#    Binomial, csr_fbinomial, csc_fbinomial, csr_dbinomial, csc_dbinomial)
 
-# Also for compatibility
 from theano.sparse.opt import (
     MulSDCSC, mul_s_d_csc, MulSDCSR, mul_s_d_csr,
     MulSVCSR, mul_s_v_csr,
@@ -43,12 +34,10 @@ from theano.sparse.opt import (
     local_structured_add_s_v, local_sampling_dot_csr)
 
 
-# Alias to maintain compatibility
 EliminateZeros = Remove0
 eliminate_zeros = remove0
 
 
-# Probability
 class Poisson(gof.op.Op):
     """Return a sparse having random values from a Poisson density
     with mean from the input.

@@ -23,14 +23,12 @@ import theano
 from theano import tensor
 from theano.tests.unittest_tools import seed_rng, assert_allclose
 
-# Skip test if cuda is not available.
 from theano.sandbox import cuda
 if cuda.cuda_available == False:
     raise SkipTest('Optional package cuda disabled')
 
 from theano.sandbox.cuda.dnn import GpuDnnConv, DnnBase, dnn_conv
 
-# needed as the gpu conv don't have a perform implementation.
 if theano.config.mode == 'FAST_COMPILE':
     theano_mode = theano.compile.mode.get_mode('FAST_RUN').including('gpu')
 else:
@@ -63,7 +61,6 @@ def py_conv_valid_numpy(img, kern):
         for k in xrange(out.shape[1]):
             for rr in xrange(out.shape[2]):
                 for cc in xrange(out.shape[3]):
-                    # rr, cc is the upper-left corner of img patches
                     imgpatch = img[b, :, rr:rr + kern.shape[2],
                                    cc:cc + kern.shape[3]]
 
@@ -86,8 +83,6 @@ def py_conv_pad_img(img, pad_h, pad_w):
 
 
 def py_conv_full_numpy(img, kern):
-    # manually pad the img with zeros all around, and then run it
-    # through py_conv_valid
     padded_img = py_conv_pad_img(img, kern.shape[2] - 1, kern.shape[3] - 1)
     return py_conv_valid_numpy(padded_img, kern)
 
@@ -129,7 +124,6 @@ def py_conv_scipy(img, kern, mode, subsample):
     for b in xrange(out.shape[0]):
         for k in xrange(out.shape[1]):
             for s in xrange(img.shape[1]):
-                #convolve2d or correlate
                 out[b, k, :, :] += convolve2d(img[b, s, :, :],
                                   kern[k, s, :, :],
                                   mode)
@@ -145,19 +139,6 @@ def _params_allgood(ishape, kshape, mode, subsample=(1, 1), img_stride=(1, 1),
                     print_=None, id=None, rtol=1e-5, atol=1e-8,
                     nb_iter=0, ones=False, compile_kshp=None,
                     theano_mode=None, cls=None):
-    #
-    # This function is the core of several of the big unit-test drivers,
-    # but it can also be used very directly on its own to test a specific
-    # kind of convolution.
-    #
-    # See `test_example` (above) for an example of how to use this directly.
-    #
-    # :param kshape: (4d)The shape of the kernel at run time.
-    # :param compile_kshp: (2d) hardcode the shape of the kernel in
-    #                      the generated code This is supposed to be
-    #                      faster, but we need to check That we raise
-    #                      an error if the input have the wrong shape.
-    #
     if ones:
         assert not random
         npy_img = theano._asarray(numpy.ones(ishape), dtype='float32')
@@ -176,8 +157,6 @@ def _params_allgood(ishape, kshape, mode, subsample=(1, 1), img_stride=(1, 1),
     img = cuda_ndarray.CudaNdarray(npy_img)
     kern = cuda_ndarray.CudaNdarray(npy_kern)
 
-    # we take the stride after the transfert as we make c_contiguous
-    # data on the GPU.
     if img_stride != (1, 1):
         img = img[:, :, ::img_stride[0], ::img_stride[1]]
         npy_img = npy_img[:, :, ::img_stride[0], ::img_stride[1]]
@@ -206,7 +185,6 @@ def _params_allgood(ishape, kshape, mode, subsample=(1, 1), img_stride=(1, 1),
         assert (numpy.asarray(gpuval) == numpy.asarray(gpuval2)).all()
     gpuval = numpy.asarray(gpuval)
 
-    # CPU val computed after GPU val to get the GPU errors.
     t0 = time.time()
     cpuval = py_conv(npy_img, npy_kern, mode, subsample)
     t1 = time.time()
@@ -257,11 +235,9 @@ def exec_conv(version, shapes, verbose, random, mode,
 
 
 def get_basic_shapes():
-        # basic test of image and kernel shape
     return [((1, 1, 1, 1), (1, 1, 1, 1), (1, 1), (1, 1), (1, 1)),
             ((1, 1, 2, 2), (1, 1, 2, 2), (1, 1), (1, 1), (1, 1)),
             ((1, 1, 3, 3), (1, 1, 2, 2), (1, 1), (1, 1), (1, 1)),
-        # basic test for unsquare kernel and image
             ((1, 1, 2, 4), (1, 1, 2, 2), (1, 1), (1, 1), (1, 1)),
             ((1, 1, 3, 4), (1, 1, 2, 2), (1, 1), (1, 1), (1, 1)),
             ((1, 1, 4, 3), (1, 1, 2, 2), (1, 1), (1, 1), (1, 1)),
@@ -275,52 +251,37 @@ def get_shapes(imshp=(1, 1), kshp=(1, 1), subsample=(1, 1),
     nkern. We use the gived image shape, kernel shape and subsmaple
     shape."""
     return [
-        # stack only
         ((1, 2) + imshp, (1, 2) + kshp, subsample, img_stride, kern_stride),
-        # batch only
         ((3, 1) + imshp, (1, 1) + kshp, subsample, img_stride, kern_stride),
-        # nkern only
         ((1, 1) + imshp, (2, 1) + kshp, subsample, img_stride, kern_stride),
-        #batch and nkern
         ((3, 1) + imshp, (2, 1) + kshp, subsample, img_stride, kern_stride),
-        #batch and stack
         ((3, 2) + imshp, (1, 2) + kshp, subsample, img_stride, kern_stride),
-        #stack and nkern
         ((1, 2) + imshp, (2, 2) + kshp, subsample, img_stride, kern_stride),
-        #batch, nkern and stack
         ((2, 2) + imshp, (2, 2) + kshp, subsample, img_stride, kern_stride),
-        #batch, nkern and stack
         ((3, 2) + imshp, (4, 2) + kshp, subsample, img_stride, kern_stride)
     ]
 
 
 def get_shapes2(scales_img=(1, 1), scales_kern=(1, 1), subsample=(1, 1),
                 img_stride=(1, 1), kern_stride=(1, 1)):
-    # basic test of stack, batch and nkern paramter
     shapes = get_shapes((1 * scales_img[0], 1 * scales_img[1]),
                         (1 * scales_kern[0], 1 * scales_kern[1]),
                         subsample, img_stride, kern_stride)
-    # basic test of stack, batch and nkern paramter with image and kernel shape
     shapes += get_shapes((2 * scales_img[0], 2 * scales_img[1]),
                          (2 * scales_kern[0], 2 * scales_kern[1]),
                          subsample, img_stride, kern_stride)
-    # basic test of stack, batch and nkern paramter with image and kernel shape
     shapes += get_shapes((3 * scales_img[0], 3 * scales_img[1]),
                          (2 * scales_kern[0], 2 * scales_kern[1]),
                          subsample, img_stride, kern_stride)
-    # basic test of stack, batch and nkern paramter with not square image.
     shapes += get_shapes((4 * scales_img[0], 3 * scales_img[1]),
                          (2 * scales_kern[0], 2 * scales_kern[1]),
                          subsample, img_stride, kern_stride)
-    # basic test of stack, batch and nkern paramter with not square image.
     shapes += get_shapes((3 * scales_img[0], 4 * scales_img[1]),
                          (2 * scales_kern[0], 2 * scales_kern[1]),
                          subsample, img_stride, kern_stride)
-    # basic test of stack, batch and nkern paramter with not square kernel.
     shapes += get_shapes((4 * scales_img[0], 4 * scales_img[1]),
                          (3 * scales_kern[0], 2 * scales_kern[1]),
                          subsample, img_stride, kern_stride)
-    # basic test of stack, batch and nkern paramter with not square kernel.
     shapes += get_shapes((4 * scales_img[0], 4 * scales_img[1]),
                          (2 * scales_kern[0], 3 * scales_kern[1]),
                          subsample, img_stride, kern_stride)
@@ -329,22 +290,18 @@ def get_shapes2(scales_img=(1, 1), scales_kern=(1, 1), subsample=(1, 1),
 
 def get_valid_shapes():
 
-    #          img shape,     kern shape, subsample shape
 
     shapes = get_basic_shapes()
     shapes += get_shapes2()
 
-    # test image stride
     shapes += get_shapes2(scales_img=(2, 2), img_stride=(1, 2))
     shapes += get_shapes2(scales_img=(2, 2), img_stride=(2, 1))
     shapes += get_shapes2(scales_img=(2, 2), img_stride=(2, 2))
     shapes += get_shapes2(scales_img=(2, 2), img_stride=(-1, -1))
     shapes += get_shapes2(scales_img=(2, 2), kern_stride=(-1, -1))
 
-    # test subsample done in a separate fct
 
     shapes += [
-         # other test
               ((2, 1, 2, 2), (1, 1, 2, 2), (1, 1), (1, 1), (1, 1))
             , ((3, 2, 4, 4), (4, 2, 4, 4), (1, 1), (1, 1), (1, 1))
             , ((4, 1, 10, 10), (1, 1, 2, 2), (1, 1), (1, 1), (1, 1))
@@ -361,7 +318,6 @@ def get_valid_shapes():
             , ((20, 16, 32, 32), (1, 16, 28, 28), (1, 1), (1, 1), (1, 1))  # layer 1 backprop to weights
             , ((60, 20, 28, 28), (10, 20, 5, 5), (1, 1), (2, 2), (1, 1))  # added a test case that fail from test_nnet.py.test_conv_nnet2
             , ((10, 5, 28, 28), (10, 5, 5, 5), (1, 1), (2, 2), (1, 1))  # test precedent but reduced that triger the error
-            # Test more than maxThreadsDim0
             , ((2, 4, 13, 1050), (3, 4, 10, 11), (1, 1), (1, 1), (1, 1))
             , ((2, 4, 1050, 13), (3, 4, 10, 11), (1, 1), (1, 1), (1, 1))
             ]
@@ -370,12 +326,9 @@ def get_valid_shapes():
             , ((60, 20, 12, 12), (30, 20, 5, 5), (1, 1), (1, 1), (1, 1))  # test_lenet_28 2 layers
             , ((60, 30, 8, 8), (20, 30, 5, 5), (1, 1), (1, 1), (1, 1))  # test_lenet_28 bprop 1 full
             , ((20, 60, 12, 12), (30, 60, 8, 8), (1, 1), (1, 1), (1, 1))  # test_lenet_28 bprop 2 valid
-#            , ((1,60,28,28),(20,60,24,24), (1, 1), (1, 1), (1, 1))#test_lenet_28 bprop 2 valid
             , ((10, 1, 64, 64), (20, 1, 7, 7), (1, 1), (1, 1), (1, 1))  # test_lenet_64 1 layers
             , ((10, 20, 29, 29), (30, 20, 7, 7), (1, 1), (1, 1), (1, 1))  # test_lenet_64 2 layers
             , ((10, 30, 23, 23), (20, 30, 7, 7), (1, 1), (1, 1), (1, 1))  # test_lenet_64 full
-#            , ((20,10,29,29),(30,10,23,23), (1, 1), (1, 1), (1, 1))#test_lenet_64 bprop 1
-#            , ((1,10,64,64),(20,10,58,58), (1, 1), (1, 1), (1, 1))#test_lenet_64 bprop 2
             ]
     return shapes
 
@@ -455,17 +408,14 @@ def _test_full(cls, mode=None, version=[-1], extra_shapes=[],
     seed_rng()
     shapes = get_basic_shapes()
     shapes += get_shapes2()
-    # test image stride
     shapes += get_shapes2(scales_img=(2, 2), img_stride=(1, 2))
     shapes += get_shapes2(scales_img=(2, 2), img_stride=(2, 1))
     shapes += get_shapes2(scales_img=(2, 2), img_stride=(2, 2))
     shapes += get_shapes2(scales_img=(2, 2), img_stride=(-1, -1))
     shapes += get_shapes2(scales_img=(2, 2), kern_stride=(-1, -1))
 
-    # test subsample done in a separate fct
 
     shapes += [
-        # other test
               ((2, 1, 2, 2), (1, 1, 2, 2), (1, 1), (1, 1), (1, 1))
             , ((3, 2, 4, 4), (4, 2, 4, 4), (1, 1), (1, 1), (1, 1))
             , ((4, 1, 10, 10), (1, 1, 2, 2), (1, 1), (1, 1), (1, 1))
@@ -483,7 +433,6 @@ def _test_full(cls, mode=None, version=[-1], extra_shapes=[],
             ]
 
     if test_bigger_kernels:
-        # Shapes where the kernel is larger than the image in some dimension
         shapes += [
               ((3, 1, 1, 1), (2, 1, 5, 3), (1, 1), (1, 1), (1, 1))
             , ((3, 2, 1, 1), (4, 2, 1, 1), (1, 1), (1, 1), (1, 1))
@@ -493,17 +442,8 @@ def _test_full(cls, mode=None, version=[-1], extra_shapes=[],
             ]
 
     shapes += [
-#        ((60,1,28,28),(20,1,5,5), (1, 1), (1, 1), (1, 1))#test_lenet_28 1 layers
-#            , ((60,20,12,12),(30,20,5,5), (1, 1), (1, 1), (1, 1))#test_lenet_28 2 layers
              ((60, 30, 8, 8), (20, 30, 5, 5), (1, 1), (1, 1), (1, 1))  # test_lenet_28 bprop 1 full
-#            , ((20,60,12,12),(30,60,8,8), (1, 1), (1, 1), (1, 1))#test_lenet_28 bprop 2 valid
-#            , ((1,60,28,28),(20,60,24,24), (1, 1), (1, 1), (1, 1))#test_lenet_28 bprop 2 valid
-#            , ((10,1,64,64),(20,1,7,7), (1, 1), (1, 1), (1, 1))#test_lenet_64 1 layers
-#            , ((10,20,29,29),(30,20,7,7), (1, 1), (1, 1), (1, 1))#test_lenet_64 2 layers
             , ((10, 30, 23, 23), (20, 30, 7, 7), (1, 1), (1, 1), (1, 1))  # test_lenet_64 full
-#            , ((20,10,29,29),(30,10,23,23), (1, 1), (1, 1), (1, 1))#test_lenet_64 bprop 1
-#            , ((1,10,64,64),(20,10,58,58), (1, 1), (1, 1), (1, 1))#test_lenet_64 bprop 2
-            # Test more than maxThreadsDim0
             , ((2, 4, 13, 1050), (3, 4, 10, 11), (1, 1), (1, 1), (1, 1))
             , ((2, 4, 1050, 13), (3, 4, 10, 11), (1, 1), (1, 1), (1, 1))
             , ((1, 1, 44800, 1), (6, 1, 1, 1), (1, 1), (1, 1), (1, 1))  # This caused crash
@@ -520,8 +460,6 @@ def _test_full(cls, mode=None, version=[-1], extra_shapes=[],
 
 def test_full():
 
-    # If using CuDNN version before v3, only run the tests where the
-    # kernels are not larger than the input in any spatial dimension.
     if cuda.dnn.dnn_available() and cuda.dnn.version() < (3000, 3000):
         test_bigger_kernels = False
     else:
@@ -542,8 +480,6 @@ def test_dnn_full():
     if not cuda.dnn.dnn_available():
         raise SkipTest(cuda.dnn.dnn_available.msg)
 
-    # If using CuDNN version before v3, only run the tests where the
-    # kernels are not larger than the input in any spatial dimension.
     if cuda.dnn.version() < (3000, 3000):
         test_bigger_kernels = False
     else:
@@ -567,8 +503,6 @@ def _test_subsample(cls, mode, version_valid=[-1], version_full=[-1]):
     shapes += get_shapes2(scales_img=(2, 2), subsample=(2, 1))
     shapes += get_shapes2(scales_img=(2, 2), subsample=(2, 2))
 
-    # We put only the version that implement the subsample to make the
-    # test faster.
     verbose = 0
     random = True
     print_ = False
@@ -612,8 +546,6 @@ class TestConv2DGPU(unittest.TestCase):
                 cuda.blas.BaseGpuCorrMM)
 
     def test_logical_shapes(self):
-        # Logical shapes are not supported anymore, so we check that it
-        # raises an Exception.
         for stride in range(1, 4):
             kshp = (10, 2, 10, 10)
             featshp = (3, 10, 11, 11)
@@ -621,8 +553,6 @@ class TestConv2DGPU(unittest.TestCase):
             a = tensor.ftensor4()
             A = tensor.ftensor4()
 
-            # Need to transpose first two dimensions of kernel, and reverse
-            # index kernel image dims (for correlation)
             kernel_rotated = tensor.transpose(A, axes=[1, 0, 2, 3])
 
             featshp_logical = (featshp[0], featshp[1], featshp[2] * stride,
@@ -659,8 +589,6 @@ class TestConv2DGPU(unittest.TestCase):
                 for mode in ['valid', 'full']:
                     for shapes in [((3, 2, 8, 8), (4, 2, 5, 5), (8, 8)),
                                    ((3, 2, 8, 8), (4, 2, 5, 5), (5, 8)),
-                                   #((3, 2, 8, 8), (4, 2, 5, 5), (8, 5)),
-                                   # We use only the number of columns.
                                    ]:
 
                         self.assertRaises(ValueError, _params_allgood,
@@ -826,7 +754,6 @@ def conv_grad(mode, bs, ch, nf, rImg1, rImg2, rFlt1, rFlt2, subsample, op):
     k = cuda.CudaNdarrayType(
         broadcastable=[sh == 1 for sh in npy_kern.shape])()
 
-    # TODO: also test custom pad values
     corr_op = op(mode, subsample)(i, k)
     conv_op = tensor.nnet.conv2d(i, k[:, :, ::-1, ::-1],
                                  border_mode=mode, subsample=subsample)
@@ -846,10 +773,6 @@ def conv_grad(mode, bs, ch, nf, rImg1, rImg2, rFlt1, rFlt2, subsample, op):
                     corr_op_dki, conv_op_dki])
 
     if not theano.config.blas.ldflags:
-        # Some of the operations are not transferred to the GPU,
-        # and withoug BLAS, the abstract Op will not be optimized
-        # to CorrMM either, so we have to accept the use of the
-        # slow Python convolution in that case.
         mode = theano_mode.excluding('AbstractConvCheck')
     else:
         mode = theano_mode
@@ -891,27 +814,22 @@ def test_conv_grads():
 def benchmark():
 
     shapes_valid = [
-        # test_lenet_28 shape
         ((20, 60, 12, 12), (30, 60, 8, 8), (1, 1), (1, 1), (1, 1))  # valid
         , ((60, 20, 12, 12), (30, 20, 5, 5), (1, 1), (1, 1), (1, 1))  # valid
         , ((60, 1, 28, 28), (20, 1, 5, 5), (1, 1), (1, 1), (1, 1))  # valid
         , ((1, 60, 28, 28), (20, 60, 24, 24), (1, 1), (1, 1), (1, 1))  # valid
-        # test_lenet_32 shape
         , ((20, 60, 14, 14), (30, 60, 10, 10), (1, 1), (1, 1), (1, 1))  # valid
         , ((60, 20, 14, 14), (30, 20, 5, 5), (1, 1), (1, 1), (1, 1))  # valid
         , ((60, 1, 32, 32), (20, 1, 5, 5), (1, 1), (1, 1), (1, 1))  # valid
         , ((1, 60, 32, 32), (20, 60, 28, 28), (1, 1), (1, 1), (1, 1))  # valid
-        # test_lenet_64 shape
         , ((10, 20, 29, 29), (30, 20, 7, 7), (1, 1), (1, 1), (1, 1))  # valid
         , ((20, 10, 29, 29), (30, 10, 23, 23), (1, 1), (1, 1), (1, 1))  # valid
         , ((10, 1, 64, 64), (20, 1, 7, 7), (1, 1), (1, 1), (1, 1))  # valid
         , ((1, 10, 64, 64), (20, 10, 58, 58), (1, 1), (1, 1), (1, 1))  # valid
-        # test_lenet_108 shape
         , ((10, 20, 51, 51), (30, 20, 7, 7), (1, 1), (1, 1), (1, 1))  # valid
         , ((20, 10, 51, 51), (30, 10, 45, 45), (1, 1), (1, 1), (1, 1))  # valid
         , ((10, 1, 108, 108), (20, 1, 7, 7), (1, 1), (1, 1), (1, 1))  # valid
         , ((1, 10, 108, 108), (20, 10, 102, 102), (1, 1), (1, 1), (1, 1))  # valid
-        # test_lenet_256 shape
         , ((2, 20, 124, 124), (30, 20, 9, 9), (1, 1), (1, 1), (1, 1))  # valid
         , ((20, 2, 124, 124), (30, 2, 116, 116), (1, 1), (1, 1), (1, 1))  # valid
         , ((2, 1, 256, 256), (20, 1, 9, 9), (1, 1), (1, 1), (1, 1))  # valid
@@ -919,15 +837,10 @@ def benchmark():
             ]
 
     shapes_full = [
-        # test_lenet_28 shape
          ((60, 30, 8, 8), (20, 30, 5, 5), (1, 1), (1, 1), (1, 1))  # full
-        # test_lenet_32 shape
          , ((60, 30, 10, 10), (20, 30, 5, 5), (1, 1), (1, 1), (1, 1))  # full conv_full_patch_stack_padded' N=1
-        # test_lenet_64 shape
          , ((10, 30, 23, 23), (20, 30, 7, 7), (1, 1), (1, 1), (1, 1))  # full conv_full_patch_stack_padded' N=3
-        # test_lenet_108 shape
          , ((10, 30, 45, 45), (20, 30, 7, 7), (1, 1), (1, 1), (1, 1))  # full 'conv_full_patch_stack_padded' N=9
-        # test_lenet_256 shape
          , ((2, 30, 116, 116), (20, 30, 9, 9), (1, 1), (1, 1), (1, 1))  # full conv_reference_full
             ]
 
@@ -944,10 +857,6 @@ def benchmark():
 
 def test_stack_rows_segfault_070312():
     seed_rng()
-    # 07/03/2012
-    # Running this unittest with cuda-memcheck exposes an illegal read.
-    # THEANO_FLAGS=device=gpu cuda-memcheck nosetests \
-    # test_conv_cuda_ndarray.py:test_stack_rows_segfault_070312
     img = theano.shared(numpy.random.rand(1, 80, 96, 96).astype('float32'))
     kern = theano.shared(numpy.random.rand(1, 80, 9, 9).astype('float32'))
     out = theano.shared(numpy.random.rand(1, 2, 2, 3).astype('float32'))

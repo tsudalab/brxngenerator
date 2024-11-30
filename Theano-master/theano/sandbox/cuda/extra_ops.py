@@ -32,8 +32,6 @@ class GpuCumsum(CumsumOp, GpuOp):
         self.max_grid_size1 = None
         self.max_grid_size2 = None
 
-    # We must reuse the same method, not reimplement and call it.
-    # Otherwise DebugMode will print many warnings.
     perform = Op.perform
 
     def make_node(self, x):
@@ -360,7 +358,6 @@ class GpuCumsum(CumsumOp, GpuOp):
         x, = inames
         z, = onames
 
-        # We assume array has been already flattened if needed.
         axis = self.axis if self.axis is not None else 0
         fail = sub['fail']
 
@@ -432,7 +429,6 @@ def values_eq_approx_high_tol(a, b):
     """
     rtol = None
     if a.size > 100000:
-        # For float32 the default rtol is 1e-5
         rtol = 5e-5
     return CudaNdarrayType.values_eq_approx(a, b, rtol=rtol)
 
@@ -456,7 +452,6 @@ def use_gpu_cumsum(node):
         if axis is None and x.ndim > 1:
             x = gpu_flatten(x)
 
-        # ``gpu_cumsum`` assume array has been flattened if needed.
         if axis is None:
             axis = 0
 

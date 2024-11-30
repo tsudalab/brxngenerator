@@ -45,9 +45,6 @@ class ViewOp(gof.Op):
     """
 
     view_map = {0: [0]}
-    # Mapping from Type to C code (and version) to use.
-    # In the C code, the name of the input variable is %(iname)s,
-    # the output variable is %(oname)s.
     c_code_and_version = {}
     __props__ = ()
 
@@ -72,13 +69,10 @@ class ViewOp(gof.Op):
             code, version = self.c_code_and_version[itype]
             return code % locals()
 
-        # Else, no C code
         return super(ViewOp, self).c_code(node, nodename, inp, out, sub)
 
     def c_code_cache_version(self):
         version = []
-        # If any of the c code is unversionned, we have to return ()
-        # Else, we will return a list of (type name, version) pairs.
         for t, (c, v) in sorted(iteritems(self.c_code_and_version),
                                 key=lambda pair: str(pair[0])):
             if not v:
@@ -144,9 +138,6 @@ def register_deep_copy_op_c_code(typ, code, version=()):
 
 
 class DeepCopyOp(gof.Op):
-    # Mapping from Type to C code (and version) to use.
-    # In the C code, the name of the input variable is %(iname)s,
-    # the output variable is %(oname)s.
     c_code_and_version = {}
 
     check_input = False
@@ -160,18 +151,12 @@ class DeepCopyOp(gof.Op):
 
     def perform(self, node, args, outs):
         if hasattr(args[0], 'copy'):
-            # when args[0] is a an ndarray of 0 dimensions,
-            # this return a numpy.dtype and not an ndarray
-            # So when the args have a copy attribute we use it
-            # as this don't have this problem
             outs[0][0] = args[0].copy()
         else:
             outs[0][0] = copy.deepcopy(args[0])
 
     def c_code_cache_version(self):
         version = []
-        # If any of the c code is unversionned, we have to return ()
-        # Else, we will return a list of (type name, version) pairs.
         for t, (c, v) in sorted(iteritems(self.c_code_and_version),
                                 key=lambda pair: str(pair[0])):
             if not v:
@@ -197,7 +182,6 @@ class DeepCopyOp(gof.Op):
             code, version = self.c_code_and_version[itype]
             return code % locals()
 
-        # Else, no C code
         return super(DeepCopyOp, self).c_code(node, name, inames, onames, sub)
 
 
@@ -235,17 +219,12 @@ class Shape(gof.Op):
 
     _f16_ok = True
 
-    # Mapping from Type to C code (and version) to use.
-    # In the C code, the name of the input variable is %(iname)s,
-    # the output variable is %(oname)s.
     c_code_and_version = {}
 
     check_input = False
     __props__ = ()
 
     def make_node(self, x):
-        # Must work for all type that have a shape attribute.
-        # This will fail at execution time.
         if not isinstance(x, theano.Variable):
             x = theano.tensor.as_tensor_variable(x)
         return gof.Apply(self, [x], [theano.tensor.lvector()])
@@ -259,19 +238,9 @@ class Shape(gof.Op):
         return [[len(in_shapes[0])]]
 
     def connection_pattern(self, node):
-        # the grad returns the gradient with respect to the
-        # elements of a tensor variable
-        # the elements of the tensor variable do not participate
-        # in the computation of the shape, so they are not really
-        # part of the graph
         return [[False]]
 
     def grad(self, inp, grads):
-        # the grad returns the gradient with respect to the
-        # elements of a tensor variable
-        # the elements of the tensor variable do not participate
-        # in the computation of the shape, so they are not really
-        # part of the graph
         return [theano.gradient.DisconnectedType()()]
 
     def R_op(self, inputs, eval_points):
@@ -287,13 +256,10 @@ class Shape(gof.Op):
             code, version = self.c_code_and_version[itype]
             return code % locals()
 
-        # Else, no C code
         return super(Shape, self).c_code(node, name, inames, onames, sub)
 
     def c_code_cache_version(self):
         version = []
-        # If any of the c code is unversionned, we have to return ()
-        # Else, we will return a list of (type name, version) pairs.
         for t, (c, v) in sorted(iteritems(self.c_code_and_version),
                                 key=lambda pair: str(pair[0])):
             if not v:
@@ -326,9 +292,6 @@ class Shape_i(gof.Op):
 
     _f16_ok = True
 
-    # Mapping from Type to C code (and version) to use.
-    # In the C code, the name of the input variable is %(iname)s,
-    # the output variable is %(oname)s.
     c_code_and_version = {}
 
     check_input = False
@@ -336,8 +299,6 @@ class Shape_i(gof.Op):
     __props__ = ("i",)
 
     def __init__(self, i):
-        # As i will be used in the hash and that ndarray are not hashable,
-        # we need to convert it to an int as it is hashable.
         if isinstance(i, numpy.ndarray):
             assert "int" in str(i.dtype)
         assert i == int(i)
@@ -348,9 +309,6 @@ class Shape_i(gof.Op):
         return '%s{%i}' % (self.__class__.__name__, self.i)
 
     def make_node(self, x):
-        # x could be one of a number of types
-        # the only thing we require is that the variable have a .ndim,
-        # and that the value have a .shape
         if not isinstance(x, theano.Variable):
             raise TypeError('x must be Variable with ndim attribute', x)
         if x.ndim <= self.i:
@@ -368,8 +326,6 @@ class Shape_i(gof.Op):
 
     def c_code_cache_version(self):
         version = []
-        # If any of the c code is unversionned, we have to return ()
-        # Else, we will return a list of (type name, version) pairs.
         for t, (c, ci, v) in sorted(iteritems(self.c_code_and_version),
                                     key=lambda pair: str(pair[0])):
             if not v:
@@ -396,7 +352,6 @@ class Shape_i(gof.Op):
             code, check_input, version = self.c_code_and_version[itype]
             return (check_input + code) % locals()
 
-        # Else, no C code
         return super(Shape_i, self).c_code(node, name, inames, onames, sub)
 
     def infer_shape(self, node, input_shapes):
@@ -441,17 +396,12 @@ def shape_i(var, i, fgraph=None):
                 for inp in node.inputs:
                     if inp.owner:
                         recur(inp.owner)
-                # If the output var isn't marked as being in the graph,
-                # we need to att it in the ShapeFeature.
                 shape_feature.on_import(fgraph, node,
                                         'gof.ops.shape_i')
         if var not in shape_of:
             recur(var.owner)
         return shape_of[var][i]
 
-    # If we are not able to use the shape feature, we should not put
-    # Shape_i in the graph. Otherwise, the shape feature optimization
-    # won't get applied.
     return var.shape[i]
 
 
@@ -474,8 +424,6 @@ def register_shape_i_c_code(typ, code, check_input, version=()):
     Shape_i.c_code_and_version[typ] = (code, check_input, version)
 
 
-# List of Theano Types that one can add an extra dimension and for which
-# Scan can deal with.
 expandable_types = ()
 
 
@@ -583,7 +531,6 @@ def as_op(itypes, otypes, infer_shape=None):
     if any(not isinstance(t, theano.Type) for t in otypes):
         raise TypeError("otypes has to be a list of Theano types")
 
-    # make sure they are lists and not tuples
     itypes = list(itypes)
     otypes = list(otypes)
 
@@ -636,16 +583,12 @@ class Rebroadcast(gof.Op):
 
     view_map = {0: [0]}
     _f16_ok = True
-    # Mapping from Type to C code (and version) to use.
-    # In the C code, the name of the input variable is %(iname)s,
-    # the output variable is %(oname)s.
     c_code_and_version = {}
 
     check_input = False
     __props__ = ("axis",)
 
     def __init__(self, *axis):
-        # Sort them to make sure we merge all possible case.
         items = sorted(axis)
         self.axis = OrderedDict(items)
         for axis, broad in iteritems(self.axis):
@@ -658,8 +601,6 @@ class Rebroadcast(gof.Op):
                                 "pattern. Got {}".format(broad))
 
     def __hash__(self):
-        # Need special __hash__ as dict aren't hashable.
-        # no ambiguity because each item key is unique
         items = sorted(iteritems(self.axis))
         return hash((type(self), tuple(items)))
 
@@ -695,7 +636,6 @@ class Rebroadcast(gof.Op):
     def grad(self, inp, grads):
         x, = inp
         gz, = grads
-        # restore the broadcasting pattern of the input
         return Rebroadcast(*[(axis, x.type.broadcastable[axis])
                              for axis, value in iteritems(self.axis)])(gz),
 
@@ -737,8 +677,6 @@ class Rebroadcast(gof.Op):
 
     def c_code_cache_version(self):
         version = []
-        # If any of the c code is unversionned, we have to return ()
-        # Else, we will return a list of (type name, version) pairs.
         for t, (c, v) in sorted(iteritems(self.c_code_and_version),
                                 key=lambda pair: str(pair[0])):
             if not v:
@@ -799,9 +737,6 @@ class SpecifyShape(gof.Op):
     """
 
     view_map = {0: [0]}
-    # Mapping from Type to C code (and version) to use.
-    # In the C code, the name of the input variable is %(iname)s,
-    # the output variable is %(oname)s.
     c_code_and_version = {}
     __props__ = ()
 
@@ -844,18 +779,11 @@ class SpecifyShape(gof.Op):
     def grad(self, inp, grads):
         x, s = inp
         gz, = grads
-        # Should I set an SpecifyShape on gz? I think so
-        # But I don't do it now as we need to make an optimization
-        # to remove that op from the graph to don't block other optimization
-        # Should I do an optimizer that will remove the SpecifyShape?
-        # I think Yes
         return [gz, theano.gradient.DisconnectedType()()]
         return [specify_shape(gz, s), theano.gradient.DisconnectedType()()]
 
     def R_op(self, inputs, eval_points):
         if eval_points[0] is None:
-            # It means that the this op sits on top of a non-differentiable
-            # path
             return [None]
         return self.make_node(eval_points[0], *inputs[1:]).outputs
 
@@ -882,8 +810,6 @@ class SpecifyShape(gof.Op):
 
     def c_code_cache_version(self):
         version = []
-        # If any of the c code is unversionned, we have to return ()
-        # Else, we will return a list of (type name, version) pairs.
         for t, (c, v, _) in sorted(iteritems(self.c_code_and_version),
                                    key=lambda pair: str(pair[0])):
             if not v:

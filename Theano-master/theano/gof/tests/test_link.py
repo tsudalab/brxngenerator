@@ -200,9 +200,6 @@ def test_container_deepcopy():
     This is a test to a work around a NumPy bug.
     """
     t = theano.tensor.scalar()
-    # It seam that numpy.asarray(0.).astype(floatX) can return a numpy
-    # scalar with some NumPy Version. So we call numpy.asarray with
-    # the dtype parameter.
     v = numpy.asarray(0., dtype=theano.config.floatX)
     assert isinstance(v, numpy.ndarray), type(v)
     for readonly in [True, False]:

@@ -37,29 +37,19 @@ class Profile_Maker(FunctionMaker):
                     " CUDA_LAUNCH_BLOCKING to 1 to tell the CUDA driver to"
                     " synchronize the execution to get a meaningful profile.")
 
-        # create a function-specific storage container for profiling info
         profile = ProfileStats(atexit_print=False)
         self.mode.profile_stats[ret] = profile
         ret.profile = profile
 
-        # initialize the timers
         for i, node in enumerate(ret.maker.fgraph.toposort()):
             profile.apply_time[node] = 0.0
 
-            # a thunk_group is a list of the thunks from each linker
-            # corresponding to the i'th position in the toposort.
             assert len(ret.fn.thunk_groups[i]) == 1
             profile.apply_cimpl[node] = hasattr(
                 ret.fn.thunk_groups[i][0],
                 'cthunk')
 
-        # Here we replace the linker function.
-        # This ugliness makes WrapLinker (an object that *generates*
-        # functions and is not function-specific)  work with ProfileStats
-        # objects which are function-specific.
 
-        # capture old fn in closure. This is important since new_fn is about to
-        # take its place as ret.fn.
         ret_fn = ret.fn
 
         def new_fn():
@@ -67,9 +57,6 @@ class Profile_Maker(FunctionMaker):
             self.mode.variable_shape = \
                 self.mode.profile_stats[ret].variable_shape
             ret_fn()
-            # delete the old apply_time variable
-            # because it doesn't mean the same thing anymore.
-            # This prevents old code from looking like it still works.
             del self.mode.apply_time
             del self.mode.variable_shape
 
@@ -77,7 +64,6 @@ class Profile_Maker(FunctionMaker):
 
         global run_cthunk
         if run_cthunk is None and any(profile.apply_cimpl.values()):
-            # Lazy import to avoid compilation when importing theano.
             from theano.gof.cutils import run_cthunk  # noqa
 
         warnings.warn(
@@ -117,7 +103,6 @@ class ProfileMode(Mode):
     local_time = property(__get_local_time)
 
     def __getstate__(self):
-        # print "__getstate__",self.provided_linker,self.provided_optimizer
         return (self.provided_linker,
                 self.provided_optimizer,
                 self.message,
@@ -148,8 +133,6 @@ class ProfileMode(Mode):
                 th()
                 dt = time.time() - t0
 
-            # Some Op are so fast that the time.time() resolution is
-            # insufficient to measure it.  So we add an epsilon.
             self.apply_time[node] += max(dt, 1e-14)
 
         def profile_thunk2(i, node, th):
@@ -297,7 +280,6 @@ class ProfileMode(Mode):
                 tb = b_time.pop(a, 0)
                 r[a] += ta - tb
 
-            # they are missing in a
             for a, t in iteritems(b_time):
                 r.setdefault(a, 0)
                 r[a] += t
@@ -410,7 +392,6 @@ class ProfileMode(Mode):
             else:
                 print('   NOT CALLED', key.name)
 
-        # Compute stats per op.
         op_time = {}
         op_call = {}
         op_apply = {}
@@ -434,11 +415,9 @@ class ProfileMode(Mode):
                 op_apply[op] += 1
                 sop_apply[type(a.op)] += 1
 
-        # Compute stats per op class
         sop_time = {}
         sop_call = {}
         sop_op = {}
-        # map each op class to Bool. True iff all applies were done in c.
         sop_cimpl = {}
         for a, t in iteritems(op_time):
             typ = type(a)
@@ -450,7 +429,6 @@ class ProfileMode(Mode):
             sop_cimpl[typ] = sop_cimpl[typ] and op_cimpl.get(a, False)
             sop_call[typ] = sop_call.get(typ, 0) + op_call[a]
 
-        # Print the summary per op class.
         print()
         print('Single Op-wise summary:')
         print('<% of local_time spent on this kind of Op> <cumulative %> '
@@ -482,7 +460,6 @@ class ProfileMode(Mode):
 
         print('(*) Op is running a c implementation')
 
-        # The summary per op
         op_flops = {}
         for a, t in iteritems(op_time):
             if hasattr(a, 'flops'):
@@ -644,12 +621,10 @@ Test them first, as they are not guaranteed to always provide a speedup.""")
                 return any([s_op.__class__ in [scal.Exp] for s_op in l])
 
         printed_tip = False
-        # tip 1
         if config.floatX == 'float64':
             print("  - Try the Theano flag floatX=float32")
             printed_tip = True
 
-        # tip 2
         if not config.lib.amdlibm and any([amdlibm_speed_up(a.op) for i, a
                                            in apply_time]):
             print("  - Try installing amdlibm and set the Theano flag "
@@ -657,7 +632,6 @@ Test them first, as they are not guaranteed to always provide a speedup.""")
                   "operation.")
             printed_tip = True
 
-        # tip 3
         if not config.lib.amdlibm and any([exp_float32_op(a.op) and
                                            a.inputs[0].dtype == 'float32'
                                            for i, a in apply_time]):
@@ -666,7 +640,6 @@ Test them first, as they are not guaranteed to always provide a speedup.""")
                   "install amdlibm and set the theano flags lib.amdlibm=True")
             printed_tip = True
 
-        # tip 4
         for a, t in iteritems(apply_time):
             node = a[1]
             if (isinstance(node.op, T.Dot) and
@@ -679,7 +652,6 @@ Test them first, as they are not guaranteed to always provide a speedup.""")
                       [i.type for i in node.inputs])
                 printed_tip = True
 
-        # tip 5
         for a, t in iteritems(apply_time):
             node = a[1]
             if isinstance(node.op, RandomFunction):
@@ -710,8 +682,6 @@ Test them first, as they are not guaranteed to always provide a speedup.""")
             new_optimizer = self.provided_optimizer
         new_mode = type(self)(linker=new_linker,
                               optimizer=new_optimizer)
-        # If self is in the list or profiles to print, then add the
-        # new one as well
         if self in prof_mode_instance_to_print:
             prof_mode_instance_to_print.append(new_mode)
 
@@ -724,7 +694,6 @@ Test them first, as they are not guaranteed to always provide a speedup.""")
 register_mode('PROFILE_MODE', ProfileMode())
 
 
-# needed to print the profile at the end automatically
 prof_mode_instance_to_print = [predefined_modes["PROFILE_MODE"]]
 
 
@@ -739,12 +708,9 @@ def atexit_print_default_profile_mode():
         if prof_mode.local_time > 0:
             prof_mode.print_summary()
 
-# Register atexit_print_default_profile_mode to have the summary of the
-# predefined mode ProfileMode if it is used printed when the program terminate.
 atexit.register(atexit_print_default_profile_mode)
 
 
-# Here we define an hook that allow to print extra profiling information
 profiler_printers = []
 
 

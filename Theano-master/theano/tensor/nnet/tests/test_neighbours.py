@@ -35,16 +35,13 @@ class T_Images2Neibs(unittest_tools.InferShapeTester):
                                  images2neibs(images, neib_shape, mode=border),
                                  mode=self.mode)
 
-                    # print images.get_value(borrow=True)
                     neibs = f()
-                    # print neibs
                     g = function([],
                                  neibs2images(neibs, neib_shape, images.shape),
                                  mode=self.mode)
                     assert any([isinstance(node.op, self.op)
                                 for node in f.maker.fgraph.toposort()])
 
-                    # print g()
                     assert numpy.allclose(images.get_value(borrow=True), g())
 
     def test_neibs_manual(self):
@@ -61,9 +58,7 @@ class T_Images2Neibs(unittest_tools.InferShapeTester):
                 assert any([isinstance(node.op, self.op)
                             for node in f.maker.fgraph.toposort()])
 
-                # print images.get_value(borrow=True)
                 neibs = f()
-                # print neibs
                 assert numpy.allclose(neibs,
                    [[ 0,  1,  4,  5],
                    [ 2,  3,  6,  7],
@@ -137,12 +132,7 @@ class T_Images2Neibs(unittest_tools.InferShapeTester):
                [135, 136, 137, 140, 141, 142, 145, 146, 147],
                [137, 138, 139, 142, 143, 144, 147, 148, 149]])
 
-                # neibs2images do not seam to support step != neib_shape
-                # g = function([], neibs2images(neibs, neib_shape, images.shape),
-                #             mode=self.mode)
 
-                # print g()
-                #assert numpy.allclose(images.get_value(borrow=True), g())
 
     def test_neibs_bad_shape(self):
         shape = (2, 3, 10, 10)
@@ -157,7 +147,6 @@ class T_Images2Neibs(unittest_tools.InferShapeTester):
                              mode=self.mode)
                 self.assertRaises(TypeError, f)
 
-                # Test that ignore border work in that case.
                 f = function([],
                              images2neibs(images, neib_shape,
                                           mode='ignore_borders'),
@@ -202,7 +191,6 @@ class T_Images2Neibs(unittest_tools.InferShapeTester):
                      [11, 12, 13, 16, 17, 18, 21, 22, 23],
                      [13, 14, 10, 18, 19, 15, 23, 24, 20]]
 
-        # TODO test discontinous image
 
         for shp_idx, (shape, neib_shape, neib_step, expected) in enumerate([
             [(7, 8, 5, 5), (3, 3), (2, 2), expected1],
@@ -238,9 +226,6 @@ class T_Images2Neibs(unittest_tools.InferShapeTester):
                 assert self.op in [type(node.op)
                                    for node in f.maker.fgraph.toposort()]
 
-                #g = function([], neibs2images(neibs, neib_shape, images.shape), mode=self.mode)
-                # TODO: why this is commented?
-                #assert numpy.allclose(images.get_value(borrow=True), g())
 
     def test_neibs_bad_shape_wrap_centered(self):
         shape = (2, 3, 10, 10)
@@ -266,7 +251,6 @@ class T_Images2Neibs(unittest_tools.InferShapeTester):
                              mode=self.mode)
                 self.assertRaises(TypeError, f)
 
-            # Test a valid shapes
             shape = (2, 3, 3, 3)
             images = shared(numpy.arange(numpy.prod(shape)).reshape(shape))
             neib_shape = T.as_tensor_variable((3, 3))
@@ -277,7 +261,6 @@ class T_Images2Neibs(unittest_tools.InferShapeTester):
             f()
 
     def test_grad_wrap_centered(self):
-        # It is not implemented for now. So test that we raise an error.
         shape = (2, 3, 6, 6)
         images_val = numpy.random.rand(*shape).astype('float32')
 
@@ -322,8 +305,6 @@ class T_Images2Neibs(unittest_tools.InferShapeTester):
                                    eps=0.1)
 
     def test_neibs2images_grad(self):
-        # say we had images of size (2, 3, 10, 10)
-        # then we extracted 2x2 neighbors on this, we get (2 * 3 * 5 * 5, 4)
         neibs_val = numpy.random.rand(150, 4)
 
         def fn(neibs):

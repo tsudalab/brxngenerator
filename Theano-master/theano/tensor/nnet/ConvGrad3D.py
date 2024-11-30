@@ -10,8 +10,6 @@ from theano.gradient import grad_undefined
 from theano.gradient import DisconnectedType
 
 
-# TODO: speed up by reordering loops. Should pass through the videos once, incrementing all weight gradients, rather
-# than visiting each weight gradient element once and passing through whole video
 
 class ConvGrad3D(theano.Op):
     """
@@ -50,9 +48,7 @@ class ConvGrad3D(theano.Op):
 
         z = T.zeros_like(C[0, 0, 0, 0, :])
         dLdC = theano.tensor.nnet.convTransp3D(dLdA, z, d, B, C.shape[1:4])
-        # d actually does affect the outputs, so it's not disconnected
         dLdd = grad_undefined(self, 1, d)
-        # The shape of the weights doesn't affect the output elements
         dLdWShape = DisconnectedType()()
         dLdB = theano.tensor.nnet.conv3D(C, dLdA, T.zeros_like(B[0, 0, 0, 0, :]), d)
 
@@ -60,9 +56,7 @@ class ConvGrad3D(theano.Op):
 
     def perform(self, node, inputs, output_storage):
         V, d, WShape, dCdH = inputs
-#        print "ConvGradW3D python code"
 
-        # partial C / partial W[j,z,k,l,m] = sum_i sum_p sum_q sum_r (partial C /partial H[i,j,p,q,r] ) *  V[i,z,dr*p+k,dc*q+l,dt*r+m]
 
         batchSize = dCdH.shape[0]
         outputHeight = dCdH.shape[1]
@@ -73,7 +67,6 @@ class ConvGrad3D(theano.Op):
 
         dCdW = N.zeros(WShape, dtype=V.dtype)
 
-        # print 'computing output of shape '+str(WShape)
 
         for k in xrange(0, WShape[1]):
             for l in xrange(0, WShape[2]):
@@ -232,9 +225,7 @@ class ConvGrad3D(theano.Op):
             }
 { //extra scope so fail works
 
-            #define ELEM5(x, i,j,k,l,m) * ( dtype_ ## x *) ( PyArray_BYTES(x) + (i)*PyArray_STRIDES(x)[0]+(j)*PyArray_STRIDES(x)[1]+(k)*PyArray_STRIDES(x)[2]+(l)*PyArray_STRIDES(x)[3]+(m)*PyArray_STRIDES(x)[4] )
 
-            #define ELEM_AT(x, i) * ( dtype_ ## x *) ( PyArray_BYTES(x) + (i) )
 
             const int dhs3 = PyArray_STRIDES(%(dCdH)s)[3];
             const int dtvs3 = dt * PyArray_STRIDES(%(V)s)[3];

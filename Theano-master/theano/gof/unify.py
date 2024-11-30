@@ -16,7 +16,6 @@ from functools import partial
 from theano.gof.utils import ANY_TYPE, comm_guard, FALL_THROUGH, iteritems
 
 
-################################
 
 
 class Variable:
@@ -107,7 +106,6 @@ class VariableInList:  # not a subclass of Variable
         self.variable = variable
 
 
-################################
 
 
 _all = {}
@@ -128,7 +126,6 @@ OrV = partial(var_lookup, OrVariable)
 NV = partial(var_lookup, NotVariable)
 
 
-################################
 
 
 class Unification:
@@ -158,23 +155,14 @@ class Unification:
         if self.inplace:
             U = self
         else:
-            # Copy all the unification data.
             U = Unification(self.inplace)
             for var, (best, pool) in iteritems(self.unif):
-                # The pool of a variable is the set of all the variables that
-                # are unified to it (all the variables that must have the same
-                # value). The best is the Variable that represents a set of
-                # values common to all the variables in the pool.
                 U.unif[var] = (best, pool)
-        # We create a new pool for our new set of unified variables, initially
-        # containing vars and new_best
         new_pool = set(vars)
         new_pool.add(new_best)
         for var in copy(new_pool):
             best, pool = U.unif.get(var, (var, set()))
-            # We now extend the new pool to contain the pools of all the variables.
             new_pool.update(pool)
-        # All variables get the new pool.
         for var in new_pool:
             U.unif[var] = (new_best, new_pool)
         return U
@@ -188,7 +176,6 @@ class Unification:
         return self.unif.get(v, (v, None))[0]
 
 
-################################
 
 
 def unify_walk(a, b, U):
@@ -409,7 +396,6 @@ def unify_walk(v, o, U):
         return FALL_THROUGH  # call the next version of unify_walk that matches the type signature
 
 
-################################
 
 
 class FVar:
@@ -422,7 +408,6 @@ class FVar:
         return self.fn(*[unify_build(arg, u) for arg in self.args])
 
 
-################################
 
 
 def unify_merge(a, b, U):
@@ -493,14 +478,12 @@ def unify_merge(v, o, U):
         return FALL_THROUGH  # call the next version of unify_walk that matches the type signature
 
 
-################################
 
 
 def unify_build(x, U):
     return unify_merge(x, x, U)
 
 
-################################
 
 
 def unify(a, b):
@@ -511,7 +494,6 @@ def unify(a, b):
         return unify_merge(a, b, U), U
 
 
-################################
 
 
 if __name__ == "__main__":
@@ -525,11 +507,7 @@ if __name__ == "__main__":
     pattern1 = dict(hey=vx, ulala=va, a=1)
     pattern2 = dict(hey=vy, ulala=10, b=2)
 
-#    pattern1 = ["hello", "big", "bones"]
-#    pattern2 = vl
 
-#    pattern1 = [vx]#, "big", "bones"]
-#    pattern2 = [vy]#, vy, vz]
 
     U = unify_walk(pattern1, pattern2, Unification())
 

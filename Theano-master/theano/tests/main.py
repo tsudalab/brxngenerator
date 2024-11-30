@@ -6,9 +6,6 @@ import sys
 from numpy.testing.nosetester import NoseTester
 
 
-# This class contains code adapted from NumPy,
-# numpy/testing/nosetester.py,
-# Copyright (c) 2005-2011, NumPy Developers
 class TheanoNoseTester(NoseTester):
     """
     Nose test runner.
@@ -29,7 +26,6 @@ class TheanoNoseTester(NoseTester):
         :type extra_argv: list
         :param extra_argv: List with any extra arguments to pass to nosetests.
         """
-        # self.package_path = os.path.abspath(self.package_path)
         argv = [__file__, self.package_path]
         argv += ['--verbosity', str(verbose)]
         if extra_argv:
@@ -52,20 +48,16 @@ class TheanoNoseTester(NoseTester):
         Takes the same arguments as `test`.
         """
         import nose.plugins.builtin
-        # compile argv
         argv = self._test_argv(verbose, extra_argv)
 
-        # numpy way of doing coverage
         if coverage:
             argv += ['--cover-package=%s' % self.package_name,
                      '--with-coverage', '--cover-tests',
                      '--cover-inclusive', '--cover-erase']
 
-        # Capture output only if needed
         if not capture:
             argv += ['-s']
 
-        # construct list of plugins
         plugins = []
         if knownfailure:
             from numpy.testing.noseclasses import KnownFailure
@@ -107,8 +99,6 @@ class TheanoNoseTester(NoseTester):
         from nose.config import Config
         from nose.plugins.manager import PluginManager
         from numpy.testing.noseclasses import NumpyTestProgram
-        # Many Theano tests suppose device=cpu, so we need to raise an
-        # error if device==gpu.
         if not os.path.exists('theano/__init__.py'):
             try:
                 from theano import config
@@ -121,14 +111,11 @@ class TheanoNoseTester(NoseTester):
             except ImportError:
                 pass
 
-        # cap verbosity at 3 because nose becomes *very* verbose beyond that
         verbose = min(verbose, 3)
         self._show_system_info()
 
         cwd = os.getcwd()
         if self.package_path in os.listdir(cwd):
-            # The tests give weird errors if the package to test is
-            # in current directory.
             raise RuntimeError((
                 "This function does not run correctly when, at the time "
                 "theano was imported, the working directory was theano's "
@@ -139,9 +126,6 @@ class TheanoNoseTester(NoseTester):
         argv, plugins = self.prepare_test_args(verbose, extra_argv, coverage,
                                                capture, knownfailure)
 
-        # The "plugins" keyword of NumpyTestProgram gets ignored if config is
-        # specified. Moreover, using "addplugins" instead can lead to strange
-        # errors. So, we specify the plugins in the Config as well.
         cfg = Config(includeExe=True, plugins=PluginManager(plugins=plugins))
         t = NumpyTestProgram(argv=argv, exit=False, config=cfg)
         return t.result

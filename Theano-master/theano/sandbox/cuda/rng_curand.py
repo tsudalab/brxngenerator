@@ -121,15 +121,12 @@ class CURAND_Base(GpuOp):
 
     def c_support_code(self):
         return """
-        #if PY_MAJOR_VERSION >= 3
         void free_generator(PyObject *_gen)
         {
             curandGenerator_t * gen = (curandGenerator_t*)NpyCapsule_AsVoidPtr(_gen);
-        #else
         void free_generator(void *_gen)
         {
             curandGenerator_t * gen = (curandGenerator_t*)_gen;
-        #endif
 
             curandStatus_t err = curandDestroyGenerator(*gen);
             if (err != CURAND_STATUS_SUCCESS)
@@ -313,7 +310,6 @@ class CURAND_RandomStreams(object):
 
     def __getstate__(self):
         rval = dict(self.__dict__)
-        # the CObject used to store updates cannot be serialized
         rval['state_updates'] = []
         rval['_has_lost_states'] = True
         return rval
@@ -381,7 +377,6 @@ class CURAND_RandomStreams(object):
 def local_destructive(node):
     op = node.op
     if isinstance(op, CURAND_Base) and not op.destructive:
-        # op might be gpu version
         new_op = op.as_destructive()
         return new_op.make_node(*node.inputs).outputs
     return False

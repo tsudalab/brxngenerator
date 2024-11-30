@@ -168,7 +168,6 @@ def inline_softmax(N, buf, buf2, threadPos, threadCount):
 
     """
     return [
-            # get max of buf (trashing all but buf[0])
             inline_reduce_max(N, buf, threadPos, threadCount),
             '__syncthreads()',
             'float row_max = ' + buf + '[0]',
@@ -183,7 +182,6 @@ def inline_softmax(N, buf, buf2, threadPos, threadCount):
             '__syncthreads()',
             'float row_sum = ' + buf + '[0]',
             '__syncthreads()',
-            # divide each exp() result by the sum to complete the job.
             'for(int __i=' + threadPos + '; __i<' + N +
                   '; __i+=' + threadCount + '){',
                 buf + '[__i] = ' + buf2 + '[__i] / row_sum',
@@ -254,7 +252,6 @@ def inline_reduce_fixed_shared(N, buf, x, stride_x, pos, count,
         // This function trashes buf[1..n_threads],
         // leaving the reduction result in buf[0].
         float red = %(init)s;
-        #pragma unroll 16
         for (int i = %(pos)s + %(count)s; i<%(N)s; i += %(count)s){
           red = %(loop_line)s;
         }
@@ -337,7 +334,6 @@ def inline_softmax_fixed_shared(N, buf, x, stride_x,
 
     """
     ret = [
-        # get max of buf (trashing all but buf[0])
         inline_reduce_fixed_shared_max(N, buf, x, stride_x,
                                        threadPos, threadCount, b, stride_b),
         '__syncthreads()',
@@ -352,7 +348,6 @@ def inline_softmax_fixed_shared(N, buf, x, stride_x,
         '__syncthreads()',
         "for (int tx = threadIdx.x; tx< N; tx += blockDim.x){",
         ]
-    # This set all value correctly
     if b:
         ret += [
             "%(sm)s[tx * %(sm_stride)s] = "

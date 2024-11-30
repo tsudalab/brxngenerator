@@ -7,15 +7,12 @@ import theano
 import theano.tensor as T
 import theano.tests.unittest_tools as utt
 
-# Skip test if cuda_ndarray is not available.
 import theano.sandbox.cuda as cuda
 if not cuda.cuda_available:
     raise SkipTest('Optional package cuda disabled')
 
 if theano.config.mode == 'FAST_COMPILE':
     mode_with_gpu = theano.compile.mode.get_mode('FAST_RUN').including('gpu')
-    # We should not exclude the 'gpu' tag, as some CPU opt are tagged
-    # as GPU to make them run in fast_compile with gpu.
 
     mode_without_gpu = theano.compile.mode.get_mode('FAST_RUN')
 else:
@@ -43,14 +40,8 @@ def test_GpuCrossentropySoftmaxArgmax1HotWithBias():
 
     b = T.fvector('b')
 
-    # we precompute the dot with big shape before to allow the test of
-    # GpuCrossentropySoftmax1HotWithBiasDx to don't fail with the error
-    # (the launch timed out and was terminated) on GPU card not
-    # powerful enough. We need the big shape to check for corner
-    # case.
     dot_result = T.fmatrix('dot_result')
 
-    # Seed numpy.random with config.unittests.rseed
     utt.seed_rng()
 
     xx = numpy.asarray(numpy.random.rand(batch_size, n_in),
@@ -71,8 +62,6 @@ def test_GpuCrossentropySoftmaxArgmax1HotWithBias():
     classify_gpu = theano.function(inputs=[y, b, dot_result],
                                    outputs=[loss, y_pred, dW],
                                    mode=mode_with_gpu)
-    # theano.printing.debugprint(classify)
-    # theano.printing.debugprint(classify_gpu)
 
     assert any([isinstance(node.op,
                            T.nnet.CrossentropySoftmaxArgmax1HotWithBias)
@@ -107,7 +96,6 @@ def test_GpuCrossentropySoftmax1HotWithBiasDx():
     if not isinstance(mode_with_gpu, theano.compile.DebugMode):
         n_out = 4099
 
-    # Seed numpy.random with config.unittests.rseed
     utt.seed_rng()
 
     softmax_output_value = numpy.random.rand(batch_size,
@@ -125,8 +113,6 @@ def test_GpuCrossentropySoftmax1HotWithBiasDx():
 
     cpu_f = theano.function([softmax_output], op, mode=mode_without_gpu)
     gpu_f = theano.function([softmax_output], op, mode=mode_with_gpu)
-    # theano.printing.debugprint(cpu_f)
-    # theano.printing.debugprint(gpu_f)
 
     assert any([isinstance(node.op, T.nnet.CrossentropySoftmax1HotWithBiasDx)
                 for node in cpu_f.maker.fgraph.toposort()])
@@ -170,8 +156,6 @@ def test_softmax_with_bias():
     NOT IMPLEMENTED)
     """
     x = T.fmatrix('x')
-    # We can't use zeros_like(x[0,::]) as this don't allow to test with
-    # 0 shape.
     z = T.nnet.softmax_with_bias(x, T.arange(x.shape[1] * 2,
                                              dtype='float32')[::2])
 
@@ -182,14 +166,12 @@ def test_softmax_with_bias():
                       cuda.nnet.GpuSoftmaxWithBias)
 
     def cmp(n, m):
-        # print "test_softmax",n,m
         data = numpy.arange(n * m, dtype='float32').reshape(n, m)
         out = f(data)
         gout = f_gpu(data)
         assert numpy.allclose(out, gout), numpy.absolute(out - gout)
 
     cmp(2, 5)
-    # we need to test n>32*1024 to check that we make the block loop.
     cmp(2 << 15, 5)
     cmp(4074, 400)
     cmp(0, 10)
@@ -198,9 +180,7 @@ def test_softmax_with_bias():
     cmp(4, 1024)
     cmp(4, 2000)
     cmp(4, 2024)
-    # GTX285 don't have enough shared mem for this case.
     cmp(4, 4074)
-    # The GTX580, 680 and kepler don't have enough shared memory.
     cmp(2, 10000)
     cmp(128, 16 * 1024)
     cmp(128, 64 * 1024)
@@ -235,7 +215,6 @@ class test_SoftMax(unittest.TestCase):
         f_gpu = theano.function([x_gpu], f_gpu_z_out, mode=self.mode)
         check_types(f, f_gpu)
 
-        # we need to test n>32*1024 to check that we make the block loop.
         cmp(1, 5, f, f_gpu)
         cmp(2, 5, f, f_gpu)
         cmp(10, 5, f, f_gpu)
@@ -248,13 +227,10 @@ class test_SoftMax(unittest.TestCase):
         cmp(4, 1024, f, f_gpu)
         cmp(4, 2000, f, f_gpu)
         cmp(4, 2024, f, f_gpu)
-        # The GTX285 don't have enough shared memory.
         cmp(4, 4074, f, f_gpu)
-        # The GTX580, 680 and kepler don't have enough shared memory.
         cmp(2, 10000, f, f_gpu)
         cmp(128, 16 * 1024, f, f_gpu)
         cmp(128, 64 * 1024, f, f_gpu)
-        # cudnn permits no more than 2^15 - 1 rows
         cmp((2 << 15) - 1, 5, f, f_gpu)
         cmp(5, 2 << 15, f, f_gpu)
 

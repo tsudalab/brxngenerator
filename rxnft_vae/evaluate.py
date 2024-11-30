@@ -1,5 +1,4 @@
 
-# Import necessary libraries
 import rdkit
 import rdkit.Chem as Chem
 from rdkit.Chem import QED
@@ -19,7 +18,6 @@ from reaction import ReactionTree, extract_starting_reactants, StartingReactants
 from fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
 from reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
 
-# Import data manipulation and visualization libraries
 import pandas as pd 
 import seaborn as sns 
 import matplotlib.pyplot as plt
@@ -31,21 +29,16 @@ import numpy as np
 import tqdm
 import pandas as pd
 
-# Import system libraries
-#from rd_filters import rd_filters
 import sys
 
-# Define Evaluator class
 class Evaluator(nn.Module):
     def __init__(self, latent_size, model):
         super(Evaluator, self).__init__()
         self.latent_size = latent_size
         self.model = model
 
-    # Method to decode from prior distribution
     def decode_from_prior(self, ft_latent, rxn_latent, n, prob_decode=True):
         for i in range(n):
-            #print("i:", i, n)
             generated_tree = self.model.fragment_decoder.decode(ft_latent, prob_decode=prob_decode)
             g_encoder_output, g_root_vec = self.model.fragment_encoder([generated_tree])
             product, reactions = self.model.rxn_decoder.decode(rxn_latent, g_encoder_output, prob_decode)
@@ -53,7 +46,6 @@ class Evaluator(nn.Module):
                 return product, reactions
         return None, None
 
-    # Method to evaluate novelty and uniqueness
     def novelty_and_uniqueness(self, files, rxn_trees):
         smiles_training_set = []
         for rxn in rxn_trees:
@@ -81,7 +73,6 @@ class Evaluator(nn.Module):
         print("novelty:", count, training_size, total, count/total)
         print("uniqueness:", len(set(valid_molecules)), len(valid_molecules), len(set(valid_molecules))/len(valid_molecules))
 
-    # Method to create KDE plot
     def kde_plot(self, file1s, file2s, metric="qed"):
         bo_scores = []
         smiles_list = []
@@ -137,7 +128,6 @@ class Evaluator(nn.Module):
         plt.legend(loc='upper left')
         plt.show()
 
-    # Method to check quality of generated molecules
     def qualitycheck(self, rxns, files):
         smiles_list = []
         for file in files:
@@ -147,7 +137,6 @@ class Evaluator(nn.Module):
                     elements = line.strip().split(" ")
                     target = elements[0]
                     smiles_list.append(target)
-        #print(smiles_list)
         num_cores = 4
         training_smiles = [rxn.molecule_nodes[0].smiles for rxn in rxns]
 
@@ -164,7 +153,6 @@ class Evaluator(nn.Module):
         print(f"Using alerts from {rule_str}", file=sys.stderr)
         self.rf.build_rule_list(rule_list)
         self.rule_dict = rule_dict
-        #print(rule_list)
 
         trn_res = list(p.map(self.rf.evaluate, training_data))
         res = list(p.map(self.rf.evaluate, input_data))
@@ -198,7 +186,6 @@ class Evaluator(nn.Module):
             probs = torch.full((1, latent_size), 0.5)  # Bernoulli parameter, assuming uniform distribution
             return torch.bernoulli(probs)  # Return sampling result of 0 or 1
         
-    # Method to validate and save generated reactions
     def validate_and_save(self, train_rxn_trees, n=10000, output_file="generated_reactions.txt"):
         training_smiles = []
         for tree in train_rxn_trees:
@@ -208,7 +195,6 @@ class Evaluator(nn.Module):
 
         with open(output_file, "a") as writer:
             for i in range(n):
-                #print(i)
                 ft_latent = self.generate_discrete_latent(self.latent_size, method="gumbel", temp=0.4)
                 rxn_latent = self.generate_discrete_latent(self.latent_size, method="gumbel", temp=0.4)
                 product, reactions = self.decode_from_prior(ft_latent, rxn_latent, 50)

@@ -5,7 +5,6 @@ import rdkit.Chem as Chem
 from rdkit.Chem import Draw
 from rdkit.Chem import Descriptors
 from rdkit.Chem import Draw
-#import sascorer
 import sys
 from cairosvg import svg2png
 
@@ -28,10 +27,8 @@ for filename in filenames:
 			all_scores.append(score)
 			all_reactions.append(reactions)
 
-			#print(smiles, score)
 
 
-# filter
 b_all_smiles =[]
 b_all_scores =[]
 b_all_reactions=[]
@@ -45,9 +42,7 @@ pairs = sorted(pairs, key=lambda x:x[2], reverse=True)
 
 mols = [Chem.MolFromSmiles(s) for s, _, _ in pairs[:50]]
 vals = ["%.4f" % score for _,_,score in pairs[:50]]
-#print(mols)
 img = Draw.MolsToGridImage(mols, molsPerRow=5, subImgSize=(200,135), legends=vals, useSVG=True)
 svg2png(bytestring=img,write_to='output.png')
-#print(mols)
 for smiles, reactions, score in pairs[:50]:
 	print(smiles, reactions, score)

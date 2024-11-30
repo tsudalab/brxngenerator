@@ -28,11 +28,9 @@ class G_subtensor(test_subtensor.T_subtensor):
             adv_sub1=GpuAdvancedSubtensor1,
             adv_incsub1=GpuAdvancedIncSubtensor1,
             mode=mode_with_gpu,
-            # avoid errors with limited devices
             dtype='float32',
             ignore_topo=(HostFromGpu, GpuFromHost,
                          DeepCopyOp))
-        # GPU opt can't run in fast_compile only.
         self.fast_compile = False
         assert self.sub == GpuSubtensor
 

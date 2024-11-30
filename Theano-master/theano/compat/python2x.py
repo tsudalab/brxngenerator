@@ -6,31 +6,7 @@ from __future__ import absolute_import, print_function, division
 import sys
 
 if sys.version_info[:2] < (2, 7):
-    # The following implementation of OrderedDict compatible with python 2.4
-    # was taken from http://pypi.python.org/pypi/ordereddict/1.1
-    # It is under the MIT license.
 
-    # Copyright (c) 2009 Raymond Hettinger
-    #
-    # Permission is hereby granted, free of charge, to any person
-    # obtaining a copy of this software and associated documentation files
-    # (the "Software"), to deal in the Software without restriction,
-    # including without limitation the rights to use, copy, modify, merge,
-    # publish, distribute, sublicense, and/or sell copies of the Software,
-    # and to permit persons to whom the Software is furnished to do so,
-    # subject to the following conditions:
-    #
-    #     The above copyright notice and this permission notice shall be
-    #     included in all copies or substantial portions of the Software.
-    #
-    #     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    #     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-    #     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    #     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-    #     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-    #     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-    #     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-    #     OTHER DEALINGS IN THE SOFTWARE.
     from UserDict import DictMixin
 
     class OrderedDict(dict, DictMixin):
@@ -138,30 +114,7 @@ if sys.version_info[:2] < (2, 7):
         def __ne__(self, other):
             return not self == other
 
-    # The following implementation of Counter compatible with python 2.4
-    # was taken from http://code.activestate.com/recipes/576611/
-    # It is under the MIT license.
 
-    # Copyright (c) 2009 Raymond Hettinger
-    #
-    # Permission is hereby granted, free of charge, to any person
-    # obtaining a copy of this software and associated documentation files
-    # (the "Software"), to deal in the Software without restriction,
-    # including without limitation the rights to use, copy, modify, merge,
-    # publish, distribute, sublicense, and/or sell copies of the Software,
-    # and to permit persons to whom the Software is furnished to do so,
-    # subject to the following conditions:
-    #
-    #     The above copyright notice and this permission notice shall be
-    #     included in all copies or substantial portions of the Software.
-    #
-    #     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    #     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-    #     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    #     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-    #     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-    #     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-    #     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
     from operator import itemgetter
     from heapq import nlargest
@@ -233,7 +186,6 @@ if sys.version_info[:2] < (2, 7):
                 for _ in repeat(None, count):
                     yield elem
 
-        # Override dict methods where the meaning changes for Counter objects.
 
         @classmethod
         def fromkeys(cls, iterable, v=None):
@@ -261,7 +213,6 @@ if sys.version_info[:2] < (2, 7):
                         for elem, count in iterable.iteritems():
                             self[elem] = self_get(elem, 0) + count
                     else:
-                        # fast path when counter is empty
                         dict.update(self, iterable)
                 else:
                     self_get = self.get
@@ -287,14 +238,6 @@ if sys.version_info[:2] < (2, 7):
             items = ', '.join(map('%r: %r'.__mod__, self.most_common()))
             return '%s({%s})' % (self.__class__.__name__, items)
 
-        # Multiset-style mathematical operations discussed in:
-        #       Knuth TAOCP Volume II section 4.6.3 exercise 19
-        #       and at http://en.wikipedia.org/wiki/Multiset
-        #
-        # Outputs guaranteed to only include positive counts.
-        #
-        # To strip negative and zero counts, add-in an empty counter:
-        #       c += Counter()
 
         def __add__(self, other):
             '''Add counts from two counters.

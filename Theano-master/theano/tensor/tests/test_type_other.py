@@ -6,7 +6,6 @@ from theano.tensor.type_other import MakeSlice, make_slice, NoneTypeT, NoneConst
 
 
 def test_make_slice_merge():
-    # In the past, this was crahsing during compilation.
     i = theano.tensor.iscalar()
     s1 = make_slice(0, i)
     s2 = make_slice(0, i)
@@ -29,7 +28,6 @@ def test_none_Constant():
     assert NoneConst.equals(o2)
     assert o2.equals(NoneConst)
 
-    # This trigger equals that returned the wrong answer in the past.
     import six.moves.cPickle as pickle
     import theano
     from theano import tensor
@@ -37,7 +35,6 @@ def test_none_Constant():
     x = tensor.vector('x')
     y = tensor.argmax(x)
     kwargs = {}
-    # We can't pickle DebugMode
     if theano.config.mode in ["DebugMode", "DEBUG_MODE"]:
         kwargs = {'mode': 'FAST_RUN'}
     f = theano.function([x], [y], **kwargs)

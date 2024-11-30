@@ -25,8 +25,6 @@ from theano.tensor.nnet.abstract_conv import (get_conv_output_shape,
                                               get_conv_shape_1axis)
 
 try:
-    # TODO: move these back out to global scope when they no longer
-    # cause an atexit error
     from scipy.signal.signaltools import _valfrommode, _bvalfromboundary
     from scipy.signal.sigtools import _convolve2d
     imported_scipy_signal = True
@@ -95,7 +93,6 @@ def conv2d(input, filters, image_shape=None, filter_shape=None,
 
     """
 
-    # accept Constant value for image_shape and filter_shape.
     if image_shape is not None:
         image_shape = list(image_shape)
         for i in xrange(len(image_shape)):
@@ -272,15 +269,7 @@ class ConvOp(OpenMPOp):
     given inputs. Do not set openmp here.
     """
 
-# the value of speed_unroll_batch_kern,speed_unroll_patch_noshape,speed_unroll_patch_shape
-# have bean calculated on maggie36 when their is only 1 session logged on and only this was running.
-# It is an Intel(R) Xeon(R) CPU E5430 @ 2.66GHz. It is computer with theano/tensor/nnet/tests/speed_test_conv.py
-# and took 5 minutes to run.
-# TODO: we should compute this table for each computer/os as this can change.
-#      I saw on one computer that the speed with the shape can be slower than without!
-#      using the real shape and the same dtype could also help.
 
-# unroll_batch, unroll_kern, valid time, full time
     speed_unroll_batch_kern = [(1, 1, 2.4661250114440918, 6.5472931861877441),
                                (1, 2, 1.5869178771972656, 5.1499760150909424),
                                (1, 3, 1.4270510673522949, 3.6593470573425293),
@@ -331,9 +320,7 @@ class ConvOp(OpenMPOp):
                                (10, 6, 1.5214400291442871, 2.7243161201477051),
                                (10, 10, 1.6116268634796143, 2.956165075302124)]
 
-    # valid time, full time
     speed_unroll_patch_noshape = [2.0109100341796875, 5.8175678253173828]
-    # valid time, full time
     speed_unroll_patch_shape = [1.2967290878295898, 5.5283889770507812]
 
     @staticmethod
@@ -364,9 +351,6 @@ class ConvOp(OpenMPOp):
             (rows,cols) of output image.
 
         """
-        # The formula would be ceil((i + s * k - s * 1) / float(d)),
-        # with s=1 for mode=='full' and s=-1 for mode=='valid'.
-        # To support symbolic shapes, we express this with integer arithmetics.
         warnings.warn("The method `getOutputShape` is deprecated use"
                       "`get_conv_output_shape` instead.", stacklevel=2)
         return tuple(get_conv_shape_1axis(i, k, mode, d)
@@ -386,14 +370,12 @@ class ConvOp(OpenMPOp):
                  version=-1,
                  direction_hint='forward',
                  openmp=None):
-        # Deactivate fft_optimization at the op level if specified
         if version == "no_fft":
             self.fft_opt = False
             version = -1
         else:
             self.fft_opt = True
 
-        # Expand unknown image / kernel shapes into tuples of Nones
         if imshp is None:
             imshp = (None, None, None)
         else:
@@ -403,7 +385,6 @@ class ConvOp(OpenMPOp):
         else:
             kshp = tuple(kshp)
 
-        # Check imshp and kshp dimensionality
         if len(imshp) == 2:
             imshp = (1,) + imshp
         elif len(imshp) != 3:
@@ -411,7 +392,6 @@ class ConvOp(OpenMPOp):
         if len(kshp) != 2:
             raise ValueError("len(kshp) must be 2, got %d" % len(kshp))
 
-        # We must continue to consider None as 1 for backward compatibility.
         if dx is None:
             dx = 1
         if dy is None:
@@ -430,10 +410,8 @@ class ConvOp(OpenMPOp):
             raise Exception("In ConvOp, when using unroll_batch and"
                             " unroll_nkern, all shape are needed")
 
-        # Init the openmp attribute
         super(ConvOp, self).__init__(openmp=openmp)
         if not all_shape or self.openmp:
-            # Only this version is parallelized
             unroll_patch = True
 
         self.imshp = imshp
@@ -446,7 +424,6 @@ class ConvOp(OpenMPOp):
         self.version = version
         self.direction_hint = direction_hint
 
-        # a triple
         if imshp_logical is None:
             self.imshp_logical = self.imshp
         else:
@@ -455,7 +432,6 @@ class ConvOp(OpenMPOp):
                 raise ValueError("len(imshp_logical) must be 3, got %d" % len(imshp_logical))
             self.imshp_logical = imshp_logical
 
-        # a pair
         if kshp_logical is None:
             self.kshp_logical = self.kshp
         else:
@@ -464,7 +440,6 @@ class ConvOp(OpenMPOp):
                 raise ValueError("len(kshp_logical) must be 2, got %d" % len(kshp_logical))
             self.kshp_logical = kshp_logical
 
-        # a bool
         self.kshp_logical_top_aligned = kshp_logical_top_aligned
 
         self.unroll_batch = unroll_batch
@@ -476,13 +451,11 @@ class ConvOp(OpenMPOp):
         if self.unroll_kern and not self.unroll_batch:
             self.unroll_batch = 1
 
-        # downcast unroll_batch if not a divisor of batch size
         if self.unroll_batch is not None and self.unroll_batch > 0 and self.bsize % self.unroll_batch != 0:
 
             if self.bsize <= self.unroll_batch:
                 self.unroll_batch = self.bsize
             else:
-                # find the maximum value under unroll_batch that would work
                 new = self.unroll_batch
                 assert(new >= 1)
                 while self.bsize % new != 0:
@@ -496,13 +469,11 @@ class ConvOp(OpenMPOp):
 
                 self.unroll_batch = new
 
-        # downcast unroll_kern if not a divisor of nb of kernel
         if self.unroll_kern is not None and self.unroll_kern > 0 and self.nkern % self.unroll_kern != 0:
 
             if self.nkern <= self.unroll_kern:
                 self.unroll_kern = self.nkern
             else:
-                # find the maximum value under unroll_kern that would work
                 new = self.unroll_kern
                 assert(new >= 1)
                 while self.nkern % new != 0:
@@ -541,7 +512,6 @@ class ConvOp(OpenMPOp):
         if (self.unroll_kern is None and
                 self.unroll_batch is None and
                 self.unroll_patch is None):
-            # no version specified. Find the faster we have
             if self.bsize is None and self.nkern is None:
                 self.unroll_patch = True
             elif self.bsize is not None and self.nkern is not None:
@@ -616,11 +586,8 @@ class ConvOp(OpenMPOp):
         assert images[1] == kerns[1]
         flops = 0
         if self.out_mode == "valid":
-            # nb mul and add by output pixel
             flops = kerns[2] * kerns[3] * 2
-            # nb flops by output image
             flops *= out[2] * out[3]
-            # nb patch multiplied
             flops *= images[1] * kerns[0] * images[0]
         else:
             flops = (images[0] * kerns[0] * images[1] *
@@ -629,7 +596,6 @@ class ConvOp(OpenMPOp):
         return flops
 
     def make_node(self, inputs, kerns):
-        # TODO: find a way to make ConvOp work for N-D (after NIPS09)
         """
         Parameters
         ----------
@@ -641,7 +607,6 @@ class ConvOp(OpenMPOp):
         """
         _inputs = as_tensor_variable(inputs)
         _kerns = as_tensor_variable(kerns)
-        # TODO: lift this restriction by upcasting either inputs or kerns
         if _inputs.ndim != 4:
             raise TypeError('ConvOp (make_node) requires input be a 4D tensor;'
                             ' received "%s" (%i dims)' %
@@ -665,7 +630,6 @@ class ConvOp(OpenMPOp):
         kshp = input_shapes[1]   # 4D filter shape
         bsize, imshp = imshp[0], list(imshp[1:])
         nkern, kshp = kshp[0], list(kshp[2:])
-        # replace symbolic shapes with known shapes
         if self.bsize is not None:
             bsize = self.bsize
         for i in [0, 1, 2]:
@@ -676,7 +640,6 @@ class ConvOp(OpenMPOp):
         for i in [0, 1]:
             if self.kshp_logical[i] is not None:
                 kshp[i] = self.kshp_logical[i]
-        # infer output shape from what we have
         res = get_conv_output_shape(
             (bsize,) + tuple(imshp),
             (nkern, None,) + tuple(kshp),
@@ -698,8 +661,6 @@ class ConvOp(OpenMPOp):
                 "for the python implementation. You can use the C"
                 " implementation instead.")
 
-        # TODO: move these back out to global scope when they no longer
-        #       cause an atexit error
         imshp = self.imshp
         if any(x is None for x in imshp):
             imshp = tuple(img2d.shape[1:])
@@ -765,7 +726,6 @@ class ConvOp(OpenMPOp):
         filtersflipped = filtersflipped.reshape((nkern, stacklen) + kshp)
 
         if self.imshp != self.imshp_logical:
-            # assuming that to get from imshp to imshp logical we insert zeros in missing spots
             rstride = int(numpy.ceil(imshp_logical[1] / float(imshp[1])))
             cstride = int(numpy.ceil(imshp_logical[2] / float(imshp[2])))
             buf = numpy.zeros((bsize,) + imshp_logical, dtype=img2d.dtype)
@@ -800,7 +760,6 @@ class ConvOp(OpenMPOp):
                 for n in xrange(nkern):
                     zz[b, n, ...].fill(0)
                     for im0 in xrange(stacklen):
-                        # some cast generates a warning here
                         zz[b, n, ...] += _convolve2d(img2d[b, im0, ...],
                                                      filtersflipped[n, im0, ...],
                                                      1, val, bval, 0)
@@ -813,7 +772,6 @@ class ConvOp(OpenMPOp):
                 img2d2[:, :, kshp[0] - 1:kshp[0] - 1 + imshp[1],
                        kshp[1] - 1:kshp[1] - 1 + imshp[2]] = img2d
                 img2d = img2d2
-            # N_image_shape = image_data.shape
 
             for b in xrange(bsize):
                 for n in xrange(nkern):
@@ -826,10 +784,6 @@ class ConvOp(OpenMPOp):
                                           col:col + kshp[1]] *
                                     filtersflipped[n, im0, ::-1, ::-1]).sum()
 
-        # We copy it to remove the Stride mismatch warning from DEBUG_MODE.
-        # The copy make that we return an object with the same stride as the c version.
-        # The copy don't affect the performence during our experience as in that case we
-        # execute the c version which is much faster.
         if self.dx > 1 or self.dy > 1:
             zz = zz[:, :, 0::self.dx, 0::self.dy].copy()
         z[0] = zz
@@ -853,12 +807,7 @@ class ConvOp(OpenMPOp):
             raise NotImplementedError('todo')
 
         if self.out_mode == 'valid' and (self.dx, self.dy) != (1, 1):
-            # Use the gradient as defined in conv3D, because the implementation
-            # by Conv is slow (about 3x slower than conv3D, and probably 10x
-            # slower than it could be), and incorrect when dx or dy > 2.
 
-            # build a "node", that should be equivalent to the one given by
-            # self.make_node, but using conv3D instead of self.
             shuffled_inputs = inputs.dimshuffle(0, 2, 3, 'x', 1)
             if inputs.name is not None:
                 shuffled_inputs.name = 'shuffle_for_conv3D(%s)' % inputs.name
@@ -878,8 +827,6 @@ class ConvOp(OpenMPOp):
             node = theano.tensor.addbroadcast(
                 tmp_node, 3).dimshuffle(0, 4, 1, 2)
 
-            # mimic what happens inside theano.grad: get the input gradient
-            # of the final cost wrt all variables involved.
             return theano.gradient.grad(cost=None, known_grads={node: gz},
                                         wrt=[inputs, kerns])
 
@@ -896,7 +843,6 @@ class ConvOp(OpenMPOp):
             raise Exception("ConvOp.grad when dx!=1 or dy!=1 we must have all "
                             "the optional shape information")
 
-        # Determine gradient on kernels ########
         assert inputs.ndim == 4 and kerns.ndim == 4
 
         newin = inputs.dimshuffle((1, 0, 2, 3))
@@ -977,11 +923,9 @@ class ConvOp(OpenMPOp):
         if all_shape:
             assert all(o == k for o, k in zip(dw.owner.op.outshp, self.kshp))
         if self.out_mode == 'valid':
-            # before DimShuffle, dw is of shape visdim x nkern x kshp[0] x kshp[1]
             dw = dw.dimshuffle((1, 0, 2, 3))
             dw = dw[:, :, ::-1, ::-1]
 
-        # Determine gradient on inputs ########
         mode = 'valid'
         if not self.out_mode == 'full':
             mode = 'full'
@@ -1020,8 +964,6 @@ class ConvOp(OpenMPOp):
         assert all(o is None or o == i
                    for o, i in zip(din.owner.op.outshp, self.imshp[1:]))
 
-        # din and dw should have the same broadcasting pattern as the
-        # parameters they are the gradient of (resp. inputs and kerns).
         din = patternbroadcast(din, inputs.broadcastable)
         dw = patternbroadcast(dw, kerns.broadcastable)
         return [din, dw]
@@ -1034,20 +976,13 @@ class ConvOp(OpenMPOp):
 
     def c_support_code(self):
         return """
-#define STRIDES(arr) (PyArray_STRIDES(arr))
-#define FULL  2
-#define SAME  1
-#define VALID 0
-#define MOD %
 using namespace std;
 """ + blas.blas_header_text()
 
     def use_blas(self):
         """ Return True if we will generate code that use gemm.
         """
-        # the gemm version only support that case
         if self.out_mode == 'valid' and self.dx == 0 and self.dy == 0:
-            # We use a faster version in those case.
             if (self.imshp != self.imshp_logical or
                     self.kshp != self.kshp_logical or
                     self.unroll_patch or
@@ -1063,8 +998,6 @@ using namespace std;
         return []
 
     def c_no_compile_args(self):
-        # when the ksph==(1,1) gcc 4.3.0 segfault during the
-        # compilation with -O3.  This don't happen at -O2
         if (theano.gof.cmodule.gcc_version() in ['4.3.0'] and
                 self.kshp == (1, 1)):
             return ['-O3']
@@ -1079,7 +1012,6 @@ using namespace std;
         if (theano.gof.cmodule.gcc_version() in ['4.3.0'] and
                 self.kshp == (1, 1)):
             ret += ['-O2']
-        # Add the -fopenmp flags
         ret += super(ConvOp, self).c_compile_args()
 
         return ret
@@ -1113,7 +1045,6 @@ using namespace std;
         d["mode"] = self.out_mode.upper()
         d["affectation"] = "="
 
-        # Default values, will be overrided if the shape info is provided
         d["self_bsize"] = "PyArray_DIMS(%(img2d)s)[0]" % d
         d["self_nkern"] = "PyArray_DIMS(%(filtersflipped)s)[0]" % d
         d["self_outshp0"] = "-1"
@@ -1125,7 +1056,6 @@ using namespace std;
         d["self_kshp1"] = "PyArray_DIMS(%(filtersflipped)s)[3]" % d
         d["assert_size"] = ""
 
-        # Override the default value if we have it
         if self.kshp[0] is not None:
             expected = d["self_kshp0"]
             value = self.kshp[0]
@@ -1255,7 +1185,6 @@ if(%(value)s != %(expected)s){
             """ % dict(expected=expected, value=value, **sub)
             d["self_nkern"] = self.nkern
 
-        # Other hard coded stuff only if we have all shapes
         if all_shape:
             d["self_kshp_logical_r"] = self.kshp_logical[0]
             d["self_kshp_logical_c"] = self.kshp_logical[1]
@@ -1264,9 +1193,7 @@ if(%(value)s != %(expected)s){
             d["self_kshp_logical_stride_c"] = int(numpy.ceil(
                 self.kshp_logical[1] / float(self.kshp[1])))
             d["self_imshp_logical_r"] = self.imshp_logical[1]
-            # numpy.B. 1  not 0
             d["self_imshp_logical_c"] = self.imshp_logical[2]
-            # numpy.B. 2  not 1
             d["self_imshp_logical_stride_r"] = int(numpy.ceil(
                 self.imshp_logical[1] / float(self.imshp[1])))
             d["self_imshp_logical_stride_c"] = int(numpy.ceil(
@@ -1345,7 +1272,6 @@ if(kerns_dim[1] != img2d_dim[1]){
             return gen_conv_code_unroll_batch_kern(d, self.unroll_batch,
                                                    self.unroll_kern)
 
-        # TODO: should we choose the unroll size automatically with the bigger divisor under 5?
         if self.out_mode == 'valid' and self.dx == 0 and self.dy == 0:
             if self.verbose:
                 _logger.debug("return gemm version")
@@ -1629,9 +1555,6 @@ Py_XDECREF(filtersflipped);
 """
 
 
-#########
-# ConvOp c_code for valid mode (uses gemm)
-#########
 
 _conv_op_code_valid_gemm = """
 int typenum=0, typenum_f=0;
@@ -2271,7 +2194,6 @@ if (!PyArray_ISCONTIGUOUS(%(z)s))
 
 //The if on the number of loop make a speed up for small array.
 //with g++ 4.5.1. The compiler should be smart enough to do this himself!
-#pragma omp parallel for schedule(static) if(%(self_bsize)s * %(self_nkern)s > 1)
 // We merge the 2 loop into one to make it easier to parallelize on both
 // This is the equivalent of those 2 lines.
 //for(int b=0;b< %(self_bsize)s;b++){

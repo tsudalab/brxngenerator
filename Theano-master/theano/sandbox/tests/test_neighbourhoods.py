@@ -1,5 +1,4 @@
 from __future__ import absolute_import, print_function, division
-#!/usr/bin/python
 
 import theano
 import numpy
@@ -45,7 +44,6 @@ def test_imgFromNeigh_1d_stridesmaller():
 
     a = numpy.arange(2*4).reshape((2,4))
 
-    #neighs = NeighbourhoodsFromImages(1, (3,), strides=(1,), ignore_border=False)(x)
 
     cmp = numpy.asarray([[[0.,1.,2.],[1.,2.,3.],[2.,3.,0.],[3.,0.,0.]],\
                 [[4.,5.,6.],[5.,6.,7.],[6.,7.,0.],[7.,0.,0.]]])

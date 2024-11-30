@@ -55,30 +55,15 @@ AddConfigVar('warn_float64',
 AddConfigVar('cast_policy',
              'Rules for implicit type casting',
              EnumStr('custom', 'numpy+floatX',
-                     # The 'numpy' policy was originally planned to provide a
-                     # smooth transition from numpy. It was meant to behave the
-                     # same as numpy+floatX, but keeping float64 when numpy
-                     # would. However the current implementation of some cast
-                     # mechanisms makes it a bit more complex to add than what
-                     # was expected, so it is currently not available.
-                     # numpy,
                      ),
              )
 
-# python 2.* define int / int to return int and int // int to return int.
-# python 3* define int / int to return float and int // int to return int.
-# numpy 1.6.1 behaves as python 2.*. I think we should not change it faster
-# than numpy. When we will do the transition, we should create an int_warn
-# and floatX_warn option.
 AddConfigVar('int_division',
              "What to do when one computes x / y, where both x and y are of "
              "integer types",
              EnumStr('int', 'raise', 'floatX'),
              in_c_key=False)
 
-# gpu means let the driver select the gpu. Needed in case of gpu in
-# exclusive mode.
-# gpuX mean use the gpu number X.
 
 
 class DeviceParam(ConfigParam):
@@ -206,9 +191,6 @@ def filter_nvcc_flags(s):
 AddConfigVar('nvcc.flags',
              "Extra compiler flags for nvcc",
              ConfigParam("", filter_nvcc_flags),
-             # Not needed in c key as it is already added.
-             # We remove it as we don't make the md5 of config to change
-             # if theano.sandbox.cuda is loaded or not.
              in_c_key=False)
 
 AddConfigVar('nvcc.compiler_bindir',
@@ -220,9 +202,6 @@ AddConfigVar('nvcc.compiler_bindir',
 AddConfigVar('nvcc.fastmath',
              "",
              BoolParam(False),
-             # Not needed in c key as it is already added.
-             # We remove it as we don't make the md5 of config to change
-             # if theano.sandbox.cuda is loaded or not.
              in_c_key=False)
 
 AddConfigVar('gpuarray.sync',
@@ -349,8 +328,6 @@ AddConfigVar('dnn.enabled',
              StrParam("auto", "True", "False"),
              in_c_key=False)
 
-# This flag determines whether or not to raise error/warning message if
-# there is a CPU Op in the computational graph.
 AddConfigVar(
     'assert_no_cpu_op',
     "Raise an error/warning if there is a CPU op in the computational graph.",
@@ -358,12 +335,6 @@ AddConfigVar(
     in_c_key=False)
 
 
-# Do not add FAST_RUN_NOGC to this list (nor any other ALL CAPS shortcut).
-# The way to get FAST_RUN_NOGC is with the flag 'linker=c|py_nogc'.
-# The old all capital letter way of working is deprecated as it is not
-# scalable.
-# Also, please be careful not to modify the first item in the enum when adding
-# new modes, since it is the default mode.
 AddConfigVar(
     'mode',
     "Default compilation mode",
@@ -374,7 +345,6 @@ AddConfigVar(
 
 param = "g++"
 
-# Test whether or not g++ is present: disable C code if it is not.
 try:
     rc = call_subprocess_Popen(['g++', '-v'])
 except OSError:
@@ -383,7 +353,6 @@ except OSError:
 if rc != 0:
     param = ""
 
-# On Mac we test for 'clang++' and use it by default
 if sys.platform == 'darwin':
     try:
         rc = call_subprocess_Popen(['clang++', '-v'])
@@ -392,7 +361,6 @@ if sys.platform == 'darwin':
     except OSError:
         pass
 
-# Try to find the full compiler path from the name
 if param != "":
     import distutils.spawn
     newp = distutils.spawn.find_executable(param)
@@ -411,7 +379,6 @@ AddConfigVar('cxx',
 del param
 
 if rc == 0 and config.cxx != "":
-    # Keep the default linker the same as the one for the mode FAST_RUN
     AddConfigVar('linker',
                  ("Default linker used if the theano flags mode is Mode "
                   "or ProfileMode(deprecated)"),
@@ -419,15 +386,12 @@ if rc == 0 and config.cxx != "":
                          'vm', 'vm_nogc', 'cvm_nogc'),
                  in_c_key=False)
 else:
-    # g++ is not present or the user disabled it,
-    # linker should default to python only.
     AddConfigVar('linker',
                  ("Default linker used if the theano flags mode is Mode "
                   "or ProfileMode(deprecated)"),
                  EnumStr('vm', 'py', 'vm_nogc'),
                  in_c_key=False)
     try:
-        # If the user provided an empty value for cxx, do not warn.
         theano.configparser.fetch_val_for_key('cxx')
     except KeyError:
         _logger.warning(
@@ -438,7 +402,6 @@ else:
             'empty string.')
 
 
-# Keep the default value the same as the one for the mode FAST_RUN
 AddConfigVar('allow_gc',
              "Do we default to delete intermediate results during Theano"
              " function calls? Doing so lowers the memory requirement, but"
@@ -448,7 +411,6 @@ AddConfigVar('allow_gc',
              BoolParam(True),
              in_c_key=False)
 
-# Keep the default optimizer the same as the one for the mode FAST_RUN
 AddConfigVar(
     'optimizer',
     ("Default optimizer. If not None, will use this linker with the Mode "
@@ -507,10 +469,6 @@ AddConfigVar('on_unused_input',
              EnumStr('raise', 'warn', 'ignore'),
              in_c_key=False)
 
-# This flag is used when we import Theano to initialize global variables.
-# So changing it after import will not modify these global variables.
-# This could be done differently... but for now we simply prevent it from being
-# changed at runtime.
 AddConfigVar(
     'tensor.cmp_sloppy',
     "Relax tensor._allclose (0) not at all, (1) a bit, (2) more",
@@ -531,7 +489,6 @@ AddConfigVar(
     BoolParam(True),
     in_c_key=False)
 
-# http://developer.amd.com/CPU/LIBRARIES/LIBM/Pages/default.aspx
 AddConfigVar(
     'lib.amdlibm',
     "Use amd's amdlibm numerical library",
@@ -546,13 +503,6 @@ AddConfigVar(
 AddConfigVar(
     'traceback.limit',
     "The number of stack to trace. -1 mean all.",
-    # We default to a number to be able to know where v1 + v2 is created in the
-    # user script. The bigger this number is, the more run time it takes.
-    # We need to default to 8 to support theano.tensor.tensor(...).
-    # import theano, numpy
-    # X = theano.tensor.matrix()
-    # y = X.reshape((5,3,1))
-    # assert y.tag.trace
     IntParam(8),
     in_c_key=False)
 
@@ -617,9 +567,6 @@ AddConfigVar('numpy.seterr_invalid',
                      allow_override=False),
              in_c_key=False)
 
-###
-# To disable some warning about old bug that are fixed now.
-###
 AddConfigVar('warn.ignore_bug_before',
              ("If 'None', we warn about all Theano bugs found by default. "
               "If 'all', we don't warn about Theano bugs found by default. "
@@ -791,7 +738,6 @@ AddConfigVar(
     EnumStr('low', 'high'),
     in_c_key=False)
 
-# Test if the env variable is set
 var = os.getenv('OMP_NUM_THREADS', None)
 if var:
     try:
@@ -802,7 +748,6 @@ if var:
     else:
         default_openmp = not int(var) == 1
 else:
-    # Check the number of cores availables.
     count = cpuCount()
     if count == -1:
         _logger.warning("We are not able to detect the number of CPU cores."
@@ -812,9 +757,6 @@ else:
                         " want theano to use.")
     default_openmp = count > 1
 
-# Disable it by default for now as currently only the ConvOp supports
-# it, and this causes slowdown by default as we do not disable it for
-# too small convolution.
 default_openmp = False
 
 AddConfigVar('openmp',
@@ -1102,52 +1044,28 @@ def default_blas_ldflags():
     try:
         if (hasattr(numpy.distutils, '__config__') and
                 numpy.distutils.__config__):
-            # If the old private interface is available use it as it
-            # don't print information to the user.
             blas_info = numpy.distutils.__config__.blas_opt_info
         else:
-            # We do this import only here, as in some setup, if we
-            # just import theano and exit, with the import at global
-            # scope, we get this error at exit: "Exception TypeError:
-            # "'NoneType' object is not callable" in <bound method
-            # Popen.__del__ of <subprocess.Popen object at 0x21359d0>>
-            # ignored"
 
-            # This happen with Python 2.7.3 |EPD 7.3-1 and numpy 1.8.1
             import numpy.distutils.system_info  # noqa
 
-            # We need to catch warnings as in some cases NumPy print
-            # stuff that we don't want the user to see.
-            # I'm not able to remove all printed stuff
             with warnings.catch_warnings(record=True):
                 numpy.distutils.system_info.system_info.verbosity = 0
                 blas_info = numpy.distutils.system_info.get_info("blas_opt")
 
-        # If we are in a EPD installation, mkl is available
         if "EPD" in sys.version:
             use_unix_epd = True
             if sys.platform == 'win32':
                 return ' '.join(
                     ['-L%s' % os.path.join(sys.prefix, "Scripts")] +
-                    # Why on Windows, the library used are not the
-                    # same as what is in
-                    # blas_info['libraries']?
                     ['-l%s' % l for l in ["mk2_core", "mk2_intel_thread",
                                           "mk2_rt"]])
             elif sys.platform == 'darwin':
-                # The env variable is needed to link with mkl
                 new_path = os.path.join(sys.prefix, "lib")
                 v = os.getenv("DYLD_FALLBACK_LIBRARY_PATH", None)
                 if v is not None:
-                    # Explicit version could be replaced by a symbolic
-                    # link called 'Current' created by EPD installer
-                    # This will resolve symbolic links
                     v = os.path.realpath(v)
 
-                # The python __import__ don't seam to take into account
-                # the new env variable "DYLD_FALLBACK_LIBRARY_PATH"
-                # when we set with os.environ['...'] = X or os.putenv()
-                # So we warn the user and tell him what todo.
                 if v is None or new_path not in v.split(":"):
                     _logger.warning(
                         "The environment variable "
@@ -1164,24 +1082,16 @@ def default_blas_ldflags():
                     ['-L%s' % os.path.join(sys.prefix, "lib")] +
                     ['-l%s' % l for l in blas_info['libraries']])
 
-                # Canopy
         if "Canopy" in sys.prefix:
             subsub = 'lib'
             if sys.platform == 'win32':
                 subsub = 'Scripts'
             lib_path = os.path.join(sys.base_prefix, subsub)
             if not os.path.exists(lib_path):
-                # Old logic to find the path. I don't think we still
-                # need it, but I don't have the time to test all
-                # installation configuration. So I keep this as a fall
-                # back in case the current expectation don't work.
 
-                # This old logic don't work when multiple version of
-                # Canopy is installed.
                 p = os.path.join(sys.base_prefix, "..", "..", "appdata")
                 assert os.path.exists(p), "Canopy changed the location of MKL"
                 lib_paths = os.listdir(p)
-                # Try to remove subdir that can't contain MKL
                 for sub in lib_paths:
                     if not os.path.exists(os.path.join(p, sub, subsub)):
                         lib_paths.remove(sub)
@@ -1199,25 +1109,15 @@ def default_blas_ldflags():
             elif sys.platform == 'win32':
                 return ' '.join(
                     ['-L%s' % lib_path] +
-                    # Why on Windows, the library used are not the
-                    # same as what is in blas_info['libraries']?
                     ['-l%s' % l for l in ["mk2_core", "mk2_intel_thread",
                                           "mk2_rt"]])
 
-        # Anaconda
         if "Anaconda" in sys.version and sys.platform == "win32":
-            # If the "mkl-service" conda package (available
-            # through Python package "mkl") is installed and
-            # importable, then the libraries (installed by conda
-            # package "mkl-rt") are actually available.  Using
-            # "conda install mkl" will install both, as well as
-            # optimized versions of numpy and scipy.
             try:
                 import mkl  # noqa
             except ImportError as e:
                 _logger.info('Conda mkl is not available: %s', e)
             else:
-                # This branch is executed if no exception was raised
                 lib_path = os.path.join(sys.prefix, 'DLLs')
                 flags = ['-L%s' % lib_path]
                 flags += ['-l%s' % l for l in ["mkl_core",
@@ -1228,34 +1128,21 @@ def default_blas_ldflags():
                     return res
 
         ret = (
-            # TODO: the Gemm op below should separate the
-            # -L and -l arguments into the two callbacks
-            # that CLinker uses for that stuff.  for now,
-            # we just pass the whole ldflags as the -l
-            # options part.
             ['-L%s' % l for l in blas_info.get('library_dirs', [])] +
             ['-l%s' % l for l in blas_info.get('libraries', [])] +
             blas_info.get('extra_link_args', []))
-        # For some very strange reason, we need to specify -lm twice
-        # to get mkl to link correctly.  I have no idea why.
         if any('mkl' in fl for fl in ret):
             ret.extend(['-lm', '-lm'])
         res = try_blas_flag(ret)
         if res:
             return res
 
-        # Some environment don't have the lib dir in LD_LIBRARY_PATH.
-        # So add it.
         ret.extend(['-Wl,-rpath,' + l for l in
                     blas_info.get('library_dirs', [])])
         res = try_blas_flag(ret)
         if res:
             return res
 
-        # Try to add the anaconda lib directory to runtime loading of lib.
-        # This fix some case with Anaconda 2.3 on Linux.
-        # Newer Anaconda still have this problem but only have
-        # Continuum in sys.version.
         if (("Anaconda" in sys.version or
              "Continuum" in sys.version) and
                 "linux" in sys.platform):
@@ -1268,11 +1155,6 @@ def default_blas_ldflags():
     except KeyError:
         pass
 
-    # Even if we could not detect what was used for numpy, or if these
-    # libraries are not found, most Linux systems have a libblas.so
-    # readily available. We try to see if that's the case, rather
-    # than disable blas. To test it correctly, we must load a program.
-    # Otherwise, there could be problem in the LD_LIBRARY_PATH.
     return try_blas_flag(['-lblas'])
 
 
@@ -1298,8 +1180,6 @@ def try_blas_flag(flags):
     res = GCC_compiler.try_compile_tmp(
         test_code, tmp_prefix='try_blas_',
         flags=cflags, try_run=True)
-    # res[0]: shows successful compilation
-    # res[1]: shows successful execution
     if res and res[0] and res[1]:
         return ' '.join(flags)
     else:
@@ -1381,7 +1261,6 @@ AddConfigVar('experimental.local_alloc_elemwise',
              ),
              in_c_key=False)
 
-# False could make the graph faster but not as safe.
 AddConfigVar(
     'experimental.local_alloc_elemwise_assert',
     "When the local_alloc_elemwise is applied, add"
@@ -1424,7 +1303,6 @@ AddConfigVar('lib.cnmem',
              > 0: use that number of MB of memory.
 
              """,
-             # We should not mix both allocator, so we can't override
              FloatParam(0, lambda i: i >= 0, allow_override=False),
              in_c_key=False)
 
@@ -1452,7 +1330,6 @@ try:
     p_out = output_subprocess_Popen([config.cxx, '-dumpversion'])
     gcc_version_str = p_out[0].strip().decode()
 except OSError:
-    # Typically means gcc cannot be found.
     gcc_version_str = 'GCC_NOT_FOUND'
 
 
@@ -1464,10 +1341,6 @@ def local_bitwidth():
     *not* the size of long int, as it can be different.
 
     """
-    # Note that according to Python documentation, `platform.architecture()` is
-    # not reliable on OS X with universal binaries.
-    # Also, sys.maxsize does not exist in Python < 2.6.
-    # 'P' denotes a void*, and the size is expressed in bytes.
     return struct.calcsize('P') * 8
 
 
@@ -1478,7 +1351,6 @@ def python_int_bitwidth():
     Note that it can be different from the size of a memory pointer.
 
     """
-    # 'l' denotes a C long int, and the size is expressed in bytes.
     return struct.calcsize('l') * 8
 
 
@@ -1547,15 +1419,11 @@ def short_platform(r=None, p=None):
     if len(sp) < 2:
         return p
 
-    # For the split before the first -, we remove all learning digit:
     kernel_version = sp[0].split('.')
     if len(kernel_version) <= 2:
-        # kernel version should always have at least 3 number.
-        # If not, it use another semantic, so don't change it.
         return p
     sp[0] = '.'.join(kernel_version[:2])
 
-    # For the split after the first -, we remove leading non-digit value.
     rest = sp[1].split('.')
     while len(rest):
         if rest[0].isdigit():
@@ -1564,7 +1432,6 @@ def short_platform(r=None, p=None):
             break
     sp[1] = '.'.join(rest)
 
-    # For sp[2:], we don't change anything.
     sr = '-'.join(sp)
     p = p.replace(r, sr)
 
@@ -1591,22 +1458,14 @@ def default_compiledirname():
 
 
 def filter_base_compiledir(path):
-    # Expand '~' in path
     return os.path.expanduser(str(path))
 
 
 def filter_compiledir(path):
-    # Expand '~' in path
     path = os.path.expanduser(path)
-    # Turn path into the 'real' path. This ensures that:
-    #   1. There is no relative path, which would fail e.g. when trying to
-    #      import modules from the compile dir.
-    #   2. The path is stable w.r.t. e.g. symlinks (which makes it easier
-    #      to re-use compiled modules).
     path = os.path.realpath(path)
     if os.access(path, os.F_OK):  # Do it exist?
         if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-            # If it exist we need read, write and listing access
             raise ValueError(
                 "compiledir '%s' exists but you don't have read, write"
                 " or listing permissions." % path)
@@ -1614,17 +1473,11 @@ def filter_compiledir(path):
         try:
             os.makedirs(path, 0o770)  # read-write-execute for user and group
         except OSError as e:
-            # Maybe another parallel execution of theano was trying to create
-            # the same directory at the same time.
             if e.errno != errno.EEXIST:
                 raise ValueError(
                     "Unable to create the compiledir directory"
                     " '%s'. Check the permissions." % path)
 
-    # PROBLEM: sometimes the initial approach based on
-    # os.system('touch') returned -1 for an unknown reason; the
-    # alternate approach here worked in all cases... it was weird.
-    # No error should happen as we checked the permissions.
     init_file = os.path.join(path, '__init__.py')
     if not os.path.exists(init_file):
         try:
@@ -1645,20 +1498,13 @@ def get_home_dir():
     """
     home = os.getenv('HOME')
     if home is None:
-        # This expanduser usually works on Windows (see discussion on
-        # theano-users, July 13 2010).
         home = os.path.expanduser('~')
         if home == '~':
-            # This might happen when expanduser fails. Although the cause of
-            # failure is a mystery, it has been seen on some Windows system.
             home = os.getenv('USERPROFILE')
     assert home is not None
     return home
 
 
-# On Windows we should avoid writing temporary files to a directory that is
-# part of the roaming part of the user profile. Instead we use the local part
-# of the user profile, when available.
 if sys.platform == 'win32' and os.getenv('LOCALAPPDATA') is not None:
     default_base_compiledir = os.path.join(os.getenv('LOCALAPPDATA'), 'Theano')
 else:
@@ -1690,6 +1536,5 @@ AddConfigVar(
         allow_override=False),
     in_c_key=False)
 
-# Check if there are remaining flags provided by the user through THEANO_FLAGS.
 for key in THEANO_FLAGS_DICT.keys():
     warnings.warn('Theano does not recognise this flag: {0}'.format(key))

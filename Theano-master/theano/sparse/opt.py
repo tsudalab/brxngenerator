@@ -15,7 +15,6 @@ from theano.sparse import basic as sparse
 _is_sparse_variable = sparse._is_sparse_variable
 _is_dense = sparse._is_dense
 
-# This is tested in tests/test_opt.py:test_local_csm_properties_csm
 
 
 @gof.local_optimizer([csm_properties])
@@ -28,8 +27,6 @@ def local_csm_properties_csm(node):
     if node.op == csm_properties:
         csm, = node.inputs
         if csm.owner and (csm.owner.op == CSC or csm.owner.op == CSR):
-            # csm.owner.inputs could be broadcastable. In that case, we have
-            # to adjust the broadcasting flag here.
             ret_var = [theano.tensor.patternbroadcast(i, o.broadcastable)
                        for i, o in izip(csm.owner.inputs, node.outputs)]
             return ret_var
@@ -38,15 +35,12 @@ def local_csm_properties_csm(node):
 register_specialize(local_csm_properties_csm)
 
 
-# This is tested in tests/test_basic.py:test_remove0
 @gof.local_optimizer([sparse.Remove0])
 def local_inplace_remove0(node):
     """
     Optimization to insert inplace versions of Remove0.
 
     """
-    # If inplace is not enabled, enable it and replace that op with a
-    # new op which has inplace enabled
     if isinstance(node.op, sparse.Remove0) and not node.op.inplace:
         new_op = node.op.__class__(inplace=True)
         new_node = new_op(*node.inputs)
@@ -86,7 +80,6 @@ class AddSD_ccode(gof.op.Op):
 
     def __init__(self, format, inplace=False, *args, **kwargs):
         gof.Op.__init__(self, *args, **kwargs)
-        # Should we do inplace addition or not ?
         self.inplace = inplace
         self.format = format
         if self.inplace:
@@ -106,10 +99,7 @@ class AddSD_ccode(gof.op.Op):
             assert out_dtype == y.dtype
 
         indices, indptr, data = csm_indices(x), csm_indptr(x), csm_data(x)
-        # We either use CSC or CSR depending on the format of input
         assert self.format == x.type.format
-        # The magic number two here arises because L{scipy.sparse}
-        # objects must be matrices (have dimension 2)
         assert y.type.ndim == 2
         out = tensor.TensorType(dtype=out_dtype,
                                 broadcastable=y.type.broadcastable)()
@@ -217,7 +207,6 @@ def local_addsd_ccode(node):
     return False
 theano.compile.optdb.register('local_addsd_ccode',
                               gof.TopoOptimizer(local_addsd_ccode),
-                              # Must be after local_inplace_addsd_ccode at 60
                               61, 'fast_run')
 
 
@@ -262,22 +251,10 @@ class StructuredDotCSC(gof.Op):
         a = scipy.sparse.csc_matrix((a_val, a_ind, a_ptr),
                                     (a_nrows, b.shape[0]),
                                     copy=False)
-        # out[0] = a.dot(b)
         out[0] = theano._asarray(a * b, dtype=node.outputs[0].type.dtype)
         assert _is_dense(out[0])  # scipy 0.7 automatically converts to dense
 
     def c_code(self, node, name, inputs, outputs, sub):
-        # C-implementation of the dot product of the sparse matrix A and matrix
-        # B.
-        # @param a_val: non-zero values of the sparse matrix
-        # @param a_ind: column indices of the non-null values (.indices of a
-        # scipy.csc_matrix)
-        # @param a_ptr: a_ptr indicates col indices for col. i are in the range
-        # a_ptr[i]:a_ptr[i+1]
-        # @param n_rows: number of rows of sparse matrix
-        # @param b: dense matrix to perform dot product with, as in dot(a, b)
-        # @param z: return value
-        # @param sub: TODO, not too sure, something to do with weave probably
 
         (a_val, a_ind, a_ptr, a_nrows, b) = inputs
         (z,) = outputs
@@ -460,9 +437,7 @@ class StructuredDotCSR(gof.Op):
             (a_val, a_ind, a_ptr),
             (len(a_ptr) - 1, b.shape[0]),
             copy=True)  # use view_map before setting this to False
-        # out[0] = a.dot(b)
         out[0] = a * b
-        # scipy 0.7 automatically converts to dense, but not .6 sometimes
         assert _is_dense(out[0])
 
     def c_code(self, node, name, inputs, outputs, sub):
@@ -594,8 +569,6 @@ class StructuredDotCSR(gof.Op):
 sd_csr = StructuredDotCSR()
 
 
-# register a specialization to replace StructuredDot -> StructuredDotCSx
-# This is tested in tests/test_basic.py:792
 @gof.local_optimizer([sparse._structured_dot])
 def local_structured_dot(node):
     if node.op == sparse._structured_dot:
@@ -610,12 +583,6 @@ def local_structured_dot(node):
     return False
 
 
-# Commented out because
-# a) it is only slightly faster than scipy these days, and sometimes a little
-# slower, and
-# b) the resulting graphs make it very difficult for an op to do size checking
-# on the matrices involved.  dimension mismatches are hard to detect sensibly.
-# register_specialize(local_structured_dot)
 
 
 class UsmmCscDense(gof.Op):
@@ -682,7 +649,6 @@ class UsmmCscDense(gof.Op):
         if self.inplace:
             assert z.type.dtype == dtype_out
 
-        # axpy work only with the same dtype, so we should upcast the input
         if dtype_out != alpha.type.dtype:
             alpha = tensor.cast(alpha, dtype_out)
         if dtype_out != x_val.type.dtype:
@@ -729,7 +695,6 @@ class UsmmCscDense(gof.Op):
         else:
             conv_type = "double"
             axpy = "daxpy_"
-        # retrieve dtype numbers
         typenum_alpha = node.inputs[0].type.dtype_specs()[2]
         typenum_x_val = node.inputs[1].type.dtype_specs()[2]
         typenum_y = node.inputs[5].type.dtype_specs()[2]
@@ -874,7 +839,6 @@ usmm_csc_dense = UsmmCscDense(inplace=False)
 usmm_csc_dense_inplace = UsmmCscDense(inplace=True)
 
 
-# This is tested in tests/test_basic.py:UsmmTests
 local_usmm = gof.opt.PatternSub(
     (theano.tensor.sub, 'z',
      (theano.tensor.mul,
@@ -886,8 +850,6 @@ local_usmm = gof.opt.PatternSub(
 register_specialize(local_usmm, name="local_usmm")
 
 
-# register a specialization to replace usmm_csc_dense -> usmm_csc_dense_inplace
-# This is tested in tests/test_basic.py:UsmmTests
 @gof.local_optimizer([usmm_csc_dense])
 def local_usmm_csc_dense_inplace(node):
     if node.op == usmm_csc_dense:
@@ -895,7 +857,6 @@ def local_usmm_csc_dense_inplace(node):
 register_specialize(local_usmm_csc_dense_inplace, 'cxx_only', 'inplace')
 
 
-# This is tested in tests/test_basic.py:UsmmTests
 @gof.local_optimizer([usmm])
 def local_usmm_csx(node):
     """
@@ -916,7 +877,6 @@ def local_usmm_csx(node):
                                           y.type.dtype, z.type.dtype)
                 if dtype_out not in ('float32', 'float64'):
                     return False
-                # Sparse cast is not implemented.
                 if y.type.dtype != dtype_out:
                     return False
 
@@ -936,7 +896,6 @@ class CSMGradC(gof.Op):
                          b_val, b_ind, b_ptr, b_dim], [b_val.type()])
 
     def c_code(self, node, name, inputs, outputs, sub):
-        # retrieve dtype number
         (a_val, a_ind, a_ptr, a_dim,
          b_val, b_ind, b_ptr, b_dim) = inputs
         (z,) = outputs
@@ -1047,8 +1006,6 @@ class CSMGradC(gof.Op):
 csm_grad_c = CSMGradC()
 
 
-# register a specialization to replace csm_grad -> csm_grad_c
-# This is tested in tests/test_opt.py:test_local_csm_grad_c
 @gof.local_optimizer([csm_grad(None)])
 def local_csm_grad_c(node):
     """
@@ -1058,8 +1015,6 @@ def local_csm_grad_c(node):
     if node.op == csm_grad(None):
         return [csm_grad_c(*node.inputs)]
     return False
-# DISABLED AS IT IS BROKEN FOR UNSORTED INDICES!
-# register_specialize(local_csm_grad_c, 'cxx_only')
 
 
 class MulSDCSC(gof.Op):
@@ -1104,8 +1059,6 @@ class MulSDCSC(gof.Op):
     def c_code_cache_version(self):
         return (2,)
 
-    # def perform(self, node, (a_data, a_indices, a_indptr, b), (out,)):
-    #    return NotImplementedError()
 
     def c_code(self, node, name, inputs, outputs, sub):
 
@@ -1230,8 +1183,6 @@ class MulSDCSR(gof.Op):
     def c_code_cache_version(self):
         return (2,)
 
-    # def perform(self, node, (a_data, a_indices, a_indptr, b), (out,)):
-    #    return NotImplemented()
 
     def c_code(self, node, name, inputs, outputs, sub):
 
@@ -1315,7 +1266,6 @@ class MulSDCSR(gof.Op):
 mul_s_d_csr = MulSDCSR()
 
 
-# register a specialization to replace MulSD -> MulSDCSX
 @gof.local_optimizer([sparse.mul_s_d])
 def local_mul_s_d(node):
     if node.op == sparse.mul_s_d:
@@ -1341,7 +1291,6 @@ def local_mul_s_d(node):
         else:
             raise NotImplemented()
         if x.dtype != y.dtype:
-            # mul_s_d_csx don't support that case
             return
 
         c_data = mul_s_d_csx(sparse.csm_data(svar),
@@ -1475,7 +1424,6 @@ class MulSVCSR(gof.Op):
 mul_s_v_csr = MulSVCSR()
 
 
-# register a specialization to replace MulSV -> MulSVCSR
 @gof.local_optimizer([sparse.mul_s_v])
 def local_mul_s_v(node):
     if node.op == sparse.mul_s_v:
@@ -1640,15 +1588,12 @@ class StructuredAddSVCSR(gof.Op):
 structured_add_s_v_csr = StructuredAddSVCSR()
 
 
-# register a specialization to replace
-# structured_add_s_v -> structured_add_s_v_csr
 @gof.local_optimizer([sparse.structured_add_s_v])
 def local_structured_add_s_v(node):
     if node.op == sparse.structured_add_s_v:
         x, y = node.inputs
 
         x_is_sparse_variable = _is_sparse_variable(x)
-        # y_is_sparse_variable = _is_sparse_variable(y)
 
         if x_is_sparse_variable:
             svar = x
@@ -1738,7 +1683,6 @@ class SamplingDotCSR(gof.Op):
                                   p_data.type.dtype)
         dot_out = scalar.upcast(x.type.dtype, y.type.dtype)
 
-        # We call blas ?dot function that take only param of the same type
         x = tensor.cast(x, dot_out)
         y = tensor.cast(y, dot_out)
 
@@ -1787,7 +1731,6 @@ class SamplingDotCSR(gof.Op):
             conv_type = "double"
             cdot = "ddot_"
 
-        # retrieve dtype number
         typenum_x = node.inputs[0].type.dtype_specs()[2]
         typenum_y = node.inputs[1].type.dtype_specs()[2]
         typenum_p = node.inputs[2].type.dtype_specs()[2]
@@ -1910,11 +1853,9 @@ PyErr_SetString(PyExc_NotImplementedError, "rank(y) != 2"); %(fail)s;}
 sampling_dot_csr = SamplingDotCSR()
 
 
-# register a specialization to replace SamplingDot -> SamplingDotCsr
 @gof.local_optimizer([sparse.sampling_dot])
 def local_sampling_dot_csr(node):
     if not theano.config.blas.ldflags:
-        # The C implementation of SamplingDotCsr relies on BLAS routines
         return
     if node.op == sparse.sampling_dot:
         x, y, p = node.inputs

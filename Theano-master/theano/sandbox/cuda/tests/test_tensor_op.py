@@ -11,7 +11,6 @@ import theano
 from theano import tensor
 import theano.tensor as T
 
-# Skip test if cuda_ndarray is not available.
 import theano.sandbox.cuda as cuda
 from theano.tensor.nnet.tests import test_conv3d2d
 if cuda.cuda_available == False:
@@ -82,12 +81,6 @@ def test_may_share_memory_cuda():
     ra = a.reshape((4, 3))
     rb = b.reshape((4, 3))
 
-    # can't test the transpose as ta._strides = is not implemented
-    # manual transpose of a
-    #ta = a.reshape((4,3))
-    # ta._strides = (ta._strides[1],ta._strides[0])#not implemented
-    #elem_size=elem_size = numpy.zeros(0,dtype=a.dtype).dtype.itemsize
-    #ta.gpudata += ta.size*elem_size
 
     for a_, b_, rep in [(a, a, True), (b, b, True), (a, b, False),
                         (a, na, False), (b, nb, False),
@@ -100,7 +93,6 @@ def test_may_share_memory_cuda():
         assert may_share_memory(a_, b_) == rep
         assert may_share_memory(b_, a_) == rep
 
-    # test that it raise error when needed.
     for a_, b_, rep in [(a, (0,), False), (a, 1, False), (a, None, False)]:
         assert may_share_memory(a_, b_, False) == rep
         assert may_share_memory(b_, a_, False) == rep
@@ -120,7 +112,6 @@ def test_deepcopy():
     a = cuda.fmatrix()
     a_v = cuda.CudaNdarray(numpy.zeros((3, 4), dtype='float32'))
 
-    # We force the c code to check that we generate c code
     mode = theano.Mode("c", mode_with_gpu.optimizer)
     f = theano.function([a], a, mode=mode)
     theano.printing.debugprint(f)
@@ -128,7 +119,6 @@ def test_deepcopy():
     assert out is not a_v
     assert numpy.allclose(numpy.asarray(a_v), numpy.asarray(out))
 
-    # We force the python linker as the default code should work for this op
     mode = theano.Mode("py", mode_with_gpu.optimizer)
     f = theano.function([a], a, mode=mode)
     theano.printing.debugprint(f)

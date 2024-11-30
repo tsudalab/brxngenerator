@@ -16,8 +16,6 @@ def get_diagonal_subtensor_view(x, i0, i1):
     It returns a partial view of x, not a partial copy.
 
     """
-    # We have to cast i0 and i0 to int because python 2.4 (and maybe later)
-    # do not support indexing with 0-dim, 'int*' ndarrays.
     i0 = int(i0)
     i1 = int(i1)
     if x.shape[i0] < x.shape[i1]:
@@ -250,8 +248,6 @@ def conv3d(signals, filters,
         filter_shape=conv2d_filter_shape,
         border_mode=border_mode[1])  # ignoring border_mode[2]
 
-    # reshape the output to restore its original size
-    # shape = Ns, Ts, Nf, Tf, W-Wf+1, H-Hf+1
     if border_mode[1] == 'valid':
         out_tmp = out_4d.reshape((
             _signals_shape_5d[0],  # Ns
@@ -275,8 +271,6 @@ def conv3d(signals, filters,
     else:
         raise ValueError('invalid border mode', border_mode[1])
 
-    # now sum out along the Tf to get the output
-    # but we have to sum on a diagonal through the Tf and Ts submatrix.
     if border_mode[0] == 'valid':
         if _filters_shape_5d[1] != 1:
             out_5d = diagonal_subtensor(out_tmp, 1, 3).sum(axis=3)
@@ -321,9 +315,6 @@ def make_gpu_optimizer(op, to_gpu):
 
         """
         if isinstance(node.op, op):
-            # op(host_from_gpu()) -> host_from_gpu(op)
-            # If any of the input that go on the GPU are on the GPU,
-            # move the op to the gpu.
             if any(node.inputs[idx].owner and
                    isinstance(node.inputs[idx].owner.op, cuda.HostFromGpu)
                    for idx in to_gpu):
@@ -336,7 +327,6 @@ def make_gpu_optimizer(op, to_gpu):
                 copy_stack_trace(node.outputs[0], transfer_node)
                 return [transfer_node]
         if node.op == cuda.gpu_from_host:
-            # gpu_from_host(op) -> op(gpu_from_host)
             host_input = node.inputs[0]
             if host_input.owner and isinstance(host_input.owner.op,
                                                op):

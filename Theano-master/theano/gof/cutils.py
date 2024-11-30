@@ -8,8 +8,6 @@ from theano.gof.compilelock import get_lock, release_lock
 from theano import config
 from . import cmodule
 
-# TODO These two lines may be removed in the future, when we are 100% sure
-# noone has an old cutils_ext.so lying around anymore.
 if os.path.exists(os.path.join(config.compiledir, 'cutils_ext.so')):
     os.remove(os.path.join(config.compiledir, 'cutils_ext.so'))
 
@@ -27,7 +25,6 @@ def compile_cutils_code():
                                           'complex192', 'complex512']]
 
     inplace_map_template = """
-    #if defined(%(typen)s)
     static void %(type)s_inplace_add(PyArrayMapIterObject *mit,
                                      PyArrayIterObject *it, int inc_or_set)
     {
@@ -39,7 +36,6 @@ def compile_cutils_code():
             PyArray_ITER_NEXT(it);
         }
     }
-    #endif
     """
 
     floatadd = ("((%(type)s*)mit->dataptr)[0] = "
@@ -63,9 +59,7 @@ def compile_cutils_code():
 
     def gen_binop(type, typen):
         return """
-#if defined(%(typen)s)
 %(type)s_inplace_add,
-#endif
 """ % dict(type=type, typen=typen)
 
     fn_array = ("static inplace_map_binop addition_funcs[] = {" +
@@ -74,9 +68,7 @@ def compile_cutils_code():
 
     def gen_num(typen):
         return """
-#if defined(%(typen)s)
 %(typen)s,
-#endif
 """ % dict(type=type, typen=typen)
 
     type_number_array = ("static int type_numbers[] = {" +
@@ -84,7 +76,6 @@ def compile_cutils_code():
                                   for t in types + complex_types]) + "-1000};")
 
     code = ("""
-        #if NPY_API_VERSION >= 0x00000008
         typedef void (*inplace_map_binop)(PyArrayMapIterObject *,
                                           PyArrayIterObject *, int inc_or_set);
         """ + fns + fn_array + type_number_array + """
@@ -191,7 +182,6 @@ fail:
 
     return NULL;
 }
-        #endif
 """)
 
     return code
@@ -203,9 +193,6 @@ def compile_cutils():
 
     """
     code = ("""
-        #include <Python.h>
-        #include "numpy/arrayobject.h"
-        #include "theano_mod_helper.h"
 
         extern "C"{
         static PyObject *
@@ -233,16 +220,12 @@ def compile_cutils():
     code += ("""static PyMethodDef CutilsExtMethods[] = {
             {"run_cthunk",  run_cthunk, METH_VARARGS|METH_KEYWORDS,
              "Run a theano cthunk."},
-            #if NPY_API_VERSION >= 0x00000008
             {"inplace_increment",  inplace_increment,
               METH_VARARGS,
              "increments a numpy array inplace at the passed indexes."},
-            #endif
             {NULL, NULL, 0, NULL}        /* Sentinel */
         };""")
     if PY3:
-        # This is not the most efficient code, but it is written this way to
-        # highlight the changes needed to make 2.x code compile under python 3.
         code = code.replace("<Python.h>", '"numpy/npy_3kcompat.h"', 1)
         code = code.replace("PyCObject", "NpyCapsule")
         code += """
@@ -285,12 +268,6 @@ def compile_cutils():
                                      preargs=args)
 
 try:
-    # See gh issue #728 for why these lines are here. Summary: compiledir
-    # must be at the beginning of the path to avoid conflicts with any other
-    # cutils_ext modules that might exist. An __init__.py file must be created
-    # for the same reason. Note that these 5 lines may seem redundant (they are
-    # repeated in compile_str()) but if another cutils_ext does exist then it
-    # will be imported and compile_str won't get called at all.
     sys.path.insert(0, config.compiledir)
     location = os.path.join(config.compiledir, 'cutils_ext')
     if not os.path.exists(location):
@@ -306,14 +283,8 @@ try:
         from cutils_ext.cutils_ext import *  # noqa
     except ImportError:
         get_lock()
-    # Ensure no-one else is currently modifying the content of the compilation
-    # directory. This is important to prevent multiple processes from trying to
-    # compile the cutils_ext module simultaneously.
         try:
             try:
-                # We must retry to import it as some other process could
-                # have been compiling it between the first failed import
-                # and when we receive the lock
                 from cutils_ext.cutils_ext import *  # noqa
             except ImportError:
 
@@ -321,7 +292,6 @@ try:
                 from cutils_ext.cutils_ext import *  # noqa
 
         finally:
-            # Release lock on compilation directory.
             release_lock()
 finally:
     if sys.path[0] == config.compiledir:

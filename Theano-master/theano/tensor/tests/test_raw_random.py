@@ -25,8 +25,6 @@ class T_random_function(utt.InferShapeTester):
 
         rng_R = random_state_type()
 
-        # If calling RandomFunction directly, all args have to be specified,
-        # because shape will have to be moved to the end
         post_r, out = rf(rng_R, (4,), 0., 1.)
 
         assert out.type == tensor.dvector
@@ -53,15 +51,11 @@ class T_random_function(utt.InferShapeTester):
                              inplace=True)
         rng_R = random_state_type()
 
-        # use make_node to override some of the self.args
         post_r2, out2 = rf2(rng_R, (4,), -2, 2)  # NOT INPLACE
         post_r4, out4 = rf4(rng_R, (4,), -4, 4)  # INPLACE
         post_r2_4, out2_4 = rf2(rng_R, (4, ), -4.0, 2)  # NOT INPLACE
         post_r2_4_4, out2_4_4 = rf2(rng_R, (4, ), -4.0, 4.0)  # NOT INPLACE
 
-        # configure out4 to be computed inplace
-        # The update expression means that the random state rng_R will
-        # be maintained by post_r4
         f = compile.function(
                 [compile.In(rng_R,
                             value=numpy.random.RandomState(utt.fetch_seed()),
@@ -73,34 +67,19 @@ class T_random_function(utt.InferShapeTester):
         f2, f4, f2_4, f2_4_4 = f()
         f2b, f4b, f2_4b, f2_4_4b = f()
 
-        # print f2
-        # print f4
-        # print f2_4
-        # print f2_4_4
 
-        # print f2b
-        # print f4b
-        # print f2_4b
-        # print f2_4_4b
 
-        # setting bounds is same as multiplying by 2
         assert numpy.allclose(f2 * 2, f4), (f2, f4)
 
-        # retrieving from non-inplace generator
-        # is same as inplace one for first call
         assert numpy.allclose(f2_4_4, f4), (f2_4_4, f4)
 
-        # f4 changes from call to call, that the update has worked
         assert not numpy.allclose(f4, f4b), (f4, f4b)
 
     def test_inplace_optimization(self):
         """Test that FAST_RUN includes the random_make_inplace optimization"""
-        #inplace = False
         rf2 = RandomFunction(numpy.random.RandomState.uniform, tensor.dvector)
         rng_R = random_state_type()
 
-        # If calling RandomFunction directly, all args have to be specified,
-        # because shape will have to be moved to the end
         post_r2, out2 = rf2(rng_R, (4,), 0., 1.)
 
         f = compile.function(
@@ -110,10 +89,7 @@ class T_random_function(utt.InferShapeTester):
                     mutable=True)],
                 out2,
                 mode='FAST_RUN')  # DEBUG_MODE can't pass the id-based
-                                  # test below
 
-        # test that the RandomState object stays the same from function call to
-        # function call, but that the values returned change from call to call.
 
         id0 = id(f[rng_R])
         val0 = f()
@@ -135,9 +111,7 @@ class T_random_function(utt.InferShapeTester):
 
         rng0, val0 = f(rng)
         rng_ = numpy.random.RandomState(utt.fetch_seed())
-        # rng should still be in a fresh state
         self.assertTrue(rng_R.type.values_eq(rng, rng_))
-        # rng0 should be in an updated state
         self.assertFalse(rng_R.type.values_eq(rng, rng0))
 
         f2 = compile.function(
@@ -147,17 +121,12 @@ class T_random_function(utt.InferShapeTester):
                     mutable=False)],
                 [post_r, out])
         rng2, val2 = f2()
-        # rng should be in a fresh state
         self.assertTrue(rng_R.type.values_eq(rng, rng_))
-        # rng2 should be in an updated state
         self.assertFalse(rng_R.type.values_eq(rng, rng2))
-        # The updated state should be the same for both functions
         self.assertTrue(rng_R.type.values_eq(rng2, rng0))
 
         rng3, val3 = f2()
-        # rng2 should not have changed
         self.assertTrue(rng_R.type.values_eq(rng2, rng0))
-        # rng3 should be an updated again version of rng2
         self.assertFalse(rng_R.type.values_eq(rng3, rng2))
         self.assertFalse(rng_R.type.values_eq(rng3, rng))
 
@@ -165,15 +134,11 @@ class T_random_function(utt.InferShapeTester):
         """Test that random_function helper function accepts argument ndim"""
         rng_R = random_state_type()
 
-        # ndim is an optional argument indicating the length of the 'shape'
-        # ndim not specified, OK
         post_out4, out4 = uniform(rng_R, (4,))
 
-        # ndim specified, consistent with shape, OK
         post_out1_4, out1_4 = uniform(rng_R, (4, ), ndim=1)
         post_out2_4_4, out2_4_4 = uniform(rng_R, (4, 4), ndim=2)
 
-        # ndim specified, but not compatible with shape
         self.assertRaises(ValueError, uniform, rng_R, (4,), ndim=2)
 
         f_ok = compile.function(
@@ -184,10 +149,8 @@ class T_random_function(utt.InferShapeTester):
                 [out4, out1_4, out2_4_4],
                 accept_inplace=True)
 
-        # The correct cases should execute properly
         o4, o1_4, o2_4_4 = f_ok()
 
-        # Check the sanity of the answers
         self.assertTrue(numpy.allclose(o4, o1_4))
         self.assertTrue(numpy.allclose(o4, o2_4_4[0]))
 
@@ -195,7 +158,6 @@ class T_random_function(utt.InferShapeTester):
         '''Test if random_function helper works with args but without shape'''
         rng_R = random_state_type()
 
-        # No shape, default args -> OK
         post_out, out = uniform(rng_R, size=None, ndim=2)
         f = compile.function(
                 [compile.In(rng_R,
@@ -206,7 +168,6 @@ class T_random_function(utt.InferShapeTester):
                 accept_inplace=True)
         o, = f()
 
-        # No shape, args that have to be broadcasted -> OK
         low = tensor.TensorType(dtype='float64',
                 broadcastable=(False, True, True))()
         high = tensor.TensorType(dtype='float64',
@@ -233,17 +194,11 @@ class T_random_function(utt.InferShapeTester):
         '''Test if random_function helper works without args or shape'''
         rng_R = random_state_type()
 
-        # No shape, no args -> TypeError
         self.assertRaises(TypeError, poisson, rng_R, size=None, ndim=2)
 
     def test_random_function_ndim_added(self):
         """Test that random_function helper function accepts ndim_added as
         keyword argument"""
-        # If using numpy's uniform distribution, ndim_added should be 0,
-        # because the shape provided as argument is the output shape.
-        # Specifying a different ndim_added will change the Op's output ndim,
-        # so numpy.uniform will produce a result of incorrect shape,
-        # and a ValueError should be raised.
         def ndim_added_deco(ndim_added):
             def randomfunction(random_state, size=(), low=0.0, high=0.0,
                                ndim=None):
@@ -314,9 +269,7 @@ class T_random_function(utt.InferShapeTester):
 
     def test_uniform(self):
         """Test that raw_random.uniform generates the same results as numpy."""
-        # Check over two calls to see if the random state is correctly updated.
         rng_R = random_state_type()
-        # Use non-default parameters
         post_r, out = uniform(rng_R, (4,), -2.0, 2.0)
 
         f = compile.function(
@@ -336,10 +289,7 @@ class T_random_function(utt.InferShapeTester):
     def test_binomial(self):
         """Test that raw_random.binomial generates the same results
         as numpy."""
-        # Check over two calls to see if the random state is correctly updated.
         rng_R = random_state_type()
-        # Use non-default parameters, and larger dimensions because of
-        # the integer nature of the result
         post_r, bin = binomial(rng_R, (7, 12), 5, 0.8)
 
         f = compile.function(
@@ -358,9 +308,7 @@ class T_random_function(utt.InferShapeTester):
 
     def test_normal(self):
         """Test that raw_random.normal generates the same results as numpy."""
-        # Check over two calls to see if the random state is correctly updated.
         rng_R = random_state_type()
-        # Use non-default parameters
         post_r, out = normal(rng_R, (2, 3), 4.0, 2.0)
 
         f = compile.function(
@@ -380,10 +328,7 @@ class T_random_function(utt.InferShapeTester):
     def test_random_integers(self):
         """Test that raw_random.random_integers generates the same
         results as numpy."""
-        # Check over two calls to see if the random state is correctly updated.
         rng_R = random_state_type()
-        # Use non-default parameters, and larger dimensions because of
-        # the integer nature of the result
         post_r, out = random_integers(rng_R, (11, 8), -3, 16)
 
         f = compile.function(
@@ -404,11 +349,6 @@ class T_random_function(utt.InferShapeTester):
         """Test that raw_random.permutation_helper generates the same
         results as numpy,
         and that the 'ndim_added' keyword behaves correctly."""
-        # permutation_helper needs "ndim_added=1", because its output
-        # is one dimension more than its "shape" argument (and there's
-        # no way to determine that automatically).
-        # Check the working case, over two calls to see if the random
-        # state is correctly updated.
         rf = RandomFunction(permutation_helper, tensor.imatrix, 8,
                             ndim_added=1)
         rng_R = random_state_type()
@@ -423,8 +363,6 @@ class T_random_function(utt.InferShapeTester):
         numpy_rng = numpy.random.RandomState(utt.fetch_seed())
         val0 = f()
         val1 = f()
-        # numpy_rng.permutation outputs one vector at a time,
-        # so we call it iteratively to generate all the samples.
         numpy_val0 = numpy.asarray([numpy_rng.permutation(8)
                                     for i in range(7)])
         numpy_val1 = numpy.asarray([numpy_rng.permutation(8)
@@ -432,8 +370,6 @@ class T_random_function(utt.InferShapeTester):
         self.assertTrue(numpy.all(val0 == numpy_val0))
         self.assertTrue(numpy.all(val1 == numpy_val1))
 
-        # This call lacks "ndim_added=1", so ndim_added defaults to 0.
-        # A ValueError should be raised.
         rf0 = RandomFunction(permutation_helper, tensor.imatrix, 8)
         post_r0, out0 = rf0(rng_R, (7,), 8)
         f0 = compile.function(
@@ -443,7 +379,6 @@ class T_random_function(utt.InferShapeTester):
                 [out0], accept_inplace=True)
         self.assertRaises(ValueError, f0)
 
-        # Here, ndim_added is 2 instead of 1. A ValueError should be raised.
         rf2 = RandomFunction(permutation_helper, tensor.imatrix, 8,
                              ndim_added=2)
         post_r2, out2 = rf2(rng_R, (7,), 8)
@@ -457,16 +392,12 @@ class T_random_function(utt.InferShapeTester):
     def test_choice(self):
         """Test that raw_random.choice generates the same
         results as numpy."""
-        # numpy.random.choice is only available for numpy versions >= 1.7
         major, minor, _ = numpy.version.short_version.split('.')
         if (int(major), int(minor)) < (1, 7):
             raise utt.SkipTest('choice requires at NumPy version >= 1.7 '
                                '(%s)' % numpy.__version__)
         
-        # Check over two calls to see if the random state is correctly updated.
         rng_R = random_state_type()
-        # Use non-default parameters, and larger dimensions because of
-        # the integer nature of the result
         post_r, out = choice(rng_R, (11, 8), 10, 1, 0)
 
         f = compile.function(
@@ -486,10 +417,7 @@ class T_random_function(utt.InferShapeTester):
     def test_poisson(self):
         """Test that raw_random.poisson generates the same
         results as numpy."""
-        # Check over two calls to see if the random state is correctly updated.
         rng_R = random_state_type()
-        # Use non-default parameters, and larger dimensions because of
-        # the integer nature of the result
         post_r, out = poisson(rng_R, lam=5, size=(11, 8))
 
         f = compile.function(
@@ -518,9 +446,6 @@ class T_random_function(utt.InferShapeTester):
                 [out], accept_inplace=True)
 
         numpy_rng = numpy.random.RandomState(utt.fetch_seed())
-        # Check over two calls to see if the random state is correctly updated.
-        # numpy_rng.permutation outputs one vector at a time,
-        # so we call it iteratively to generate all the samples.
         val0 = f()
         val1 = f()
         numpy_val0 = numpy.asarray([numpy_rng.permutation(6)
@@ -530,7 +455,6 @@ class T_random_function(utt.InferShapeTester):
         self.assertTrue(numpy.all(val0 == numpy_val0))
         self.assertTrue(numpy.all(val1 == numpy_val1))
 
-        # Test that we can generate a list: have size=None or ().
         for ndim in [1, None]:
             post_r, out = permutation(rng_R, n=10, size=None, ndim=ndim)
             inp = compile.In(rng_R,
@@ -540,13 +464,11 @@ class T_random_function(utt.InferShapeTester):
             o = f()
             assert o.shape == (10,)
             assert (numpy.sort(o) == numpy.arange(10)).all()
-        # Wrong number of dimensions asked
         self.assertRaises(TypeError, permutation, rng_R, size=None, ndim=2)
 
     def test_multinomial(self):
         """Test that raw_random.multinomial generates the same
         results as numpy."""
-        # Check over two calls to see if the random state is correctly updated.
         rng_R = random_state_type()
         post_r, out = multinomial(rng_R, (7, 3), 6, [0.2] * 5)
 
@@ -581,7 +503,6 @@ class T_random_function(utt.InferShapeTester):
         self.assertRaises(ValueError, f, rng_state0, [4, 3, 4, 5])
 
     def test_mixed_shape(self):
-        # Test when the provided shape is a tuple of ints and scalar vars
         rng_R = random_state_type()
         shape0 = tensor.lscalar()
         shape = (shape0, 3)
@@ -598,7 +519,6 @@ class T_random_function(utt.InferShapeTester):
         assert g(rng_state0, 8).shape == (8, 3)
 
     def test_mixed_shape_bcastable(self):
-        # Test when the provided shape is a tuple of ints and scalar vars
         rng_R = random_state_type()
         shape0 = tensor.lscalar()
         shape = (shape0, 1)
@@ -674,8 +594,6 @@ class T_random_function(utt.InferShapeTester):
         assert numpy.all(val0b == numpy_val0b)
         assert numpy.all(val1b == numpy_val1b)
         self.assertRaises(ValueError, fb, post1b, [-4., -2], [-1, 0, 1])
-        # TODO: do we want that?
-        #self.assertRaises(ValueError, fb, post1b, [-4., -2], [-1])
 
         size = tensor.lvector()
         post_rc, outc = uniform(rng_R, low=low, high=high, size=size, ndim=1)
@@ -691,8 +609,6 @@ class T_random_function(utt.InferShapeTester):
         self.assertRaises(ValueError, fc, post1c, [-4., -2], [-1, 0], [1, 2])
         self.assertRaises(ValueError, fc, post1c, [-4., -2], [-1, 0], [2, 1])
         self.assertRaises(ValueError, fc, post1c, [-4., -2], [-1], [1])
-        # TODO: do we want that?
-        #self.assertRaises(ValueError, fc, post1c, [-4., -2], [-1], [2])
 
     def test_broadcast_arguments(self):
         rng_R = random_state_type()
@@ -734,18 +650,15 @@ class T_random_function(utt.InferShapeTester):
         rng = numpy.random.RandomState(utt.fetch_seed())
         numpy_rng = numpy.random.RandomState(utt.fetch_seed())
 
-        # Arguments of size (3,)
         rng0, val0 = f(rng, low_val, high_val)
         numpy_val0 = as_floatX(numpy_rng.uniform(low=low_val, high=high_val))
         assert numpy.all(val0 == numpy_val0)
 
-        # arguments of size (2,)
         rng1, val1 = f(rng0, low_val[:-1], high_val[:-1])
         numpy_val1 = as_floatX(numpy_rng.uniform(low=low_val[:-1],
                                                  high=high_val[:-1]))
         assert numpy.all(val1 == numpy_val1)
 
-        # Specifying the size explicitly
         g = compile.function([rng_R, low, high],
                 uniform(rng_R, low=low, high=high, size=(3,)),
                 accept_inplace=True)
@@ -769,17 +682,14 @@ class T_random_function(utt.InferShapeTester):
         rng = numpy.random.RandomState(utt.fetch_seed())
         numpy_rng = numpy.random.RandomState(utt.fetch_seed())
 
-        # Arguments of size (3,)
         rng0, val0 = f(rng, n_val, prob_val)
         numpy_val0 = numpy_rng.binomial(n=n_val, p=prob_val)
         assert numpy.all(val0 == numpy_val0)
 
-        # arguments of size (2,)
         rng1, val1 = f(rng0, n_val[:-1], prob_val[:-1])
         numpy_val1 = numpy_rng.binomial(n=n_val[:-1], p=prob_val[:-1])
         assert numpy.all(val1 == numpy_val1)
 
-        # Specifying the size explicitly
         g = compile.function([rng_R, n, prob],
                 binomial(rng_R, n=n, p=prob, size=(3,)),
                 accept_inplace=True)
@@ -805,20 +715,17 @@ class T_random_function(utt.InferShapeTester):
         rng = numpy.random.RandomState(utt.fetch_seed())
         numpy_rng = numpy.random.RandomState(utt.fetch_seed())
 
-        # Arguments of size (3,)
         rng0, val0 = f(rng, avg_val, std_val)
         numpy_val0 = as_floatX(numpy_rng.normal(loc=as_floatX(avg_val),
             scale=as_floatX(std_val)))
         assert numpy.all(val0 == numpy_val0)
 
-        # arguments of size (2,)
         rng1, val1 = f(rng0, avg_val[:-1], std_val[:-1])
         numpy_val1 = numpy.asarray(numpy_rng.normal(loc=avg_val[:-1],
                                                     scale=std_val[:-1]),
                 dtype=theano.config.floatX)
         assert numpy.all(val1 == numpy_val1)
 
-        # Specifying the size explicitly
         g = compile.function([rng_R, avg, std],
                 normal(rng_R, avg=avg, std=std, size=(3,)),
                 accept_inplace=True)
@@ -843,19 +750,16 @@ class T_random_function(utt.InferShapeTester):
         rng = numpy.random.RandomState(utt.fetch_seed())
         numpy_rng = numpy.random.RandomState(utt.fetch_seed())
 
-        # Arguments of size (3,)
         rng0, val0 = f(rng, low_val, high_val)
         numpy_val0 = numpy.asarray([numpy_rng.random_integers(low=lv, high=hv)
             for lv, hv in zip(low_val, high_val)])
         assert numpy.all(val0 == numpy_val0)
 
-        # arguments of size (2,)
         rng1, val1 = f(rng0, low_val[:-1], high_val[:-1])
         numpy_val1 = numpy.asarray([numpy_rng.random_integers(low=lv, high=hv)
             for lv, hv in zip(low_val[:-1], high_val[:-1])])
         assert numpy.all(val1 == numpy_val1)
 
-        # Specifying the size explicitly
         g = compile.function([rng_R, low, high],
                 random_integers(rng_R, low=low, high=high, size=(3,)),
                 accept_inplace=True)
@@ -865,8 +769,6 @@ class T_random_function(utt.InferShapeTester):
         assert numpy.all(val2 == numpy_val2)
         self.assertRaises(ValueError, g, rng2, low_val[:-1], high_val[:-1])
 
-    # Vectorized permutation don't make sense: the only parameter, n,
-    # controls one dimension of the returned tensor.
 
     def test_multinomial_vector(self):
         rng_R = random_state_type()
@@ -883,19 +785,16 @@ class T_random_function(utt.InferShapeTester):
         rng = numpy.random.RandomState(utt.fetch_seed())
         numpy_rng = numpy.random.RandomState(utt.fetch_seed())
 
-        # Arguments of size (3,)
         rng0, val0 = f(rng, n_val, pvals_val)
         numpy_val0 = numpy.asarray([numpy_rng.multinomial(n=nv, pvals=pv)
             for nv, pv in zip(n_val, pvals_val)])
         assert numpy.all(val0 == numpy_val0)
 
-        # arguments of size (2,)
         rng1, val1 = f(rng0, n_val[:-1], pvals_val[:-1])
         numpy_val1 = numpy.asarray([numpy_rng.multinomial(n=nv, pvals=pv)
             for nv, pv in zip(n_val[:-1], pvals_val[:-1])])
         assert numpy.all(val1 == numpy_val1)
 
-        # Specifying the size explicitly
         g = compile.function([rng_R, n, pvals],
                 multinomial(rng_R, n=n, pvals=pvals, size=(3,)),
                 accept_inplace=True)
@@ -906,8 +805,6 @@ class T_random_function(utt.InferShapeTester):
         self.assertRaises(ValueError, g, rng2, n_val[:-1], pvals_val[:-1])
 
     def test_multinomial_tensor3_a(self):
-        # Test the examples given in the multinomial documentation regarding
-        # tensor3 objects
         rng_R = random_state_type()
         n = 9
         pvals = tensor.dtensor3()
@@ -929,8 +826,6 @@ class T_random_function(utt.InferShapeTester):
         assert numpy.allclose(draw.sum(axis=2), 9)
 
     def test_multinomial_tensor3_b(self):
-        # Test the examples given in the multinomial documentation regarding
-        # tensor3 objects
         rng_R = random_state_type()
         n = 9
         pvals = tensor.dtensor3()
@@ -969,7 +864,6 @@ class T_random_function(utt.InferShapeTester):
         assert numpy.all(abs(val1) <= 1)
 
     def test_dtype_normal_uniform_687(self):
-        # Regression test for #687.
         rng_R = random_state_type()
         assert uniform(rng_R, low=tensor.constant(0, dtype='float64'),
                        dtype='float32')[1].dtype == 'float32'
@@ -984,7 +878,6 @@ class T_random_function(utt.InferShapeTester):
         rng_R = random_state_type()
         rng_R_val = numpy.random.RandomState(utt.fetch_seed())
 
-        # no shape specified, default args
         post_r, out = uniform(rng_R)
         self._compile_and_check([rng_R], [out], [rng_R_val],
                              RandomFunction)
@@ -994,16 +887,12 @@ class T_random_function(utt.InferShapeTester):
                                 RandomFunction)
 
         """
-        #infer_shape don't work for multinomial.
-        #The parameter ndim_added is set to 1 and in this case, the infer_shape
-        #inplementation don't know how to infer the shape
         post_r, out = multinomial(rng_R)
 
         self._compile_and_check([rng_R], [out], [rng_R_val],
                                 RandomFunction)
         """
 
-        # no shape specified, args have to be broadcasted
         low = tensor.TensorType(dtype='float64',
                 broadcastable=(False, True, True))()
         high = tensor.TensorType(dtype='float64',
@@ -1015,9 +904,7 @@ class T_random_function(utt.InferShapeTester):
                                 [rng_R_val, low_val, high_val],
                                 RandomFunction)
 
-        # multinomial, specified shape
         """
-        #infer_shape don't work for multinomial
         n = iscalar()
         pvals = dvector()
         size_val = (7, 3)
@@ -1031,7 +918,6 @@ class T_random_function(utt.InferShapeTester):
                                 RandomFunction)
         """
 
-        # uniform vector low and high
         low = dvector()
         high = dvector()
         post_r, out = uniform(rng_R, low=low, high=1)
@@ -1054,7 +940,6 @@ class T_random_function(utt.InferShapeTester):
         self._compile_and_check([rng_R, low, high], [out], [rng_R_val, low_val,
                                 high_val], RandomFunction)
 
-        # uniform broadcasting low and high
         low = dvector()
         high = dcol()
         post_r, out = uniform(rng_R, low=low, high=high)
@@ -1073,7 +958,6 @@ class T_random_function(utt.InferShapeTester):
         self._compile_and_check([rng_R, low, high], [out], [rng_R_val, low_val,
                                 high_val], RandomFunction)
 
-        # uniform with vector slice
         low = dvector()
         high = dvector()
         post_r, out = uniform(rng_R, low=low, high=high)
@@ -1084,14 +968,10 @@ class T_random_function(utt.InferShapeTester):
                                 [rng_R_val, low_val[:-1],
                                 high_val[:-1]], RandomFunction)
 
-        # uniform with explicit size and size implicit in parameters
-        # NOTE 1: Would it be desirable that size could also be supplied
-        # as a Theano variable?
         post_r, out = uniform(rng_R, size=size_val, low=low, high=high)
         self._compile_and_check([rng_R, low, high], [out], [rng_R_val, low_val,
                                 high_val], RandomFunction)
 
-        # binomial with vector slice
         n = ivector()
         prob = dvector()
         post_r, out = binomial(rng_R, n=n, p=prob)
@@ -1102,13 +982,10 @@ class T_random_function(utt.InferShapeTester):
                                 [rng_R_val, n_val[:-1],
                                 prob_val[:-1]], RandomFunction)
 
-        # binomial with explicit size and size implicit in parameters
-        # cf. NOTE 1
         post_r, out = binomial(rng_R, n=n, p=prob, size=size_val)
         self._compile_and_check([rng_R, n, prob], [out], [rng_R_val, n_val,
                                 prob_val], RandomFunction)
 
-        # normal with vector slice
         avg = dvector()
         std = dvector()
         post_r, out = normal(rng_R, avg=avg, std=std)
@@ -1119,15 +996,11 @@ class T_random_function(utt.InferShapeTester):
                                 [rng_R_val, avg_val[:-1],
                                 std_val[:-1]], RandomFunction)
 
-        # normal with explicit size and size implicit in parameters
-        # cf. NOTE 1
         post_r, out = normal(rng_R, avg=avg, std=std, size=size_val)
         self._compile_and_check([rng_R, avg, std], [out], [rng_R_val, avg_val,
                                 std_val], RandomFunction)
 
-        # multinomial with tensor-3 probabilities
         """
-        #multinomial infer_shape don't work.
         pvals = dtensor3()
         n = iscalar()
         post_r, out = multinomial(rng_R, n=n, pvals=pvals, size=(1, -1))
@@ -1146,9 +1019,6 @@ class T_random_function(utt.InferShapeTester):
         """
 
     def test_pkl(self):
-        # Test pickling of RandomFunction.
-        # binomial was created by calling RandomFunction on a string,
-        # random_integers by calling it on a function.
         rng_r = random_state_type()
         mode = None
         if theano.config.mode in ["DEBUG_MODE", "DebugMode"]:

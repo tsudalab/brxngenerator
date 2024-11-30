@@ -1,6 +1,4 @@
 from __future__ import absolute_import, print_function, division
-# definition theano.scalar op that have their python implementation taked from scipy
-# as scipy is not always available, we treat them separatly
 import numpy
 
 import theano
@@ -16,8 +14,6 @@ try:
     import scipy.special
     import scipy.stats
     imported_scipy_special = True
-# Importing scipy.special may raise ValueError.
-# See http://projects.scipy.org/scipy/ticket/1739
 except (ImportError, ValueError):
     pass
 
@@ -82,7 +78,6 @@ class Erfc(UnaryScalarOp):
             raise NotImplementedError('type not supported', type)
         return "%(z)s = erfc(%(x)s);" % locals()
 
-# scipy.special.erfc don't support complex. Why?
 erfc = Erfc(upgrade_to_float_no_complex, name='erfc')
 
 
@@ -158,13 +153,6 @@ class Erfinv(UnaryScalarOp):
                             dtype=upcast(x.type.dtype, gz.type.dtype))
         return gz * cst * exp(erfinv(x) ** 2),
 
-    # TODO: erfinv() is not provided by the C standard library
-    # def c_code(self, node, name, inp, out, sub):
-    #    x, = inp
-    #    z, = out
-    #    if node.inputs[0].type in complex_types:
-    #        raise NotImplementedError('type not supported', type)
-    #    return "%(z)s = erfinv(%(x)s);" % locals()
 
 erfinv = Erfinv(upgrade_to_float_no_complex, name='erfinv')
 
@@ -191,13 +179,6 @@ class Erfcinv(UnaryScalarOp):
                             dtype=upcast(x.type.dtype, gz.type.dtype))
         return - gz * cst * exp(erfcinv(x) ** 2),
 
-    # TODO: erfcinv() is not provided by the C standard library
-    # def c_code(self, node, name, inp, out, sub):
-    #    x, = inp
-    #    z, = out
-    #    if node.inputs[0].type in complex_types:
-    #        raise NotImplementedError('type not supported', type)
-    #    return "%(z)s = erfcinv(%(x)s);" % locals()
 
 erfcinv = Erfcinv(upgrade_to_float_no_complex, name='erfcinv')
 
@@ -295,14 +276,7 @@ class Psi(UnaryScalarOp):
         return (
             """
             // For GPU support
-            #ifdef __CUDACC__
-            #define DEVICE __device__
-            #else
-            #define DEVICE
-            #endif
 
-            #ifndef _PSIFUNCDEFINED
-            #define _PSIFUNCDEFINED
             DEVICE double _psi(double x){
 
             /*taken from
@@ -336,7 +310,6 @@ class Psi(UnaryScalarOp):
             psi_ = psi_ - R * (S3 - R * (S4 - R * S5));
 
             return psi_;}
-            #endif
             """)
 
     def c_code(self, node, name, inp, out, sub):

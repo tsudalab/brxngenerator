@@ -410,7 +410,6 @@ class bVAE_IM(object):
             print('y_train shape before update:', self.y_train.shape)
             self.X_train = np.concatenate([self.X_train, binary_new], 0)
             self.y_train = np.concatenate([self.y_train, np.array(training_score)[:, None]], 0)
-            # 确保y_train的类型是float32
             self.y_train = self.y_train.astype(np.float32)
             
             print('X_train shape after update:', self.X_train.shape)

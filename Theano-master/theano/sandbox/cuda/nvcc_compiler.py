@@ -42,7 +42,6 @@ def is_nvcc_available():
         set_version()
         return True
     except Exception:
-        # try to find nvcc into cuda.root
         p = os.path.join(config.cuda.root, 'bin', 'nvcc')
         if os.path.exists(p):
             global nvcc_path
@@ -97,14 +96,8 @@ class NVCC_compiler(Compiler):
             os.path.join(os.path.split(__file__)[0], 'cuda_ndarray.cuh'))
         flags.append('-DCUDA_NDARRAY_CUH=' + cuda_ndarray_cuh_hash)
 
-        # NumPy 1.7 Deprecate the old API. I updated most of the places
-        # to use the new API, but not everywhere. When finished, enable
-        # the following macro to assert that we don't bring new code
-        # that use the old API.
         flags.append("-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION")
 
-        # numpy 1.7 deprecated the following macro but the didn't
-        # existed in the past
         numpy_ver = [int(n) for n in numpy.__version__.split('.')[:2]]
         if bool(numpy_ver < [1, 7]):
             flags.append("-DNPY_ARRAY_ENSURECOPY=NPY_ENSURECOPY")
@@ -114,12 +107,7 @@ class NVCC_compiler(Compiler):
             flags.append("-DNPY_ARRAY_C_CONTIGUOUS=NPY_C_CONTIGUOUS")
             flags.append("-DNPY_ARRAY_F_CONTIGUOUS=NPY_F_CONTIGUOUS")
 
-        # If the user didn't specify architecture flags add them
         if not any(['-arch=sm_' in f for f in flags]):
-            # We compile cuda_ndarray.cu during import.
-            # We should not add device properties at that time.
-            # As the device is not selected yet!
-            # TODO: re-compile cuda_ndarray when we bind to a GPU?
             import theano.sandbox.cuda
             if hasattr(theano.sandbox, 'cuda'):
                 n = theano.sandbox.cuda.use.device_number
@@ -189,15 +177,12 @@ class NVCC_compiler(Compiler):
         Otherwise nvcc never finish.
 
         """
-        # Remove empty string directory
         include_dirs = [d for d in include_dirs if d]
         lib_dirs = [d for d in lib_dirs if d]
 
         rpaths = list(rpaths)
 
         if sys.platform == "win32":
-            # Remove some compilation args that cl.exe does not understand.
-            # cl.exe is the compiler used by nvcc on Windows.
             for a in ["-Wno-write-strings", "-Wno-unused-label",
                       "-Wno-unused-variable", "-fno-math-errno"]:
                 if a in preargs:
@@ -213,8 +198,6 @@ class NVCC_compiler(Compiler):
 
         cuda_root = config.cuda.root
 
-        # The include dirs gived by the user should have precedence over
-        # the standards ones.
         include_dirs = include_dirs + std_include_dirs()
         if os.path.abspath(os.path.split(__file__)[0]) not in include_dirs:
             include_dirs.append(os.path.abspath(os.path.split(__file__)[0]))
@@ -226,17 +209,11 @@ class NVCC_compiler(Compiler):
         lib_dirs = lib_dirs + std_lib_dirs()
 
         if sys.platform != 'darwin':
-            # config.dnn.include_path add this by default for cudnn in the
-            # new back-end. This should not be used in this back-end. So
-            # just remove them.
             lib_dirs = [ld for ld in lib_dirs if
                         not(ld == os.path.join(cuda_root, 'lib') or
                             ld == os.path.join(cuda_root, 'lib64'))]
 
         if sys.platform != 'darwin':
-            # sometimes, the linker cannot find -lpython so we need to tell it
-            # explicitly where it is located
-            # this returns somepath/lib/python2.x
             python_lib = distutils.sysconfig.get_python_lib(plat_specific=1,
                                                             standard_lib=1)
             python_lib = os.path.dirname(python_lib)
@@ -253,15 +230,10 @@ class NVCC_compiler(Compiler):
                 (module_name, get_lib_extension()))
 
         _logger.debug('Generating shared lib %s', lib_filename)
-        # TODO: Why do these args cause failure on gtx285 that has 1.3
-        # compute capability? '--gpu-architecture=compute_13',
-        # '--gpu-code=compute_13',
-        # nvcc argument
         preargs1 = []
         preargs2 = []
         for pa in preargs:
             if pa.startswith('-Wl,'):
-                # the -rpath option is not understood by the Microsoft linker
                 if sys.platform != 'win32' or not pa.startswith('-Wl,-rpath'):
                     preargs1.append('-Xlinker')
                     preargs1.append(pa[4:])
@@ -279,19 +251,13 @@ class NVCC_compiler(Compiler):
             else:
                 preargs2.append(pa)
 
-        # Don't put -G by default, as it slow things down.
-        # We aren't sure if -g slow things down, so we don't put it by default.
         cmd = [nvcc_path, '-shared'] + preargs1
         if config.nvcc.compiler_bindir:
             cmd.extend(['--compiler-bindir', config.nvcc.compiler_bindir])
 
         if sys.platform == 'win32':
-            # add flags for Microsoft compiler to create .pdb files
             preargs2.extend(['/Zi', '/MD'])
             cmd.extend(['-Xlinker', '/DEBUG'])
-            # remove the complaints for the duplication of `double round(double)`
-            # in both math_functions.h and pymath.h,
-            # by not including the one in pymath.h
             cmd.extend(['-D HAVE_ROUND'])
         else:
             if hide_symbols:
@@ -305,20 +271,14 @@ class NVCC_compiler(Compiler):
         if len(preargs2) > 0:
             cmd.extend(['-Xcompiler', ','.join(preargs2)])
 
-        # We should not use rpath if possible. If the user provided
-        # provided an cuda.root flag, we need to add one, but
-        # otherwise, we don't add it. See gh-1540 and
-        # https://wiki.debian.org/RpathIssue for details.
 
         if (not type(config.cuda).root.is_default and
             os.path.exists(os.path.join(config.cuda.root, 'lib'))):
 
             rpaths.append(os.path.join(config.cuda.root, 'lib'))
             if sys.platform != 'darwin':
-                # the CUDA libs are universal (contain both 32-bit and 64-bit)
                 rpaths.append(os.path.join(config.cuda.root, 'lib64'))
         if sys.platform != 'win32':
-            # the -rpath option is not understood by the Microsoft linker
             for rpath in rpaths:
                 cmd.extend(['-Xlinker', ','.join(['-rpath', rpath])])
         cmd.extend('-I%s' % idir for idir in include_dirs)
@@ -327,14 +287,8 @@ class NVCC_compiler(Compiler):
         cmd.extend(['-L%s' % ldir for ldir in lib_dirs])
         cmd.extend(['-l%s' % l for l in libs])
         if sys.platform == 'darwin':
-            # This tells the compiler to use the already-loaded python
-            # symbols (which should always be the right ones).
             cmd.extend(['-Xcompiler', '-undefined,dynamic_lookup'])
 
-        # Remove "-u Symbol" arguments, since they are usually not
-        # relevant for the new compilation, even if they were used for
-        # compiling python.  If they are necessary, the nvcc syntax is
-        # "-U Symbol" with a capital U.
         done = False
         while not done:
             try:
@@ -344,16 +298,9 @@ class NVCC_compiler(Compiler):
             except ValueError as e:
                 done = True
 
-        # CUDA Toolkit v4.1 Known Issues:
-        # Host linker on Mac OS 10.7 (and 10.6 for me) passes -no_pie option
-        # to nvcc this option is not recognized and generates an error
-        # http://stackoverflow.com/questions/9327265/nvcc-unknown-option-no-pie
-        # Passing -Xlinker -pie stops -no_pie from getting passed
         if sys.platform == 'darwin' and nvcc_version >= '4.1':
             cmd.extend(['-Xlinker', '-pie'])
 
-        # cmd.append("--ptxas-options=-v") #uncomment this to see
-        # register and shared-mem requirements
         _logger.debug('Running cmd %s', ' '.join(cmd))
         orig_dir = os.getcwd()
         try:
@@ -371,7 +318,6 @@ class NVCC_compiler(Compiler):
             if not eline:
                 continue
             if 'skipping incompatible' in eline:
-                # ld is skipping an incompatible library
                 continue
             if 'declared but never referenced' in eline:
                 continue
@@ -383,11 +329,9 @@ class NVCC_compiler(Compiler):
             for i, l in enumerate(src_code.split('\n')):
                 print(i + 1, l, file=sys.stderr)
             print('===============================', file=sys.stderr)
-            # filter the output from the compiler
             for l in nvcc_stderr.split('\n'):
                 if not l:
                     continue
-                # filter out the annoying declaration warnings
 
                 try:
                     if l[l.index(':'):].startswith(': warning: variable'):
@@ -405,10 +349,8 @@ class NVCC_compiler(Compiler):
             print(nvcc_stdout)
 
         if nvcc_stdout:
-            # this doesn't happen to my knowledge
             print("DEBUG: nvcc STDOUT", nvcc_stdout, file=sys.stderr)
 
         if py_module:
-            # touch the __init__ file
             open(os.path.join(location, "__init__.py"), 'w').close()
             return dlimport(lib_filename)

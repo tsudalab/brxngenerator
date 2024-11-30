@@ -45,8 +45,6 @@ class TensorType(Type):
         self.dtype = str(dtype)
         if self.dtype == 'floatX':
             self.dtype = config.floatX
-        # broadcastable is immutable, and all elements are either
-        # True or False
         self.broadcastable = tuple(bool(b) for b in broadcastable)
         self.dtype_specs()  # error checking is done there
         self.name = name
@@ -80,8 +78,6 @@ class TensorType(Type):
         `Linker` instances to use when running a compiled graph.
 
         """
-        # Explicit error message when one accidentally uses a Variable as
-        # input (typical mistake, especially with shared variables).
         if isinstance(data, Variable):
             raise TypeError(
                 'Expected an array-like object, but found a Variable: '
@@ -92,17 +88,10 @@ class TensorType(Type):
                 (data.dtype == self.numpy_dtype)):
             if data.dtype.num != self.numpy_dtype.num:
                 data = theano._asarray(data, dtype=self.dtype)
-            # -- now fall through to ndim check
         elif ((type(data) is numpy.memmap) and
               (data.dtype == self.numpy_dtype)):
-            # numpy.memmap is a "safe" subclass of ndarray,
-            # so we can use it whereever we expect a base ndarray.
-            # however, casting it would defeat the purpose of not
-            # loading the whole data into memory
             pass
         elif strict:
-            # If any of the two conditions above was not met,
-            # we raise a meaningful TypeError.
             if not (type(data) is numpy.ndarray):
                 raise TypeError("%s expected a ndarray object." % self,
                                 data, type(data))
@@ -113,20 +102,11 @@ class TensorType(Type):
             assert False, "This point should never be reached."
         else:
             if allow_downcast:
-                # Convert to self.dtype, regardless of the type of data
                 data = theano._asarray(data, dtype=self.dtype)
-                # TODO: consider to pad shape with ones to make it consistent
-                # with self.broadcastable... like vector->row type thing
             else:
                 if isinstance(data, numpy.ndarray):
-                    # Check if self.dtype can accurately represent data
-                    # (do not try to convert the data)
                     up_dtype = scal.upcast(self.dtype, data.dtype)
                     if up_dtype == self.dtype:
-                        # Bug in the following line when data is a
-                        # scalar array, see
-                        # http://projects.scipy.org/numpy/ticket/1611
-                        # data = data.astype(self.dtype)
                         data = theano._asarray(data, dtype=self.dtype)
                     if up_dtype != self.dtype:
                         err_msg = (
@@ -141,22 +121,14 @@ class TensorType(Type):
                 elif (allow_downcast is None and
                         type(data) is float and
                         self.dtype == theano.config.floatX):
-                    # Special case where we allow downcasting of Python float
-                    # literals to floatX, even when floatX=='float32'
                     data = theano._asarray(data, self.dtype)
                 else:
-                    # data has to be converted.
-                    # Check that this conversion is lossless
                     converted_data = theano._asarray(data, self.dtype)
-                    # We use the `values_eq` static function from TensorType
-                    # to handle NaN values.
                     if TensorType.values_eq(numpy.asarray(data),
                                             converted_data,
                                             force_same_dtype=False):
                         data = converted_data
                     else:
-                        # Do not print a too long description of data
-                        # (ndarray truncates it, but it's not sure for data)
                         str_data = str(data)
                         if len(str_data) > 80:
                             str_data = str_data[:75] + '(...)'
@@ -212,15 +184,12 @@ class TensorType(Type):
             other = other._as_TensorVariable()
 
         if not isinstance(other, Variable):
-            # The value is not a Variable: we cast it into
-            # a Constant of the appropriate Type.
             other = self.Constant(type=self, data=other)
 
         if other.type == self:
             return other
 
         if allow_convert:
-            # Attempt safe broadcast conversion.
             other2 = self.convert_variable(other)
             if other2 is not None and other2.type == self:
                 return other2
@@ -248,8 +217,6 @@ class TensorType(Type):
         This function is used internally as part of C code generation.
 
         """
-        # TODO: add more type correspondances for e.g. int32, int64, float32,
-        # complex64, etc.
         try:
             return {
                 'float16': (float, 'npy_float16', 'NPY_FLOAT16'),
@@ -291,7 +258,6 @@ class TensorType(Type):
 
     @staticmethod
     def may_share_memory(a, b):
-        # This is a method of TensorType, so both a and b should be ndarrays
         if isinstance(a, numpy.ndarray) and isinstance(b, numpy.ndarray):
             return numpy.may_share_memory(a, b)
         else:
@@ -299,8 +265,6 @@ class TensorType(Type):
 
     @staticmethod
     def values_eq(a, b, force_same_dtype=True):
-        # TODO: check to see if the shapes must match
-        #      for now, we err on safe side...
         if a.shape != b.shape:
             return False
         if force_same_dtype and a.dtype != b.dtype:
@@ -309,7 +273,6 @@ class TensorType(Type):
         r = numpy.all(a_eq_b)
         if r:
             return True
-        # maybe the trouble is that there are NaNs
         a_missing = numpy.isnan(a)
         if a_missing.any():
             b_missing = numpy.isnan(b)
@@ -343,55 +306,35 @@ class TensorType(Type):
             if 'int' in str(a.dtype):
                 return numpy.all(a == b)
             else:
-                # work around a numpy.allclose bug:
-                # http://projects.scipy.org/numpy/ticket/1672
                 if a.ndim == 0 and numpy.isinf(a):
                     a = a.reshape(1)
                     b = b.reshape(1)
 
                 cmp = theano.tensor.basic._allclose(a, b, rtol=rtol, atol=atol)
                 if cmp:
-                    # Numpy claims they are close, this is good enough for us.
                     return True
-                # Numpy is unhappy, but it does not necessarily mean that a and
-                # b are different. Indeed, Numpy does not like missing values
-                # and will return False whenever some are found in a or b.
-                # The proper way would be to use the MaskArray stuff available
-                # in Numpy. However, it looks like it has been added to Numpy's
-                # core recently, so it may not be available to everyone. Thus,
-                # for now we use a home-made recipe, that should probably be
-                # revisited in the future.
                 a_missing = numpy.isnan(a)
                 a_inf = numpy.isinf(a)
 
                 if not (a_missing.any() or (allow_remove_inf and a_inf.any())):
-                    # There are no missing values in a, thus this is not the
-                    # reason why numpy.allclose(a, b) returned False.
                     _logger.info(
                         'numpy allclose failed for abs_err %f and rel_err %f',
                         numpy.max(abs(a - b)),
                         numpy.max(abs(a - b) / (abs(a) + abs(b))))
                     return False
-                # The following line is what numpy.allclose bases its decision
-                # upon, according to its documentation.
                 rtol = 1.0000000000000001e-05
                 atol = 1e-8
                 cmp_elemwise = (numpy.absolute(a - b) <=
                                 (atol + rtol * numpy.absolute(b)))
-                # Find places where both a and b have missing values.
                 both_missing = a_missing * numpy.isnan(b)
 
-                # Find places where both a and b have inf of the same sign.
                 both_inf = a_inf * numpy.isinf(b)
 
-                # cmp_elemwise is weird when we have inf and -inf.
-                # set it to False
                 cmp_elemwise = numpy.where(
                     both_inf & cmp_elemwise,
                     a == b,
                     cmp_elemwise)
 
-                # check the sign of the inf
                 both_inf = numpy.where(both_inf, (a == b), both_inf)
 
                 if allow_remove_inf:
@@ -399,7 +342,6 @@ class TensorType(Type):
                 if allow_remove_nan:
                     both_missing += a_missing
 
-                # Combine all information.
                 return (cmp_elemwise + both_missing + both_inf).all()
 
         return False
@@ -452,7 +394,6 @@ class TensorType(Type):
 
     def __repr__(self):
         return str(self)
-        # "TensorType{%s, %s}" % (str(self.dtype), str(self.broadcastable))
 
     def c_declare(self, name, sub, check_input=True):
         """
@@ -702,7 +643,6 @@ def values_eq_approx_always_true(a, b):
     return True
 
 
-# Register TensorType C code for ViewOp.
 theano.compile.register_view_op_c_code(
     TensorType,
     """
@@ -713,7 +653,6 @@ theano.compile.register_view_op_c_code(
     version=1)
 
 
-# Register TensorType C code for Shape Op.
 theano.compile.register_shape_c_code(
     TensorType,
     """
@@ -731,7 +670,6 @@ theano.compile.register_shape_c_code(
     version=1)
 
 
-# Register TensorType C code for ViewOp.
 theano.compile.register_shape_i_c_code(
     TensorType,
     """
@@ -748,7 +686,6 @@ theano.compile.register_shape_i_c_code(
     """,
     version=3)
 
-# Register TensorType C code for DeepCopyOp
 theano.compile.register_deep_copy_op_c_code(
     TensorType,
     """

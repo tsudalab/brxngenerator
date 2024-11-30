@@ -37,16 +37,13 @@ def test_pickle_unpickle_with_reoptimization():
     updates[x4] = x4 + 1
     f = theano.function([x1, x2], y, updates=updates, mode=mode)
 
-    # now pickle the compiled theano fn
     string_pkl = pickle.dumps(f, -1)
 
     in1 = numpy.ones((10, 10), dtype=floatX)
     in2 = numpy.ones((10, 10), dtype=floatX)
 
-    # test unpickle with optimization
     default = theano.config.reoptimize_unpickled_function
     try:
-        # the default is True
         theano.config.reoptimize_unpickled_function = True
         f_ = pickle.loads(string_pkl)
         assert f(in1, in2) == f_(in1, in2)
@@ -69,17 +66,13 @@ def test_pickle_unpickle_without_reoptimization():
     updates[x4] = x4 + 1
     f = theano.function([x1, x2], y, updates=updates, mode=mode)
 
-    # now pickle the compiled theano fn
     string_pkl = pickle.dumps(f, -1)
 
-    # compute f value
     in1 = numpy.ones((10, 10), dtype=floatX)
     in2 = numpy.ones((10, 10), dtype=floatX)
 
-    # test unpickle without optimization
     default = theano.config.reoptimize_unpickled_function
     try:
-        # the default is True
         theano.config.reoptimize_unpickled_function = False
         f_ = pickle.loads(string_pkl)
         assert f(in1, in2) == f_(in1, in2)
