@@ -23,6 +23,7 @@ Plese type the following command to run Ising Machine optimization
 python bvae_im.py -w 200 -l 100 -d 2 -r $SLURM_ARRAY_TASK_ID  -v "fragmentvocab_path" -t "data_path" -s "saved_model_path" -m "qed"
 Example:
 python bvae_im.py -w 200 -l 100 -d 2 -r $SLURM_ARRAY_TASK_ID  -v "./weights/data.txt_fragmentvocab.txt" -t "./data/data.txt" -s "./weights/latent100NoEarlyStopBeta3_20Epoch.npy" -m "qed"
+Then the optimization result will be saved in Results folder.
 
 
 
