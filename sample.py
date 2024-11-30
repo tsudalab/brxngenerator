@@ -15,7 +15,7 @@ from collections import deque
 from rxnft_vae.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
 from rxnft_vae.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
 from rxnft_vae.fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
-from rxnft_vae.vae import FTRXNVAE, set_batch_nodeID, bFTRXNVAE
+from rxnft_vae.vae import bFTRXNVAE, set_batch_nodeID, bFTRXNVAE
 from rxnft_vae.mpn import MPN,PP,Discriminator
 import rxnft_vae.sascorer as sascorer
 from rxnft_vae.evaluate import Evaluator
@@ -88,7 +88,7 @@ print("size of fragment dic:", fragmentDic.size())
 
 
 mpn = MPN(hidden_size, depth)
-model = FTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, fragment_embedding=None, reactant_embedding=None, template_embedding=None)
+model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, fragment_embedding=None, reactant_embedding=None, template_embedding=None,device=device)
 checkpoint = torch.load(w_save_path, map_location=device)
 model.load_state_dict(checkpoint)
 print("loaded model....")
