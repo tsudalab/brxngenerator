@@ -1,3 +1,4 @@
+import os
 import sys
 sys.path.append('./rxnft_vae')
 
@@ -13,12 +14,15 @@ import math, random, sys
 from optparse import OptionParser
 from collections import deque
 
-from reaction_utils import read_multistep_rxns
-from reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
-from fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
-from vae import FTRXNVAE, set_batch_nodeID, bFTRXNVAE
-from mpn import MPN,PP,Discriminator
+from rxnft_vae.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
+from rxnft_vae.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
+from rxnft_vae.fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
+from rxnft_vae.vae import FTRXNVAE, set_batch_nodeID, bFTRXNVAE
+from rxnft_vae.mpn import MPN,PP,Discriminator
+import rxnft_vae.sascorer as sascorer
 import random
+
+TaskID =os.environ["TaskID"]
 
 def schedule(counter, M):
 	x = counter/(2*M)
@@ -67,7 +71,6 @@ def train(data_pairs, model,args):
 		total_molecule_label_loss = 0
 		total_label_acc =0
 		for it, batch in enumerate(dataloader):
-			#print(epoch, it, len(dataloader))
 			if epoch < 20:
 				beta = schedule(counter, M)
 			else:
@@ -91,10 +94,7 @@ def train(data_pairs, model,args):
 			total_molecule_distance_loss += molecule_distance_loss
 			total_molecule_label_loss += molecule_label_loss
 			total_label_acc += label_acc
-			if (it+1) %10 ==0:
-				torch.save(model.state_dict(),args['datasetname']+ "_" + "vae_iter-{}.npy".format(epoch+1))
-				print("saving file:", args['save_path']+"/"+ args['datasetname']+ "_" + "vae_iter-{}.npy".format(epoch+1))
-				break
+
 				
 		print("*******************Epoch", epoch, "******************", counter, beta)
 		val_loss = validate(val_pairs, model, args)
@@ -107,8 +107,8 @@ def train(data_pairs, model,args):
 		print("---> reconstruction loss:", total_loss.item()/len(dataloader)-beta * total_kl_loss.item()/len(dataloader))
 		
 		if (epoch+1) %10 ==0:
-			torch.save(model.state_dict(),args['datasetname']+ "_" + "vae_iter-{}.npy".format(epoch+1))
-			print("saving file:", args['save_path']+"/"+ args['datasetname']+ "_" + "vae_iter-{}.npy".format(epoch+1))
+			torch.save(model.state_dict(),args['datasetname']+ "_" + "vae_iter-{}-with{}.npy".format(epoch+1,TaskID))
+			print("saving file:", args['save_path']+"/"+ args['datasetname']+ "_" + "vae_iter-{}-with{}.npy".format(epoch+1,TaskID))
 
 def validate(data_pairs, model, args):
 	#model.eval()
