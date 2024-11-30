@@ -1,26 +1,18 @@
 import sys, os
+sys.path.append('./rxnft_vae')
+
 import rdkit
-import rdkit.Chem as Chem
 from rdkit.Chem import QED, Descriptors, rdmolops
-
-sys.path.append('/home/gzou/Experiments/brxngenerator-master-master/rxnft_vae')
-
 import torch
 import numpy as np
 import torch.nn as nn
-import torch.optim as optim
-import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import Dataset, DataLoader
-from torch.autograd import Variable
 import torch.nn.functional as F
 from sklearn.metrics import mean_squared_error, r2_score
 import math, random, sys
 from optparse import OptionParser
-from collections import deque
 import pickle as pickle
 import yaml
-import networkx as nx
-
 from rxnft_vae.reaction_utils import get_mol_from_smiles, get_smiles_from_mol, read_multistep_rxns, get_template_order, \
     get_qed_score, get_clogp_score
 from rxnft_vae.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, \
@@ -30,19 +22,11 @@ from rxnft_vae.vae import FTRXNVAE, set_batch_nodeID, bFTRXNVAE
 from rxnft_vae.mpn import MPN, PP, Discriminator
 import random
 import rxnft_vae.sascorer as sascorer
-
-from rdkit import Chem
 from sklearn.model_selection import train_test_split
-
 from amplify import BinaryMatrix, BinaryPoly, gen_symbols, sum_poly
 from amplify import decode_solution, Solver
 from amplify.client import FixstarsClient
 from amplify.client.ocean import DWaveSamplerClient
-
-from sklearn.linear_model import Ridge, Lasso
-from sklearn.cross_decomposition import PLSRegression
-from sklearn.preprocessing import PolynomialFeatures
-from tqdm import tqdm
 import logging
 import time
 
