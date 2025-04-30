@@ -32,6 +32,7 @@ import time
 
 UPDATE_ITER = 1
 
+metric = "qed"
 
 class TorchFM(nn.Module):
 
@@ -100,17 +101,23 @@ class bVAE_IM(object):
         binary_size = self.bvae_model.binary_size
 
         product_list = []
-        for i in range(5000):
+        for i in range(10):
             if len(product_list) > 5:
                 break
-            # latent_new = latent
-            latent_new = torch.cat([latent, torch.randint(0, 2, (latent.shape[0], latent.shape[1] * 2 - latent.shape[1]))], dim=1).to(self.device)
-            binary = F.one_hot(latent_new.long(), num_classes=2).float()
+            latent_new = latent
+            # latent_new = torch.cat([latent, torch.randint(0, 2, (latent.shape[0], latent.shape[1] * 2 - latent.shape[1]))], dim=1).to(self.device)
+            # print("latent_new shape", latent_new.shape)
+            binary = F.one_hot(latent_new.long(), num_classes=2).float().to(self.device)
             binary = binary.view(1, -1)
             ft_mean = binary[:, :binary_size * 2]
             rxn_mean = binary[:, binary_size * 2:]
+            # print("ft_mean shape", ft_mean.shape)
+            # print("rxn_mean shape", rxn_mean.shape)
             generated_tree = self.bvae_model.fragment_decoder.decode(ft_mean, prob_decode)
+            # print("generated_tree shape", generated_tree.shape)
             g_encoder_output, g_root_vec = self.bvae_model.fragment_encoder([generated_tree])
+            # print("g_encoder_output shape", g_encoder_output.shape)
+            # print("g_root_vec shape", g_root_vec.shape)
             product, reactions = self.bvae_model.rxn_decoder.decode(rxn_mean, g_encoder_output, prob_decode)
             if product != None:
                 product_list.append([product, reactions])
@@ -318,7 +325,7 @@ class bVAE_IM(object):
         binary_new = torch.from_numpy(solution).to(torch.float)
         print('========binary_new shape')
         print(binary_new.shape)
-
+        print("shape of binary_new", binary_new.shape)
         res = self.decode_many_times(binary_new)
         print('========res')
         print(res)
@@ -439,131 +446,122 @@ def seed_all(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
+    
+    
+
+hidden_size = 300
+latent_size = 100
+depth = 2
+data_filename = "/home/gzou/fitcheck/newnnn/brxngenerator-master/data/data.txt"
+w_save_path = "/home/gzou/fitcheck/newnnn/brxngenerator-master/weights/hidden_size_300_latent_size_100_depth_2_beta_1.0_lr_0.001/bvae_iter-30-with.npy"
+metric = "qed"
+seed = 1
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+print("hidden size:", hidden_size, "latent_size:", latent_size, "depth:", depth)
+print("loading data.....")
+routes, scores = read_multistep_rxns(data_filename)
+rxn_trees = [ReactionTree(route) for route in routes]
+molecules = [rxn_tree.molecule_nodes[0].smiles for rxn_tree in rxn_trees]
+reactants = extract_starting_reactants(rxn_trees)
+templates, n_reacts = extract_templates(rxn_trees)
+reactantDic = StartingReactants(reactants)
+templateDic = Templates(templates, n_reacts)
+
+print("size of reactant dic:", reactantDic.size())
+print("size of template dic:", templateDic.size())
+
+n_pairs = len(routes)
+ind_list = [i for i in range(n_pairs)]
+
+fgm_trees = []
+valid_id = []
+for i in ind_list:
+    try:
+        fgm_trees.append(FragmentTree(rxn_trees[i].molecule_nodes[0].smiles))
+        valid_id.append(i)
+    except Exception as e:
+        # print(e)
+        continue
+rxn_trees = [rxn_trees[i] for i in valid_id]
+
+print("size of fgm_trees:", len(fgm_trees))
+print("size of rxn_trees:", len(rxn_trees))
+data_pairs = []
+for fgm_tree, rxn_tree in zip(fgm_trees, rxn_trees):
+    data_pairs.append((fgm_tree, rxn_tree))
+cset = set()
+for fgm_tree in fgm_trees:
+    for node in fgm_tree.nodes:
+        cset.add(node.smiles)
+cset = list(cset)
+fragmentDic = FragmentVocab(cset)
+
+print("size of fragment dic:", fragmentDic.size())
 
 
-if __name__ == "__main__":
-    parser = OptionParser()
-    parser.add_option("-w", "--hidden", dest="hidden_size", default=200)
-    parser.add_option("-l", "--latent", dest="latent_size", default=50)
-    parser.add_option("-d", "--depth", dest="depth", default=2)
-    parser.add_option("-s", "--save_dir", dest="save_path")
-    parser.add_option("-t", "--data_path", dest="data_path")
-    parser.add_option("-m", "--metric", dest="metric")
-    parser.add_option("-r", "--seed", dest="seed", default=1)
-    opts, _ = parser.parse_args()
+mpn = MPN(hidden_size, depth)
+model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, device,
+                    fragment_embedding=None, reactant_embedding=None, template_embedding=None).to(device)
+checkpoint = torch.load(w_save_path, map_location=device)
+model.load_state_dict(checkpoint)
+print("finished loading model...")
 
-    hidden_size = int(opts.hidden_size)
-    latent_size = int(opts.latent_size)
-    depth = int(opts.depth)
-    data_filename = opts.data_path
-    w_save_path = opts.save_path
-    metric = opts.metric
-    seed = int(opts.seed)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print("number of samples:", len(data_pairs))
+data_pairs = data_pairs
+latent_list = []
+score_list = []
+print("num of samples:", len(rxn_trees))
+latent_list = []
+score_list = []
+print('========start to compute all scores')
+if metric == "qed":
+    for i, data_pair in enumerate(data_pairs):
+        latent = model.encode([data_pair])
+        latent_list.append(latent[0])
+        rxn_tree = data_pair[1]
+        smiles = rxn_tree.molecule_nodes[0].smiles
+        score_list.append(get_qed_score(smiles))
+if metric == "logp":
+    logP_values = np.loadtxt('./data/logP_values.txt')
+    SA_scores = np.loadtxt('./data/SA_scores.txt')
+    cycle_scores = np.loadtxt('./data/cycle_scores.txt')
 
-    print("hidden size:", hidden_size, "latent_size:", latent_size, "depth:", depth)
-    print("loading data.....")
-    data_filename = opts.data_path
-    routes, scores = read_multistep_rxns(data_filename)
-    rxn_trees = [ReactionTree(route) for route in routes]
-    molecules = [rxn_tree.molecule_nodes[0].smiles for rxn_tree in rxn_trees]
-    reactants = extract_starting_reactants(rxn_trees)
-    templates, n_reacts = extract_templates(rxn_trees)
-    reactantDic = StartingReactants(reactants)
-    templateDic = Templates(templates, n_reacts)
+    logp_m = np.mean(logP_values)
+    logp_s = np.std(logP_values)
 
-    print("size of reactant dic:", reactantDic.size())
-    print("size of template dic:", templateDic.size())
+    sascore_m = np.mean(SA_scores)
+    sascore_s = np.std(SA_scores)
 
-    n_pairs = len(routes)
-    ind_list = [i for i in range(n_pairs)]
+    cycle_m = np.mean(cycle_scores)
+    cycle_s = np.std(cycle_scores)
+    for i, data_pair in enumerate(data_pairs):
+        latent = model.encode([data_pair])
+        latent_list.append(latent[0])
+        rxn_tree = data_pair[1]
+        smiles = rxn_tree.molecule_nodes[0].smiles
+        score_list.append(get_clogp_score(smiles, logp_m, logp_s, sascore_m, sascore_s, cycle_m, cycle_s))
+latents = torch.stack(latent_list, dim=0)
+scores = np.array(score_list)
+scores = scores.reshape((-1, 1))
+# move to cpu first
+latents = latents.detach().cpu().numpy()
+n = latents.shape[0]
+print('===================', n)
+permutation = np.random.choice(n, n, replace=False)
+X_train = latents[permutation, :][0: int(np.round(0.9 * n)), :]
+X_test = latents[permutation, :][int(np.round(0.9 * n)):, :]
+y_train = -scores[permutation][0: int(np.round(0.9 * n))]
+y_test = -scores[permutation][int(np.round(0.9 * n)):]
+print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
+if metric == "logp":
+    parameters = [logp_m, logp_s, sascore_m, sascore_s, cycle_m, cycle_s]
+else:
+    parameters = []
 
-    fgm_trees = []
-    valid_id = []
-    for i in ind_list:
-        try:
-            fgm_trees.append(FragmentTree(rxn_trees[i].molecule_nodes[0].smiles))
-            valid_id.append(i)
-        except Exception as e:
-            # print(e)
-            continue
-    rxn_trees = [rxn_trees[i] for i in valid_id]
-
-    print("size of fgm_trees:", len(fgm_trees))
-    print("size of rxn_trees:", len(rxn_trees))
-    data_pairs = []
-    for fgm_tree, rxn_tree in zip(fgm_trees, rxn_trees):
-        data_pairs.append((fgm_tree, rxn_tree))
-    cset = set()
-    for fgm_tree in fgm_trees:
-        for node in fgm_tree.nodes:
-            cset.add(node.smiles)
-    cset = list(cset)
-    fragmentDic = FragmentVocab(cset)
-
-    print("size of fragment dic:", fragmentDic.size())
+with open('config/config.yaml', 'r') as f:
+    configs = yaml.safe_load(f)
 
 
-    mpn = MPN(hidden_size, depth)
-    model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, device,
-                      fragment_embedding=None, reactant_embedding=None, template_embedding=None).to(device)
-    checkpoint = torch.load(w_save_path, map_location=device)
-    model.load_state_dict(checkpoint)
-    print("finished loading model...")
 
-    print("number of samples:", len(data_pairs))
-    data_pairs = data_pairs
-    latent_list = []
-    score_list = []
-    print("num of samples:", len(rxn_trees))
-    latent_list = []
-    score_list = []
-    print('========start to compute all scores')
-    if metric == "qed":
-        for i, data_pair in enumerate(data_pairs):
-            latent = model.encode([data_pair])
-            latent_list.append(latent[0])
-            rxn_tree = data_pair[1]
-            smiles = rxn_tree.molecule_nodes[0].smiles
-            score_list.append(get_qed_score(smiles))
-    if metric == "logp":
-        logP_values = np.loadtxt('./data/logP_values.txt')
-        SA_scores = np.loadtxt('./data/SA_scores.txt')
-        cycle_scores = np.loadtxt('./data/cycle_scores.txt')
-
-        logp_m = np.mean(logP_values)
-        logp_s = np.std(logP_values)
-
-        sascore_m = np.mean(SA_scores)
-        sascore_s = np.std(SA_scores)
-
-        cycle_m = np.mean(cycle_scores)
-        cycle_s = np.std(cycle_scores)
-        for i, data_pair in enumerate(data_pairs):
-            latent = model.encode([data_pair])
-            latent_list.append(latent[0])
-            rxn_tree = data_pair[1]
-            smiles = rxn_tree.molecule_nodes[0].smiles
-            score_list.append(get_clogp_score(smiles, logp_m, logp_s, sascore_m, sascore_s, cycle_m, cycle_s))
-    latents = torch.stack(latent_list, dim=0)
-    scores = np.array(score_list)
-    scores = scores.reshape((-1, 1))
-    # move to cpu first
-    latents = latents.detach().cpu().numpy()
-    n = latents.shape[0]
-    print('===================', n)
-    permutation = np.random.choice(n, n, replace=False)
-    X_train = latents[permutation, :][0: int(np.round(0.9 * n)), :]
-    X_test = latents[permutation, :][int(np.round(0.9 * n)):, :]
-    y_train = -scores[permutation][0: int(np.round(0.9 * n))]
-    y_test = -scores[permutation][int(np.round(0.9 * n)):]
-    print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
-    if metric == "logp":
-        parameters = [logp_m, logp_s, sascore_m, sascore_s, cycle_m, cycle_s]
-    else:
-        parameters = []
-
-    with open('config/config.yaml', 'r') as f:
-        configs = yaml.safe_load(f)
-
-    main(X_train, y_train, X_test, y_test, molecules, -scores, model, parameters, configs, metric, seed)
+main(X_train, y_train, X_test, y_test, molecules, -scores, model, parameters, configs, metric, seed)

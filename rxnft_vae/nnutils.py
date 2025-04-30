@@ -4,7 +4,7 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 
 def create_var(tensor, requires_grad = None):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if requires_grad is None:
         return Variable(tensor).to(device)
     else:

@@ -42,7 +42,7 @@ class FTDecoder(nn.Module):
 		return [(x.smiles, y.smiles, z) for x, y, z in trace]
 
 	def decode(self, tree_vec, prob_decode=True):
-		device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+		device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 		stack, trace =[],[]
 		init_hidden = create_var(torch.zeros(1, self.hidden_size))
 		zero_pad = create_var(torch.zeros(1,1,self.hidden_size))

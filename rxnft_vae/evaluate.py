@@ -176,7 +176,7 @@ class Evaluator(nn.Module):
         """
         Generate latent variables conforming to discrete distribution, supporting Gumbel-Softmax and Bernoulli sampling
         """
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
         if method == "gumbel":
             logits = torch.zeros(1, latent_size, 2, device=device)  # logits size for binary case
