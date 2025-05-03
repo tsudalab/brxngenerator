@@ -577,4 +577,24 @@ with open('config/config.yaml', 'r') as f:
 
 
 
-main(X_train, y_train, X_test, y_test, molecules, -scores, model, parameters, configs, metric, seed)
+# main(X_train, y_train, X_test, y_test, molecules, -scores, model, parameters, configs, metric, seed)
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("--seed-start", dest="seed_start", type="int", default=seed,
+                  help="起始 seed（包含）")
+parser.add_option("--seed-end",   dest="seed_end",   type="int", default=seed,
+                  help="结束   seed（包含）")
+(options, args) = parser.parse_args()
+
+# 3. 对指定范围内的每个 seed 依次调用 main()
+for sd in tqdm(range(options.seed_start, options.seed_end + 1), desc="Seeds"):
+    print(f"\n=== Running optimization with seed = {sd} ===")
+    seed_all(sd)   # 重设随机种子
+    main(
+        X_train, y_train,
+        X_test,  y_test,
+        molecules, -scores,
+        model, parameters,
+        configs, metric,
+        sd
+    )
