@@ -29,7 +29,7 @@ from amplify.client import FixstarsClient
 from amplify.client.ocean import DWaveSamplerClient
 import logging
 import time
-
+from tqdm import tqdm
 UPDATE_ITER = 1
 
 metric = "qed"
@@ -101,11 +101,13 @@ class bVAE_IM(object):
         binary_size = self.bvae_model.binary_size
 
         product_list = []
-        for i in range(10):
+        for i in tqdm(range(5000)):
             if len(product_list) > 5:
                 break
-            latent_new = latent
-            # latent_new = torch.cat([latent, torch.randint(0, 2, (latent.shape[0], latent.shape[1] * 2 - latent.shape[1]))], dim=1).to(self.device)
+            # latent_new = latent
+            # print("start decode many times")
+            # print("latent shape", latent.shape)
+            latent_new = torch.cat([latent, torch.randint(0, 2, (latent.shape[0], latent.shape[1] * 2 - latent.shape[1]))], dim=1).to(self.device)
             # print("latent_new shape", latent_new.shape)
             binary = F.one_hot(latent_new.long(), num_classes=2).float().to(self.device)
             binary = binary.view(1, -1)
@@ -173,10 +175,11 @@ class bVAE_IM(object):
         result_save_dir = configs['opt']['output']
         if not os.path.exists(result_save_dir):
             os.mkdir(result_save_dir)
-
-        with open((os.path.join(result_save_dir, "%s_smiles.pkl" % configs['opt']['prop'])), "wb") as f:
+            
+        # add the seed to the filename
+        with open((os.path.join(result_save_dir, "%s_smiles_seed_%d.pkl" % (configs['opt']['prop'], self.random_seed))), "wb") as f:
             pickle.dump(self.results_smiles, f)
-        with open((os.path.join(result_save_dir, "%s_scores.pkl" % configs['opt']['prop'])), "wb") as f:
+        with open((os.path.join(result_save_dir, "%s_scores_seed_%d.pkl" % (configs['opt']['prop'], self.random_seed))), "wb") as f:
             pickle.dump(self.results_scores, f)
 
         logging.info("Sleeped for %d minutes..." % self.sleep_count)
@@ -402,19 +405,24 @@ class bVAE_IM(object):
             print('========Updating training set')
             print('X_train shape before update:', self.X_train.shape)
             print('y_train shape before update:', self.y_train.shape)
-            self.X_train = np.concatenate([self.X_train, binary_new], 0)
-            self.y_train = np.concatenate([self.y_train, np.array(training_score)[:, None]], 0)
-            self.y_train = self.y_train.astype(np.float32)
+            # 1. 把新的 binary_new 放到同一个 device 上
+            binary_new = binary_new.to(self.device)
+
+            # 2. 把 training_score 转成 (N,1) 的 float Tensor，直接指定 device
+            scores = torch.tensor(training_score, dtype=torch.float32, device=self.device).unsqueeze(1)
+
+            # 3. 用 torch.cat 拼接
+            self.X_train = torch.cat([self.X_train, binary_new], dim=0)
+            self.y_train = torch.cat([self.y_train, scores],    dim=0)
             
             print('X_train shape after update:', self.X_train.shape)
             print('y_train shape after update:', self.y_train.shape)
 
-        TaskID = os.environ.get("TaskID", "default_task")
 
         if metric == "logp":
-            filename = "./Results/" + TaskID + "_logp.txt"
+            filename = "./Results/" + str(seed) + "_logp.txt"
         elif metric == "qed":
-            filename = "./Results/" + TaskID + "_qed.txt"
+            filename = "./Results/" + str(seed) + "_qed.txt"
 
         print("Writing to file:", filename)
         with open(filename, "a") as writer:
@@ -455,7 +463,7 @@ depth = 2
 data_filename = "/home/gzou/fitcheck/newnnn/brxngenerator-master/data/data.txt"
 w_save_path = "/home/gzou/fitcheck/newnnn/brxngenerator-master/weights/hidden_size_300_latent_size_100_depth_2_beta_1.0_lr_0.001/bvae_iter-30-with.npy"
 metric = "qed"
-seed = 1
+seed = 4
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 print("hidden size:", hidden_size, "latent_size:", latent_size, "depth:", depth)
@@ -516,7 +524,8 @@ latent_list = []
 score_list = []
 print('========start to compute all scores')
 if metric == "qed":
-    for i, data_pair in enumerate(data_pairs):
+    # tqdm
+    for i, data_pair in tqdm(enumerate(data_pairs)):
         latent = model.encode([data_pair])
         latent_list.append(latent[0])
         rxn_tree = data_pair[1]
@@ -535,9 +544,11 @@ if metric == "logp":
 
     cycle_m = np.mean(cycle_scores)
     cycle_s = np.std(cycle_scores)
-    for i, data_pair in enumerate(data_pairs):
+    for i, data_pair in tqdm(enumerate(data_pairs)):
+        # only need the previous half of the latent vector
         latent = model.encode([data_pair])
         latent_list.append(latent[0])
+        print("ForTraining, latent shape:", latent_list[-1].shape)
         rxn_tree = data_pair[1]
         smiles = rxn_tree.molecule_nodes[0].smiles
         score_list.append(get_clogp_score(smiles, logp_m, logp_s, sascore_m, sascore_s, cycle_m, cycle_s))
@@ -547,7 +558,9 @@ scores = scores.reshape((-1, 1))
 # move to cpu first
 latents = latents.detach().cpu().numpy()
 n = latents.shape[0]
-print('===================', n)
+print('===================latent shape', latents.shape)
+latents = latents[:, : latent_size // 2]
+print('===================latent shape', latents.shape)
 permutation = np.random.choice(n, n, replace=False)
 X_train = latents[permutation, :][0: int(np.round(0.9 * n)), :]
 X_test = latents[permutation, :][int(np.round(0.9 * n)):, :]
