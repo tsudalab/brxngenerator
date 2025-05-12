@@ -73,8 +73,6 @@ print("loading data.....")
 data_filename = opts.data_path
 routes, scores = read_multistep_rxns(data_filename)
 
-# debug 
-# routes = routes[:3000]
 
 rxn_trees = [ReactionTree(route) for route in routes]
 molecules = [rxn_tree.molecule_nodes[0].smiles for rxn_tree in rxn_trees]

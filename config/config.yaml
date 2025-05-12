@@ -22,5 +22,5 @@ opt:
   num_end: 300                                                               # number for the end condition
   n_sample: 1                                                                # number of sampled binary vectors for each molecule
   client: 'amplify'                                                          # amplify or d-wave
-  client_token: 'AE/wUR3GRhJUxSSTr8paf5TtBlEGyxcQEH9'                                          # token for connection
+  client_token: ''                                          # token for connection
   batch_size: 3000
