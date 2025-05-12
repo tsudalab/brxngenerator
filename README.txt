@@ -1,13 +1,15 @@
 0) Requirements
-Please use the environment.yaml for we use the conda as package manager.
+Please note that we provide a docker image to run the code.
+https://hub.docker.com/r/cliecy/brx/tags
+If you run the code in the container,please mount the code folder to the volume of the container and run the code with python environment /opt/newbrx/bin/python
 
 1) Introduction
-This code is a binary-version for Cascade-VAE (https://github.com/tsudalab/rxngenerator). 
+This code is a binary-version for Cascade-VAE (https://github.com/tsudalab/rxngenerator) which means the latent space is all binary tensor which is either 0 or 1.
+
 You could read the original version for details.We have created the dataset and filtered it(./data/data.txt).
 
 2) Training
 To train the model, type the following command:
-(If you use SLURM,then it's ok to use this,otherwise you need to change the code in trainvae.py)
 python trainvae.py -w 200 -l 100 -d 2 -v "./weights/data.txt_fragmentvocab.txt" -t "./data/data.txt"
 Then the model will saved in weights folder.
 

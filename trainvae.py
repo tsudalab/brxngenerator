@@ -249,18 +249,6 @@ print("size of fragment dic:", fragmentDic.size())
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-
-
-# (
-#     "100 100 2 0.001"     
-#     "200 100 2 0.00001"   
-#     "200 100 3 0.001"     
-#     "200 100 5 0.001"     
-#     "200 200 2 0.001"     
-#     "200 300 2 0.001"     
-#     "300 100 2 0.001"     
-#     "500 300 5 0.001"     
-# )
 params = [
     (100, 100, 2, 1.0, 0.001,"/hidden_size_100_latent_size_100_depth_2_beta_1.0_lr_0.001"),
     (200, 100, 2, 1.0, 0.00001,"/hidden_size_200_latent_size_100_depth_2_beta_1.0_lr_0.00001"),
