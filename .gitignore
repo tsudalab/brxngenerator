@@ -1,3 +1,4 @@
 ./_pycache_
 .DS_Store
 *.npy
+*.pyc
