@@ -998,23 +998,3 @@ Train Losses:
   kl loss: 0.4603921413421631
   reconstruction loss: 20.09839234352112
 
-Epoch 0, Counter 20, Beta 0.00095
-Validation Loss: 68.71660614013672
-Train Losses:
-  pred loss: 63.7907470703125, pred acc: 0.2640714255277999
-  stop loss: 16.989427185058595, stop acc: 0.7577208787202835
-  template loss: 7.830325317382813, template acc: 0.013998116552829742
-  molecule label loss: 6.719550323486328, molecule acc: 0.3636467456817627
-  kl loss: 32.06379089355469
-  reconstruction loss: 95.31833090255738
-
-Epoch 1, Counter 40, Beta 0.0019500000000000001
-Validation Loss: 61.00507736206055
-Train Losses:
-  pred loss: 42.572784423828125, pred acc: 0.3507161885499954
-  stop loss: 10.987501525878907, stop acc: 0.8649477660655975
-  template loss: 7.2388359069824215, template acc: 0.039611253142356875
-  molecule label loss: 5.62034912109375, molecule acc: 0.3814859867095947
-  kl loss: 38.73019104003906
-  reconstruction loss: 66.40142925247191
-
