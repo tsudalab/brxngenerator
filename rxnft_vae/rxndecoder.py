@@ -321,14 +321,19 @@ class RXNDecoder(nn.Module):
 
 	def decode_many_time(self, latent_vector, encoder_outputs, n):
 		results =[]
+  
 		for i in range(n):
+      
 			res1, res2 = self.decode(latent_vector, encoder_outputs)
+   
 			if res1 != None:
 				return res1, res2
+
 		return None, None
 
 
 	def decode(self, latent_vector, encoder_outputs, prob_decode=True):
+     
 		root_embedding = self.W_root(torch.cat([latent_vector], dim=1))
 		root_embedding = nn.ReLU()(root_embedding)
 

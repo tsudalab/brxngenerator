@@ -1,0 +1,1000 @@
+Epoch 0, Counter 20, Beta 0.00095
+Validation Loss: 77.02658081054688
+Train Losses:
+  pred loss: 76.0929443359375, pred acc: 0.22348378906026484
+  stop loss: 20.061749267578126, stop acc: 0.6984723657369614
+  template loss: 7.995252227783203, template acc: 0.010938763618469238
+  molecule label loss: 7.340555572509766, molecule acc: 0.3299699068069458
+  kl loss: 23.462559509277344
+  reconstruction loss: 111.48420470909119
+
+Epoch 1, Counter 40, Beta 0.0019500000000000001
+Validation Loss: 69.44819641113281
+Train Losses:
+  pred loss: 49.739385986328124, pred acc: 0.2881531849503517
+  stop loss: 13.85986785888672, stop acc: 0.8271912187337875
+  template loss: 7.457477569580078, template acc: 0.019452524185180665
+  molecule label loss: 5.771438217163086, molecule acc: 0.3830259323120117
+  kl loss: 36.5177001953125
+  reconstruction loss: 76.80969258422851
+
+Epoch 2, Counter 60, Beta 0.00295
+Validation Loss: 64.96607208251953
+Train Losses:
+  pred loss: 45.51351623535156, pred acc: 0.3225416034460068
+  stop loss: 11.511408233642578, stop acc: 0.8614877492189408
+  template loss: 7.186750030517578, template acc: 0.03367990553379059
+  molecule label loss: 5.588111114501953, molecule acc: 0.38364434242248535
+  kl loss: 28.54371032714844
+  reconstruction loss: 69.78608414047241
+
+Epoch 3, Counter 80, Beta 0.00395
+Validation Loss: 60.910423278808594
+Train Losses:
+  pred loss: 42.01222229003906, pred acc: 0.3645475938916206
+  stop loss: 9.963864135742188, stop acc: 0.8846392393112182
+  template loss: 6.8563720703125, template acc: 0.05163697600364685
+  molecule label loss: 5.5424762725830075, molecule acc: 0.38270273208618166
+  kl loss: 26.697113037109375
+  reconstruction loss: 64.36217335662842
+
+Epoch 4, Counter 100, Beta 0.0049499999999999995
+Validation Loss: 57.28187942504883
+Train Losses:
+  pred loss: 38.890811157226565, pred acc: 0.4052394211292267
+  stop loss: 8.847457122802734, stop acc: 0.8980569303035736
+  template loss: 6.4500892639160154, template acc: 0.07921631336212158
+  molecule label loss: 5.4690910339355465, molecule acc: 0.3826282501220703
+  kl loss: 28.561785888671874
+  reconstruction loss: 59.64415382781982
+
+Epoch 5, Counter 120, Beta 0.0059499999999999996
+Validation Loss: 54.4416389465332
+Train Losses:
+  pred loss: 35.89290771484375, pred acc: 0.44343937039375303
+  stop loss: 8.056068420410156, stop acc: 0.9063471972942352
+  template loss: 6.015689468383789, template acc: 0.10363651514053344
+  molecule label loss: 5.35482177734375, molecule acc: 0.38252935409545896
+  kl loss: 31.130587768554687
+  reconstruction loss: 55.3047876512146
+
+Epoch 6, Counter 140, Beta 0.00695
+Validation Loss: 52.317481994628906
+Train Losses:
+  pred loss: 33.748171997070315, pred acc: 0.4803564965724945
+  stop loss: 7.515631103515625, stop acc: 0.9126515984535217
+  template loss: 5.600103378295898, template acc: 0.13104976415634156
+  molecule label loss: 5.235241317749024, molecule acc: 0.38329718112945554
+  kl loss: 32.223757934570315
+  reconstruction loss: 52.08386958938599
+
+Epoch 7, Counter 160, Beta 0.00795
+Validation Loss: 50.46949768066406
+Train Losses:
+  pred loss: 31.91285400390625, pred acc: 0.510245430469513
+  stop loss: 7.053992462158203, stop acc: 0.91811982691288
+  template loss: 5.198506927490234, template acc: 0.16292325258255005
+  molecule label loss: 5.07369384765625, molecule acc: 0.38384644985198973
+  kl loss: 32.71315307617188
+  reconstruction loss: 49.223600476989745
+
+Epoch 8, Counter 180, Beta 0.00895
+Validation Loss: 49.050201416015625
+Train Losses:
+  pred loss: 30.323245239257812, pred acc: 0.537481302022934
+  stop loss: 6.640634155273437, stop acc: 0.9226378053426743
+  template loss: 4.869767379760742, template acc: 0.19403055906295777
+  molecule label loss: 4.9015625, molecule acc: 0.38433523178100587
+  kl loss: 33.689083862304685
+  reconstruction loss: 46.719365878143314
+
+Epoch 9, Counter 200, Beta 0.00995
+Validation Loss: 47.865909576416016
+Train Losses:
+  pred loss: 29.123492431640624, pred acc: 0.5560234695672989
+  stop loss: 6.310281753540039, stop acc: 0.9266094148159028
+  template loss: 4.531411743164062, template acc: 0.23241164684295654
+  molecule label loss: 4.6708637237548825, molecule acc: 0.3871975660324097
+  kl loss: 35.469113159179685
+  reconstruction loss: 44.619317431488035
+
+Epoch 10, Counter 220, Beta 0.01095
+Validation Loss: 47.06669235229492
+Train Losses:
+  pred loss: 28.12999267578125, pred acc: 0.5717226237058639
+  stop loss: 6.0904685974121096, stop acc: 0.9287954926490783
+  template loss: 4.255699157714844, template acc: 0.25737025737762453
+  molecule label loss: 4.463816070556641, molecule acc: 0.39035079479217527
+  kl loss: 36.69282836914063
+  reconstruction loss: 42.922709989318854
+
+Epoch 11, Counter 240, Beta 0.01195
+Validation Loss: 46.23896026611328
+Train Losses:
+  pred loss: 27.309423828125, pred acc: 0.5824848681688308
+  stop loss: 5.860496902465821, stop acc: 0.9318954914808273
+  template loss: 4.007569122314453, template acc: 0.2910187244415283
+  molecule label loss: 4.2930248260498045, molecule acc: 0.3930487155914307
+  kl loss: 37.77520751953125
+  reconstruction loss: 41.452712246704095
+
+Epoch 12, Counter 260, Beta 0.01295
+Validation Loss: 45.32984924316406
+Train Losses:
+  pred loss: 26.575332641601562, pred acc: 0.5926552295684815
+  stop loss: 5.635747909545898, stop acc: 0.9344874799251557
+  template loss: 3.764494705200195, template acc: 0.32207660675048827
+  molecule label loss: 4.119772338867188, molecule acc: 0.3989308595657349
+  kl loss: 38.72244567871094
+  reconstruction loss: 40.076974504241946
+
+Epoch 13, Counter 280, Beta 0.01395
+Validation Loss: 44.69516372680664
+Train Losses:
+  pred loss: 25.875714111328126, pred acc: 0.6029132157564163
+  stop loss: 5.455284500122071, stop acc: 0.936823433637619
+  template loss: 3.568464660644531, template acc: 0.34951860904693605
+  molecule label loss: 3.9902729034423827, molecule acc: 0.4047374248504639
+  kl loss: 39.47108764648438
+  reconstruction loss: 38.871070221862794
+
+Epoch 14, Counter 300, Beta 0.014950000000000001
+Validation Loss: 44.152000427246094
+Train Losses:
+  pred loss: 25.255712890625, pred acc: 0.6091393202543258
+  stop loss: 5.361508178710937, stop acc: 0.9376884639263153
+  template loss: 3.3893356323242188, template acc: 0.372879695892334
+  molecule label loss: 3.8625587463378905, molecule acc: 0.4108879089355469
+  kl loss: 40.215704345703124
+  reconstruction loss: 37.85005085479736
+
+Epoch 15, Counter 320, Beta 0.01595
+Validation Loss: 43.512245178222656
+Train Losses:
+  pred loss: 24.686582946777342, pred acc: 0.6190776467323303
+  stop loss: 5.215348815917968, stop acc: 0.939596876502037
+  template loss: 3.208928680419922, template acc: 0.398970365524292
+  molecule label loss: 3.730745315551758, molecule acc: 0.41724467277526855
+  kl loss: 40.54229736328125
+  reconstruction loss: 36.822356704711915
+
+Epoch 16, Counter 340, Beta 0.01695
+Validation Loss: 43.08984375
+Train Losses:
+  pred loss: 24.094876098632813, pred acc: 0.6277860552072525
+  stop loss: 5.101706314086914, stop acc: 0.9404700428247452
+  template loss: 3.0514673233032226, template acc: 0.42097949981689453
+  molecule label loss: 3.615998458862305, molecule acc: 0.4236534595489502
+  kl loss: 41.064642333984374
+  reconstruction loss: 35.84454574310303
+
+Epoch 17, Counter 360, Beta 0.01795
+Validation Loss: 42.637794494628906
+Train Losses:
+  pred loss: 23.601014709472658, pred acc: 0.6357078939676285
+  stop loss: 4.995687103271484, stop acc: 0.9418556839227676
+  template loss: 2.9192874908447264, template acc: 0.43878374099731443
+  molecule label loss: 3.504688262939453, molecule acc: 0.43112525939941404
+  kl loss: 41.500299072265626
+  reconstruction loss: 35.00100469024658
+
+Epoch 18, Counter 380, Beta 0.01895
+Validation Loss: 42.03419876098633
+Train Losses:
+  pred loss: 23.17427978515625, pred acc: 0.6427336484193802
+  stop loss: 4.925399398803711, stop acc: 0.9431511729955673
+  template loss: 2.794211769104004, template acc: 0.4598803997039795
+  molecule label loss: 3.422759246826172, molecule acc: 0.4342212677001953
+  kl loss: 41.630218505859375
+  reconstruction loss: 34.2968587020874
+
+Epoch 19, Counter 400, Beta 0.019950000000000002
+Validation Loss: 41.81804656982422
+Train Losses:
+  pred loss: 22.685772705078126, pred acc: 0.6486606955528259
+  stop loss: 4.808595275878906, stop acc: 0.9446995168924331
+  template loss: 2.6780508041381834, template acc: 0.4794668674468994
+  molecule label loss: 3.3174930572509767, molecule acc: 0.442842960357666
+  kl loss: 41.9292724609375
+  reconstruction loss: 33.47003872436524
+
+Epoch 20, Counter 420, Beta 1.0
+Validation Loss: 45.687294006347656
+Train Losses:
+  pred loss: 23.32280731201172, pred acc: 0.6364784002304077
+  stop loss: 5.077473068237305, stop acc: 0.940199676156044
+  template loss: 3.8495098114013673, template acc: 0.30216326713562014
+  molecule label loss: 3.8502243041992186, molecule acc: 0.3986156702041626
+  kl loss: 22.34123992919922
+  reconstruction loss: 36.10001983642578
+
+Epoch 21, Counter 440, Beta 1.0
+Validation Loss: 46.50777053833008
+Train Losses:
+  pred loss: 25.585935974121092, pred acc: 0.5964173346757888
+  stop loss: 5.50622329711914, stop acc: 0.9339504301548004
+  template loss: 4.968133926391602, template acc: 0.14925923347473144
+  molecule label loss: 4.079357147216797, molecule acc: 0.3900602340698242
+  kl loss: 3.821846771240234
+  reconstruction loss: 40.13964920043946
+
+Epoch 22, Counter 460, Beta 1.0
+Validation Loss: 45.978294372558594
+Train Losses:
+  pred loss: 25.308192443847656, pred acc: 0.6003428131341935
+  stop loss: 5.423204803466797, stop acc: 0.9350400984287262
+  template loss: 4.605439758300781, template acc: 0.1914908170700073
+  molecule label loss: 3.8456077575683594, molecule acc: 0.3965437889099121
+  kl loss: 2.3422651290893555
+  reconstruction loss: 39.18244800567627
+
+Epoch 23, Counter 480, Beta 1.0
+Validation Loss: 45.92082214355469
+Train Losses:
+  pred loss: 25.14000549316406, pred acc: 0.6037767797708511
+  stop loss: 5.372195816040039, stop acc: 0.9356156557798385
+  template loss: 4.359140014648437, template acc: 0.2210549831390381
+  molecule label loss: 3.689911651611328, molecule acc: 0.40052971839904783
+  kl loss: 2.078480911254883
+  reconstruction loss: 38.561252975463866
+
+Epoch 24, Counter 500, Beta 1.0
+Validation Loss: 45.76924133300781
+Train Losses:
+  pred loss: 24.943278503417968, pred acc: 0.6048463553190231
+  stop loss: 5.264412689208984, stop acc: 0.9370489239692688
+  template loss: 4.126877975463867, template acc: 0.2518810510635376
+  molecule label loss: 3.5525897979736327, molecule acc: 0.40963091850280764
+  kl loss: 1.917295265197754
+  reconstruction loss: 37.88715724945069
+
+Epoch 25, Counter 520, Beta 1.0
+Validation Loss: 45.907623291015625
+Train Losses:
+  pred loss: 24.858491516113283, pred acc: 0.6080556005239487
+  stop loss: 5.220859146118164, stop acc: 0.9378866195678711
+  template loss: 3.951982879638672, template acc: 0.274362850189209
+  molecule label loss: 3.4271835327148437, molecule acc: 0.4154642581939697
+  kl loss: 1.7728006362915039
+  reconstruction loss: 37.458510398864746
+
+Epoch 26, Counter 540, Beta 1.0
+Validation Loss: 45.89417266845703
+Train Losses:
+  pred loss: 24.743954467773438, pred acc: 0.6085399180650711
+  stop loss: 5.223747634887696, stop acc: 0.9379177272319794
+  template loss: 3.8240543365478517, template acc: 0.2935669422149658
+  molecule label loss: 3.341771697998047, molecule acc: 0.4219672679901123
+  kl loss: 1.669083023071289
+  reconstruction loss: 37.13352928161621
+
+Epoch 27, Counter 560, Beta 1.0
+Validation Loss: 45.73336410522461
+Train Losses:
+  pred loss: 24.536480712890626, pred acc: 0.609792810678482
+  stop loss: 5.133833694458008, stop acc: 0.9386039614677429
+  template loss: 3.701018524169922, template acc: 0.30998969078063965
+  molecule label loss: 3.256643295288086, molecule acc: 0.42944746017456054
+  kl loss: 1.5989638328552247
+  reconstruction loss: 36.62797403335571
+
+Epoch 28, Counter 580, Beta 1.0
+Validation Loss: 45.719947814941406
+Train Losses:
+  pred loss: 24.431927490234376, pred acc: 0.6119117200374603
+  stop loss: 5.162868881225586, stop acc: 0.9381285846233368
+  template loss: 3.6284008026123047, template acc: 0.3174772262573242
+  molecule label loss: 3.1892763137817384, molecule acc: 0.43590245246887205
+  kl loss: 1.535395336151123
+  reconstruction loss: 36.41247758865356
+
+Epoch 29, Counter 600, Beta 1.0
+Validation Loss: 45.65758514404297
+Train Losses:
+  pred loss: 24.299195861816408, pred acc: 0.6140130370855331
+  stop loss: 5.100014114379883, stop acc: 0.9393823146820068
+  template loss: 3.50328369140625, template acc: 0.33863468170166017
+  molecule label loss: 3.0834724426269533, molecule acc: 0.44742584228515625
+  kl loss: 1.465947437286377
+  reconstruction loss: 35.985966014862065
+
+Epoch 30, Counter 620, Beta 1.0
+Validation Loss: 45.7723388671875
+Train Losses:
+  pred loss: 24.196937561035156, pred acc: 0.6150834858417511
+  stop loss: 5.1298828125, stop acc: 0.9388276278972626
+  template loss: 3.40740852355957, template acc: 0.3526270627975464
+  molecule label loss: 3.012810707092285, molecule acc: 0.4557539939880371
+  kl loss: 1.4366825103759766
+  reconstruction loss: 35.747033309936526
+
+Epoch 31, Counter 640, Beta 1.0
+Validation Loss: 46.000396728515625
+Train Losses:
+  pred loss: 24.195309448242188, pred acc: 0.6178362190723419
+  stop loss: 5.148760604858398, stop acc: 0.9388002693653107
+  template loss: 3.3429393768310547, template acc: 0.3634721994400024
+  molecule label loss: 2.9483287811279295, molecule acc: 0.46268177032470703
+  kl loss: 1.4075352668762207
+  reconstruction loss: 35.635329723358154
+
+Epoch 32, Counter 660, Beta 1.0
+Validation Loss: 45.61250305175781
+Train Losses:
+  pred loss: 24.009318542480468, pred acc: 0.6171007663011551
+  stop loss: 5.000395965576172, stop acc: 0.940581527352333
+  template loss: 3.258321762084961, template acc: 0.37741522789001464
+  molecule label loss: 2.8827739715576173, molecule acc: 0.4699573516845703
+  kl loss: 1.3276640892028808
+  reconstruction loss: 35.150808811187744
+
+Epoch 33, Counter 680, Beta 1.0
+Validation Loss: 45.930274963378906
+Train Losses:
+  pred loss: 23.914862060546874, pred acc: 0.6206256926059723
+  stop loss: 5.007243347167969, stop acc: 0.9404295265674592
+  template loss: 3.1840627670288084, template acc: 0.3862579584121704
+  molecule label loss: 2.8200056076049806, molecule acc: 0.4785158157348633
+  kl loss: 1.310304832458496
+  reconstruction loss: 34.926175880432126
+
+Epoch 34, Counter 700, Beta 1.0
+Validation Loss: 45.34043884277344
+Train Losses:
+  pred loss: 23.799224853515625, pred acc: 0.6196191430091857
+  stop loss: 4.961104965209961, stop acc: 0.9412115693092347
+  template loss: 3.1218999862670898, template acc: 0.3988102197647095
+  molecule label loss: 2.7491302490234375, molecule acc: 0.4869829177856445
+  kl loss: 1.2701153755187988
+  reconstruction loss: 34.631370830535886
+
+Epoch 35, Counter 720, Beta 1.0
+Validation Loss: 45.38574981689453
+Train Losses:
+  pred loss: 23.73481140136719, pred acc: 0.620721286535263
+  stop loss: 4.924845504760742, stop acc: 0.9414538830518723
+  template loss: 3.049326515197754, template acc: 0.409576940536499
+  molecule label loss: 2.690868377685547, molecule acc: 0.49440388679504393
+  kl loss: 1.2243692398071289
+  reconstruction loss: 34.399855613708496
+
+Epoch 36, Counter 740, Beta 1.0
+Validation Loss: 45.93784713745117
+Train Losses:
+  pred loss: 23.62061767578125, pred acc: 0.625171086192131
+  stop loss: 4.899435424804688, stop acc: 0.9425308674573898
+  template loss: 2.9829193115234376, template acc: 0.4221635818481445
+  molecule label loss: 2.6258977890014648, molecule acc: 0.504306697845459
+  kl loss: 1.2304924964904784
+  reconstruction loss: 34.128870296478276
+
+Epoch 37, Counter 760, Beta 1.0
+Validation Loss: 45.446937561035156
+Train Losses:
+  pred loss: 23.541395568847655, pred acc: 0.6242318093776703
+  stop loss: 4.880497741699219, stop acc: 0.9420007944107056
+  template loss: 2.921141242980957, template acc: 0.4296726226806641
+  molecule label loss: 2.576457977294922, molecule acc: 0.5111316680908203
+  kl loss: 1.1834228515625
+  reconstruction loss: 33.91949157714844
+
+Epoch 38, Counter 780, Beta 1.0
+Validation Loss: 45.43858337402344
+Train Losses:
+  pred loss: 23.492955017089844, pred acc: 0.6259219288825989
+  stop loss: 4.895166015625, stop acc: 0.9422221809625626
+  template loss: 2.8661022186279297, template acc: 0.43961567878723146
+  molecule label loss: 2.5016805648803713, molecule acc: 0.5204225063323975
+  kl loss: 1.1971539497375487
+  reconstruction loss: 33.755900859832764
+
+Epoch 39, Counter 800, Beta 1.0
+Validation Loss: 45.41960906982422
+Train Losses:
+  pred loss: 23.360060119628905, pred acc: 0.6279242515563965
+  stop loss: 4.792735290527344, stop acc: 0.9436191976070404
+  template loss: 2.8418760299682617, template acc: 0.44054713249206545
+  molecule label loss: 2.4665512084960937, molecule acc: 0.5279223442077636
+  kl loss: 1.156293773651123
+  reconstruction loss: 33.46122636795044
+
+Epoch 40, Counter 820, Beta 1.0
+Validation Loss: 45.76038360595703
+Train Losses:
+  pred loss: 23.276780700683595, pred acc: 0.627972349524498
+  stop loss: 4.77831802368164, stop acc: 0.9434837281703949
+  template loss: 2.770890998840332, template acc: 0.45362324714660646
+  molecule label loss: 2.410865592956543, molecule acc: 0.5361194610595703
+  kl loss: 1.1433064460754394
+  reconstruction loss: 33.23686017990112
+
+Epoch 41, Counter 840, Beta 1.0
+Validation Loss: 45.42455291748047
+Train Losses:
+  pred loss: 23.175801086425782, pred acc: 0.6299409031867981
+  stop loss: 4.768759536743164, stop acc: 0.9438124805688858
+  template loss: 2.7180559158325197, template acc: 0.464801025390625
+  molecule label loss: 2.3583438873291014, molecule acc: 0.5426000118255615
+  kl loss: 1.1277728080749512
+  reconstruction loss: 33.020963764190675
+
+Epoch 42, Counter 860, Beta 1.0
+Validation Loss: 45.645057678222656
+Train Losses:
+  pred loss: 23.097557067871094, pred acc: 0.6295267760753631
+  stop loss: 4.700196075439453, stop acc: 0.9446144789457321
+  template loss: 2.66299991607666, template acc: 0.47371997833251955
+  molecule label loss: 2.3078563690185545, molecule acc: 0.5517578601837159
+  kl loss: 1.0932647705078125
+  reconstruction loss: 32.76860961914062
+
+Epoch 43, Counter 880, Beta 1.0
+Validation Loss: 45.376102447509766
+Train Losses:
+  pred loss: 22.948870849609374, pred acc: 0.6329050987958909
+  stop loss: 4.689305114746094, stop acc: 0.9448581576347351
+  template loss: 2.6460411071777346, template acc: 0.47463188171386717
+  molecule label loss: 2.2708770751953127, molecule acc: 0.5561190128326416
+  kl loss: 1.1029969215393067
+  reconstruction loss: 32.55509328842163
+
+Epoch 44, Counter 900, Beta 1.0
+Validation Loss: 45.307281494140625
+Train Losses:
+  pred loss: 22.946823120117188, pred acc: 0.6327147841453552
+  stop loss: 4.682823181152344, stop acc: 0.944955763220787
+  template loss: 2.5926368713378904, template acc: 0.4844524383544922
+  molecule label loss: 2.208462142944336, molecule acc: 0.5681440830230713
+  kl loss: 1.0674568176269532
+  reconstruction loss: 32.430748748779294
+
+Epoch 45, Counter 920, Beta 1.0
+Validation Loss: 45.256683349609375
+Train Losses:
+  pred loss: 22.918516540527342, pred acc: 0.6330951958894729
+  stop loss: 4.666095733642578, stop acc: 0.9448801904916764
+  template loss: 2.5716209411621094, template acc: 0.48723692893981935
+  molecule label loss: 2.1826637268066404, molecule acc: 0.570280933380127
+  kl loss: 1.0735078811645509
+  reconstruction loss: 32.33889751434326
+
+Epoch 46, Counter 940, Beta 1.0
+Validation Loss: 45.24904251098633
+Train Losses:
+  pred loss: 22.802796936035158, pred acc: 0.6346953839063645
+  stop loss: 4.657324981689453, stop acc: 0.9455657750368118
+  template loss: 2.4826122283935548, template acc: 0.5028129577636719
+  molecule label loss: 2.1023513793945314, molecule acc: 0.5829497814178467
+  kl loss: 1.0738943099975586
+  reconstruction loss: 32.04508457183838
+
+Epoch 47, Counter 960, Beta 1.0
+Validation Loss: 45.38181686401367
+Train Losses:
+  pred loss: 22.662088012695314, pred acc: 0.6360843449831008
+  stop loss: 4.5777122497558596, stop acc: 0.9460941851139069
+  template loss: 2.449139404296875, template acc: 0.5093990325927734
+  molecule label loss: 2.0684194564819336, molecule acc: 0.590511703491211
+  kl loss: 1.053829288482666
+  reconstruction loss: 31.757361507415773
+
+Epoch 48, Counter 980, Beta 1.0
+Validation Loss: 45.54987335205078
+Train Losses:
+  pred loss: 22.66175994873047, pred acc: 0.6370943516492844
+  stop loss: 4.575957107543945, stop acc: 0.9461610317230225
+  template loss: 2.399484634399414, template acc: 0.516695785522461
+  molecule label loss: 2.0226951599121095, molecule acc: 0.5968419551849365
+  kl loss: 1.0368436813354491
+  reconstruction loss: 31.65989398956299
+
+Epoch 49, Counter 1000, Beta 1.0
+Validation Loss: 45.440521240234375
+Train Losses:
+  pred loss: 22.494015502929688, pred acc: 0.6378984361886978
+  stop loss: 4.564559555053711, stop acc: 0.946352744102478
+  template loss: 2.364998435974121, template acc: 0.5239773750305176
+  molecule label loss: 1.9783969879150392, molecule acc: 0.6052759647369385
+  kl loss: 1.0502944946289063
+  reconstruction loss: 31.40196990966797
+
+Epoch 50, Counter 1020, Beta 1.0
+Validation Loss: 45.486793518066406
+Train Losses:
+  pred loss: 22.476751708984374, pred acc: 0.6383879274129868
+  stop loss: 4.537311172485351, stop acc: 0.9467349827289582
+  template loss: 2.3472288131713865, template acc: 0.5247713565826416
+  molecule label loss: 1.9473899841308593, molecule acc: 0.6091765403747559
+  kl loss: 1.0113357543945312
+  reconstruction loss: 31.308683776855467
+
+Epoch 51, Counter 1040, Beta 1.0
+Validation Loss: 45.521820068359375
+Train Losses:
+  pred loss: 22.340855407714844, pred acc: 0.6413968414068222
+  stop loss: 4.514062881469727, stop acc: 0.9471729695796967
+  template loss: 2.3185617446899416, template acc: 0.5286717414855957
+  molecule label loss: 1.9217782974243165, molecule acc: 0.6127330780029296
+  kl loss: 1.007950496673584
+  reconstruction loss: 31.09525690078735
+
+Epoch 52, Counter 1060, Beta 1.0
+Validation Loss: 45.53107833862305
+Train Losses:
+  pred loss: 22.275894165039062, pred acc: 0.6402258932590484
+  stop loss: 4.480775451660156, stop acc: 0.947243919968605
+  template loss: 2.2888967514038088, template acc: 0.5338831901550293
+  molecule label loss: 1.8817735671997071, molecule acc: 0.6210525035858154
+  kl loss: 1.0100028038024902
+  reconstruction loss: 30.927341556549074
+
+Epoch 53, Counter 1080, Beta 1.0
+Validation Loss: 45.85530090332031
+Train Losses:
+  pred loss: 22.30262451171875, pred acc: 0.6424804478883743
+  stop loss: 4.513994598388672, stop acc: 0.9474951535463333
+  template loss: 2.2291255950927735, template acc: 0.5455498218536377
+  molecule label loss: 1.8260215759277343, molecule acc: 0.6307353973388672
+  kl loss: 0.999634075164795
+  reconstruction loss: 30.871767902374266
+
+Epoch 54, Counter 1100, Beta 1.0
+Validation Loss: 45.38999557495117
+Train Losses:
+  pred loss: 22.202789306640625, pred acc: 0.6443480998277664
+  stop loss: 4.5238605499267575, stop acc: 0.9468214780092239
+  template loss: 2.2089799880981444, template acc: 0.5478760719299316
+  molecule label loss: 1.7888113021850587, molecule acc: 0.6347978115081787
+  kl loss: 1.0025707244873048
+  reconstruction loss: 30.72444038391113
+
+Epoch 55, Counter 1120, Beta 1.0
+Validation Loss: 45.629913330078125
+Train Losses:
+  pred loss: 22.118937683105468, pred acc: 0.6454637914896011
+  stop loss: 4.47071533203125, stop acc: 0.947456443309784
+  template loss: 2.1954559326171874, template acc: 0.5508805274963379
+  molecule label loss: 1.7705144882202148, molecule acc: 0.6376406192779541
+  kl loss: 0.9903145790100097
+  reconstruction loss: 30.555617427825926
+
+Epoch 56, Counter 1140, Beta 1.0
+Validation Loss: 45.63264083862305
+Train Losses:
+  pred loss: 22.117372131347658, pred acc: 0.6451262593269348
+  stop loss: 4.455162048339844, stop acc: 0.9477419078350067
+  template loss: 2.149344253540039, template acc: 0.558195161819458
+  molecule label loss: 1.7356107711791993, molecule acc: 0.6440908432006835
+  kl loss: 0.9737713813781739
+  reconstruction loss: 30.457487773895263
+
+Epoch 57, Counter 1160, Beta 1.0
+Validation Loss: 45.303497314453125
+Train Losses:
+  pred loss: 21.986357116699217, pred acc: 0.6461406290531159
+  stop loss: 4.436083602905273, stop acc: 0.9481367647647858
+  template loss: 2.2868934631347657, template acc: 0.5324604511260986
+  molecule label loss: 1.7655956268310546, molecule acc: 0.6380037784576416
+  kl loss: 1.0101789474487304
+  reconstruction loss: 30.474931526184083
+
+Epoch 58, Counter 1180, Beta 1.0
+Validation Loss: 45.555885314941406
+Train Losses:
+  pred loss: 21.93526611328125, pred acc: 0.6465959459543228
+  stop loss: 4.391928863525391, stop acc: 0.9483960151672364
+  template loss: 2.16522102355957, template acc: 0.5556822299957276
+  molecule label loss: 1.6945281982421876, molecule acc: 0.6509881973266601
+  kl loss: 0.9844441413879395
+  reconstruction loss: 30.186945629119872
+
+Epoch 59, Counter 1200, Beta 1.0
+Validation Loss: 45.78277587890625
+Train Losses:
+  pred loss: 21.94031982421875, pred acc: 0.6482894003391266
+  stop loss: 4.417118835449219, stop acc: 0.948317113518715
+  template loss: 2.0821104049682617, template acc: 0.568504524230957
+  molecule label loss: 1.6261987686157227, molecule acc: 0.6642673492431641
+  kl loss: 0.9743349075317382
+  reconstruction loss: 30.065746879577638
+
+Epoch 60, Counter 1220, Beta 1.0
+Validation Loss: 45.866233825683594
+Train Losses:
+  pred loss: 21.86968994140625, pred acc: 0.6493004977703094
+  stop loss: 4.426403045654297, stop acc: 0.9481296598911285
+  template loss: 2.044864463806152, template acc: 0.5771304607391358
+  molecule label loss: 1.5881781578063965, molecule acc: 0.6708485126495362
+  kl loss: 0.9671999931335449
+  reconstruction loss: 29.929134845733643
+
+Epoch 61, Counter 1240, Beta 1.0
+Validation Loss: 45.97469711303711
+Train Losses:
+  pred loss: 21.781268310546874, pred acc: 0.6503623515367508
+  stop loss: 4.350450134277343, stop acc: 0.9491944044828415
+  template loss: 2.01666259765625, template acc: 0.5814448356628418
+  molecule label loss: 1.5634194374084474, molecule acc: 0.6755796432495117
+  kl loss: 0.9653156280517579
+  reconstruction loss: 29.711802291870118
+
+Epoch 62, Counter 1260, Beta 1.0
+Validation Loss: 45.62287902832031
+Train Losses:
+  pred loss: 21.717684936523437, pred acc: 0.651534378528595
+  stop loss: 4.392113494873047, stop acc: 0.9482324242591857
+  template loss: 2.0020719528198243, template acc: 0.5870271682739258
+  molecule label loss: 1.52778959274292, molecule acc: 0.6813065052032471
+  kl loss: 0.9655718803405762
+  reconstruction loss: 29.639661884307863
+
+Epoch 63, Counter 1280, Beta 1.0
+Validation Loss: 45.427433013916016
+Train Losses:
+  pred loss: 21.666436767578126, pred acc: 0.651881542801857
+  stop loss: 4.368978118896484, stop acc: 0.9487516611814499
+  template loss: 1.9689483642578125, template acc: 0.5890659332275391
+  molecule label loss: 1.4908984184265137, molecule acc: 0.6876596450805664
+  kl loss: 0.9663803100585937
+  reconstruction loss: 29.49525604248047
+
+Epoch 64, Counter 1300, Beta 1.0
+Validation Loss: 45.52775573730469
+Train Losses:
+  pred loss: 21.611854553222656, pred acc: 0.6537904560565948
+  stop loss: 4.3285266876220705, stop acc: 0.9494958043098449
+  template loss: 1.9515535354614257, template acc: 0.5933926105499268
+  molecule label loss: 1.466707706451416, molecule acc: 0.6920250415802002
+  kl loss: 0.9635665893554688
+  reconstruction loss: 29.358644104003904
+
+Epoch 65, Counter 1320, Beta 1.0
+Validation Loss: 45.57564926147461
+Train Losses:
+  pred loss: 21.581814575195313, pred acc: 0.653705483675003
+  stop loss: 4.289302062988281, stop acc: 0.9498903393745423
+  template loss: 1.939262580871582, template acc: 0.5967408180236816
+  molecule label loss: 1.452718162536621, molecule acc: 0.6961059093475341
+  kl loss: 0.9486681938171386
+  reconstruction loss: 29.26309633255005
+
+Epoch 66, Counter 1340, Beta 1.0
+Validation Loss: 45.59983825683594
+Train Losses:
+  pred loss: 21.50389862060547, pred acc: 0.6544119238853454
+  stop loss: 4.304103088378906, stop acc: 0.9497743844985962
+  template loss: 1.9076765060424805, template acc: 0.6022990703582763
+  molecule label loss: 1.4260587692260742, molecule acc: 0.6995582580566406
+  kl loss: 0.9429604530334472
+  reconstruction loss: 29.141734981536867
+
+Epoch 67, Counter 1360, Beta 1.0
+Validation Loss: 45.776187896728516
+Train Losses:
+  pred loss: 21.423907470703124, pred acc: 0.6557419925928116
+  stop loss: 4.252230453491211, stop acc: 0.9502602189779281
+  template loss: 1.875817108154297, template acc: 0.6056473731994629
+  molecule label loss: 1.3903990745544434, molecule acc: 0.7060689926147461
+  kl loss: 0.9453522682189941
+  reconstruction loss: 28.942355251312257
+
+Epoch 68, Counter 1380, Beta 1.0
+Validation Loss: 46.45550537109375
+Train Losses:
+  pred loss: 21.413743591308595, pred acc: 0.6550704091787338
+  stop loss: 4.276579666137695, stop acc: 0.9497060418128968
+  template loss: 1.8534759521484374, template acc: 0.6107206821441651
+  molecule label loss: 1.3631087303161622, molecule acc: 0.710031795501709
+  kl loss: 0.9489664077758789
+  reconstruction loss: 28.90690517425537
+
+Epoch 69, Counter 1400, Beta 1.0
+Validation Loss: 45.531009674072266
+Train Losses:
+  pred loss: 21.31554260253906, pred acc: 0.6575409293174743
+  stop loss: 4.358183670043945, stop acc: 0.9487017035484314
+  template loss: 1.8331893920898437, template acc: 0.6130252838134765
+  molecule label loss: 1.3404529571533204, molecule acc: 0.7129940032958985
+  kl loss: 0.9503517150878906
+  reconstruction loss: 28.84736862182617
+
+Epoch 70, Counter 1420, Beta 1.0
+Validation Loss: 46.088462829589844
+Train Losses:
+  pred loss: 21.346229553222656, pred acc: 0.6574196130037308
+  stop loss: 4.253821182250976, stop acc: 0.9502848982810974
+  template loss: 1.8002490997314453, template acc: 0.6196396827697754
+  molecule label loss: 1.3084324836730956, molecule acc: 0.7182270526885987
+  kl loss: 0.9294534683227539
+  reconstruction loss: 28.708733177185056
+
+Epoch 71, Counter 1440, Beta 1.0
+Validation Loss: 45.83375549316406
+Train Losses:
+  pred loss: 21.259474182128905, pred acc: 0.6584625154733658
+  stop loss: 4.258718109130859, stop acc: 0.9503389209508896
+  template loss: 1.788821029663086, template acc: 0.6239465713500977
+  molecule label loss: 1.2830619812011719, molecule acc: 0.722327184677124
+  kl loss: 0.9372152328491211
+  reconstruction loss: 28.590073585510254
+
+Epoch 72, Counter 1460, Beta 1.0
+Validation Loss: 45.66559600830078
+Train Losses:
+  pred loss: 21.154501342773436, pred acc: 0.6593547523021698
+  stop loss: 4.191188049316406, stop acc: 0.9511965960264206
+  template loss: 1.7693862915039062, template acc: 0.6236315250396729
+  molecule label loss: 1.2474851608276367, molecule acc: 0.7296554565429687
+  kl loss: 0.9278782844543457
+  reconstruction loss: 28.362560558319093
+
+Epoch 73, Counter 1480, Beta 1.0
+Validation Loss: 45.7624626159668
+Train Losses:
+  pred loss: 21.176542663574217, pred acc: 0.659536463022232
+  stop loss: 4.150162887573242, stop acc: 0.9516958147287369
+  template loss: 1.7345342636108398, template acc: 0.6308799266815186
+  molecule label loss: 1.221322250366211, molecule acc: 0.7342307090759277
+  kl loss: 0.9262991905212402
+  reconstruction loss: 28.28256311416626
+
+Epoch 74, Counter 1500, Beta 1.0
+Validation Loss: 45.80417251586914
+Train Losses:
+  pred loss: 21.0959716796875, pred acc: 0.6610520511865616
+  stop loss: 4.16375503540039, stop acc: 0.9518372476100921
+  template loss: 1.7278398513793944, template acc: 0.6332301616668701
+  molecule label loss: 1.2182581901550293, molecule acc: 0.7348821640014649
+  kl loss: 0.9332606315612793
+  reconstruction loss: 28.205829334259032
+
+Epoch 75, Counter 1520, Beta 1.0
+Validation Loss: 45.76140213012695
+Train Losses:
+  pred loss: 21.084451293945314, pred acc: 0.6613549411296844
+  stop loss: 4.1243408203125, stop acc: 0.9521288216114044
+  template loss: 1.7065982818603516, template acc: 0.6385233879089356
+  molecule label loss: 1.1871514320373535, molecule acc: 0.7408138275146484
+  kl loss: 0.9320980072021484
+  reconstruction loss: 28.102542495727537
+
+Epoch 76, Counter 1540, Beta 1.0
+Validation Loss: 45.931182861328125
+Train Losses:
+  pred loss: 21.050985717773436, pred acc: 0.6612095355987548
+  stop loss: 4.193585205078125, stop acc: 0.951165235042572
+  template loss: 1.7126264572143555, template acc: 0.6360767841339111
+  molecule label loss: 1.1668190956115723, molecule acc: 0.7447329044342041
+  kl loss: 0.9373489379882812
+  reconstruction loss: 28.12401580810547
+
+Epoch 77, Counter 1560, Beta 1.0
+Validation Loss: 46.200870513916016
+Train Losses:
+  pred loss: 21.0317138671875, pred acc: 0.6630565673112869
+  stop loss: 4.159955215454102, stop acc: 0.951938709616661
+  template loss: 1.7032697677612305, template acc: 0.6378091335296631
+  molecule label loss: 1.160120677947998, molecule acc: 0.7431239604949951
+  kl loss: 0.9354496955871582
+  reconstruction loss: 28.055059337615965
+
+Epoch 78, Counter 1580, Beta 1.0
+Validation Loss: 45.805633544921875
+Train Losses:
+  pred loss: 20.948141479492186, pred acc: 0.6634342640638351
+  stop loss: 4.138823699951172, stop acc: 0.9519120842218399
+  template loss: 1.6660821914672852, template acc: 0.646434736251831
+  molecule label loss: 1.1309473991394043, molecule acc: 0.7502492904663086
+  kl loss: 0.9492671966552735
+  reconstruction loss: 27.883993911743165
+
+Epoch 79, Counter 1600, Beta 1.0
+Validation Loss: 46.01110076904297
+Train Losses:
+  pred loss: 20.855970764160155, pred acc: 0.6637137830257416
+  stop loss: 4.074621963500976, stop acc: 0.9523709416389465
+  template loss: 1.6709449768066407, template acc: 0.6425412654876709
+  molecule label loss: 1.1301865577697754, molecule acc: 0.7500442504882813
+  kl loss: 0.91468505859375
+  reconstruction loss: 27.731723022460937
+
+Epoch 80, Counter 1620, Beta 1.0
+Validation Loss: 45.866546630859375
+Train Losses:
+  pred loss: 20.844287109375, pred acc: 0.6627562999725342
+  stop loss: 4.0556598663330075, stop acc: 0.952998673915863
+  template loss: 1.6169166564941406, template acc: 0.6552403450012207
+  molecule label loss: 1.0968918800354004, molecule acc: 0.7565369606018066
+  kl loss: 0.9258253097534179
+  reconstruction loss: 27.613752937316896
+
+Epoch 81, Counter 1640, Beta 1.0
+Validation Loss: 46.012718200683594
+Train Losses:
+  pred loss: 20.76393280029297, pred acc: 0.666123804450035
+  stop loss: 4.049156951904297, stop acc: 0.953303012251854
+  template loss: 1.6274700164794922, template acc: 0.6499592304229737
+  molecule label loss: 1.0709792137145997, molecule acc: 0.760804271697998
+  kl loss: 0.9361565589904786
+  reconstruction loss: 27.511542415618894
+
+Epoch 82, Counter 1660, Beta 1.0
+Validation Loss: 46.04711151123047
+Train Losses:
+  pred loss: 20.699807739257814, pred acc: 0.6661985844373703
+  stop loss: 4.0386199951171875, stop acc: 0.9532023757696152
+  template loss: 1.5979244232177734, template acc: 0.6570339202880859
+  molecule label loss: 1.0434208869934083, molecule acc: 0.7662450313568115
+  kl loss: 0.9318678855895997
+  reconstruction loss: 27.379771518707276
+
+Epoch 83, Counter 1680, Beta 1.0
+Validation Loss: 45.94054412841797
+Train Losses:
+  pred loss: 20.682244873046876, pred acc: 0.666617351770401
+  stop loss: 4.030485534667969, stop acc: 0.9532634496688843
+  template loss: 1.5737483024597168, template acc: 0.6607401847839356
+  molecule label loss: 1.0309130668640136, molecule acc: 0.7690148830413819
+  kl loss: 0.9235247611999512
+  reconstruction loss: 27.31739320755005
+
+Epoch 84, Counter 1700, Beta 1.0
+Validation Loss: 46.334205627441406
+Train Losses:
+  pred loss: 20.724571228027344, pred acc: 0.6667942881584168
+  stop loss: 4.043972015380859, stop acc: 0.9535964071750641
+  template loss: 1.5660273551940918, template acc: 0.6632243633270264
+  molecule label loss: 1.0104392051696778, molecule acc: 0.7736005783081055
+  kl loss: 0.9268886566162109
+  reconstruction loss: 27.345007705688477
+
+Epoch 85, Counter 1720, Beta 1.0
+Validation Loss: 46.35908508300781
+Train Losses:
+  pred loss: 20.664678955078124, pred acc: 0.666770139336586
+  stop loss: 4.047616958618164, stop acc: 0.9528753995895386
+  template loss: 1.5406792640686036, template acc: 0.6668796062469482
+  molecule label loss: 0.9860134124755859, molecule acc: 0.7766220092773437
+  kl loss: 0.9387679100036621
+  reconstruction loss: 27.238984775543212
+
+Epoch 86, Counter 1740, Beta 1.0
+Validation Loss: 46.27356719970703
+Train Losses:
+  pred loss: 20.546820068359374, pred acc: 0.6692680686712265
+  stop loss: 4.044819641113281, stop acc: 0.9530791878700257
+  template loss: 1.5262271881103515, template acc: 0.6690573692321777
+  molecule label loss: 0.9813061714172363, molecule acc: 0.7764182567596436
+  kl loss: 0.9367403984069824
+  reconstruction loss: 27.09917268753052
+
+Epoch 87, Counter 1760, Beta 1.0
+Validation Loss: 45.995750427246094
+Train Losses:
+  pred loss: 20.490640258789064, pred acc: 0.6694551140069962
+  stop loss: 4.009538650512695, stop acc: 0.9538377821445465
+  template loss: 1.5753173828125, template acc: 0.658070182800293
+  molecule label loss: 1.0306764602661134, molecule acc: 0.7629072189331054
+  kl loss: 0.9179459571838379
+  reconstruction loss: 27.10617208480835
+
+Epoch 88, Counter 1780, Beta 1.0
+Validation Loss: 46.26695251464844
+Train Losses:
+  pred loss: 20.539434814453124, pred acc: 0.6692325919866562
+  stop loss: 3.9923938751220702, stop acc: 0.953684675693512
+  template loss: 1.5576343536376953, template acc: 0.6639279842376709
+  molecule label loss: 0.9807475090026856, molecule acc: 0.7733353614807129
+  kl loss: 0.9280993461608886
+  reconstruction loss: 27.070209980010986
+
+Epoch 89, Counter 1800, Beta 1.0
+Validation Loss: 46.29811096191406
+Train Losses:
+  pred loss: 20.42272491455078, pred acc: 0.6692271381616592
+  stop loss: 3.9877410888671876, stop acc: 0.9536960244178772
+  template loss: 1.5072486877441407, template acc: 0.6750153064727783
+  molecule label loss: 0.9340962409973145, molecule acc: 0.7871636867523193
+  kl loss: 0.9256604194641114
+  reconstruction loss: 26.85181150436401
+
+Epoch 90, Counter 1820, Beta 1.0
+Validation Loss: 46.282833099365234
+Train Losses:
+  pred loss: 20.468753051757812, pred acc: 0.6706227928400039
+  stop loss: 4.023459625244141, stop acc: 0.9538013190031052
+  template loss: 1.4831913948059081, template acc: 0.6804784297943115
+  molecule label loss: 0.9143211364746093, molecule acc: 0.790516996383667
+  kl loss: 0.91395263671875
+  reconstruction loss: 26.889718627929685
+
+Epoch 91, Counter 1840, Beta 1.0
+Validation Loss: 46.166954040527344
+Train Losses:
+  pred loss: 20.37968292236328, pred acc: 0.6710399001836777
+  stop loss: 3.9504467010498048, stop acc: 0.9544598937034607
+  template loss: 1.4656566619873046, template acc: 0.6831565380096436
+  molecule label loss: 0.8910058021545411, molecule acc: 0.7948600769042968
+  kl loss: 0.9388675689697266
+  reconstruction loss: 26.686794662475585
+
+Epoch 92, Counter 1860, Beta 1.0
+Validation Loss: 46.21285629272461
+Train Losses:
+  pred loss: 20.351441955566408, pred acc: 0.6724185466766357
+  stop loss: 3.935296630859375, stop acc: 0.954919844865799
+  template loss: 1.4592780113220214, template acc: 0.6834047794342041
+  molecule label loss: 0.8910258293151856, molecule acc: 0.7951724529266357
+  kl loss: 0.9237796783447265
+  reconstruction loss: 26.6370418548584
+
+Epoch 93, Counter 1880, Beta 1.0
+Validation Loss: 46.45412826538086
+Train Losses:
+  pred loss: 20.267240905761717, pred acc: 0.6739772319793701
+  stop loss: 3.9302616119384766, stop acc: 0.9547438055276871
+  template loss: 1.4585054397583008, template acc: 0.6859383583068848
+  molecule label loss: 0.8788226127624512, molecule acc: 0.7967918395996094
+  kl loss: 0.9247829437255859
+  reconstruction loss: 26.53483009338379
+
+Epoch 94, Counter 1900, Beta 1.0
+Validation Loss: 46.36789321899414
+Train Losses:
+  pred loss: 20.23802947998047, pred acc: 0.6736345291137695
+  stop loss: 3.9074047088623045, stop acc: 0.9550544083118438
+  template loss: 1.4450515747070312, template acc: 0.6856013298034668
+  molecule label loss: 0.8676543235778809, molecule acc: 0.7979537010192871
+  kl loss: 0.9352971076965332
+  reconstruction loss: 26.45814161300659
+
+Epoch 95, Counter 1920, Beta 1.0
+Validation Loss: 46.44166564941406
+Train Losses:
+  pred loss: 20.225201416015626, pred acc: 0.6751401931047439
+  stop loss: 3.9180648803710936, stop acc: 0.9545789748430252
+  template loss: 1.4770456314086915, template acc: 0.6808646202087403
+  molecule label loss: 0.8954635620117187, molecule acc: 0.7886062622070312
+  kl loss: 0.9527390480041504
+  reconstruction loss: 26.5157790184021
+
+Epoch 96, Counter 1940, Beta 1.0
+Validation Loss: 46.36050033569336
+Train Losses:
+  pred loss: 20.23621826171875, pred acc: 0.6740466117858886
+  stop loss: 3.904806137084961, stop acc: 0.9549961090087891
+  template loss: 1.4483823776245117, template acc: 0.6849372386932373
+  molecule label loss: 0.8659227371215821, molecule acc: 0.797803544998169
+  kl loss: 0.9340200424194336
+  reconstruction loss: 26.455326271057128
+
+Epoch 97, Counter 1960, Beta 1.0
+Validation Loss: 46.403114318847656
+Train Losses:
+  pred loss: 20.192092895507812, pred acc: 0.6761929959058761
+  stop loss: 3.892047119140625, stop acc: 0.9553899139165878
+  template loss: 1.3935172080993652, template acc: 0.6958992958068848
+  molecule label loss: 0.8142969131469726, molecule acc: 0.8081399917602539
+  kl loss: 0.9184758186340332
+  reconstruction loss: 26.291955089569093
+
+Epoch 98, Counter 1980, Beta 1.0
+Validation Loss: 46.451812744140625
+Train Losses:
+  pred loss: 20.139376831054687, pred acc: 0.6752737462520599
+  stop loss: 3.9005081176757814, stop acc: 0.9552643984556198
+  template loss: 1.370353889465332, template acc: 0.7034166336059571
+  molecule label loss: 0.7915903091430664, molecule acc: 0.8148189544677734
+  kl loss: 0.9186638832092285
+  reconstruction loss: 26.201828670501712
+
+Epoch 99, Counter 2000, Beta 1.0
+Validation Loss: 46.637752532958984
+Train Losses:
+  pred loss: 20.014353942871093, pred acc: 0.677868103981018
+  stop loss: 3.91820068359375, stop acc: 0.9550873547792434
+  template loss: 1.3690503120422364, template acc: 0.7035808086395263
+  molecule label loss: 0.787064504623413, molecule acc: 0.8146010398864746
+  kl loss: 0.9424267768859863
+  reconstruction loss: 26.088667583465575
+
