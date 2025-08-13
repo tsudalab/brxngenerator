@@ -43,6 +43,10 @@ parser.add_option("-v", "--vocab_path", dest="vocab_path")
 parser.add_option("-q", "--lr", dest="lr", default = 0.001)
 parser.add_option("-z", "--beta", dest="beta", default = 1.0)
 parser.add_option("-e", "--epochs", dest="epochs", default = 100)
+# [ECC] Error-correcting code options
+parser.add_option("--ecc-type", dest="ecc_type", default="none", help="ECC type: none or repetition")
+parser.add_option("--ecc-R", dest="ecc_R", type="int", default=3, help="Repetition factor for ECC")
+parser.add_option("--subset", dest="subset", type="int", default=None, help="Limit dataset size for testing")
 
 opts, _ = parser.parse_args()
 
@@ -57,6 +61,10 @@ data_filename = opts.data_path
 epochs = int(opts.epochs)
 save_path = opts.save_path
 w_save_path = opts.w_save_path
+# [ECC] Parse ECC options
+ecc_type = opts.ecc_type
+ecc_R = opts.ecc_R
+subset_size = opts.subset
 
 args={}
 args['beta'] = beta
@@ -76,6 +84,12 @@ routes, scores = read_multistep_rxns(data_filename)
 
 rxn_trees = [ReactionTree(route) for route in routes]
 molecules = [rxn_tree.molecule_nodes[0].smiles for rxn_tree in rxn_trees]
+
+# [ECC] Apply subset filtering if requested
+if subset_size is not None and len(rxn_trees) > subset_size:
+    print(f"Using subset of {subset_size} reactions (out of {len(rxn_trees)})")
+    rxn_trees = rxn_trees[:subset_size]
+    molecules = molecules[:subset_size]
 reactants = extract_starting_reactants(rxn_trees)
 templates, n_reacts = extract_templates(rxn_trees)
 reactantDic = StartingReactants(reactants)
@@ -124,7 +138,7 @@ model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_siz
 checkpoint = torch.load(w_save_path, map_location=device)
 model.load_state_dict(checkpoint)
 print("loaded model....")
-evaluator = Evaluator(latent_size, model)
+evaluator = Evaluator(latent_size, model, ecc_type=ecc_type, ecc_R=ecc_R)
         # Ensure the output file is empty
 with open("generated_reactions.txt", "w") as writer:
     writer.write("")

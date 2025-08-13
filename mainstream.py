@@ -78,7 +78,8 @@ def main(seed_to_run):
         'cycle': config.CYCLE_SCORES_PATH
     }
     X_train, y_train, X_test, y_test = binary_vae_utils.prepare_dataset(
-        model=model, data_pairs=data_pairs, latent_size=config.LATENT_SIZE, metric=config.METRIC, logp_paths=logp_paths
+        model=model, data_pairs=data_pairs, latent_size=config.LATENT_SIZE, metric=config.METRIC, logp_paths=logp_paths,
+        ecc_type='none', ecc_R=3  # [ECC] Default to no ECC for now - can be made configurable later
     )
     X_train, y_train = torch.Tensor(X_train), torch.Tensor(y_train)
     X_test, y_test = torch.Tensor(X_test), torch.Tensor(y_test)

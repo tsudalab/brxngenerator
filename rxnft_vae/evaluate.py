@@ -31,11 +31,29 @@ import pandas as pd
 
 import sys
 
+# [ECC] Import error correcting code utilities
+from ecc import create_ecc_codec, sample_ecc_latent, extract_info_bits
+
 class Evaluator(nn.Module):
-    def __init__(self, latent_size, model):
+    def __init__(self, latent_size, model, ecc_type='none', ecc_R=3):
         super(Evaluator, self).__init__()
         self.latent_size = latent_size
         self.model = model
+        # [ECC] Initialize error correcting code
+        self.ecc_type = ecc_type
+        self.ecc_R = ecc_R
+        self.ecc_codec = create_ecc_codec(ecc_type, R=ecc_R)
+        
+        # [ECC] Determine effective latent dimensions
+        if self.ecc_codec is not None:
+            # When using ECC, latent_size is the code size N, info size is K
+            if not self.ecc_codec.group_shape_ok(latent_size):
+                raise ValueError(f"Latent size {latent_size} must be divisible by ECC repetition factor {ecc_R}")
+            self.info_size = self.ecc_codec.get_info_size(latent_size)
+            print(f"[ECC] Using {ecc_type} with R={ecc_R}: latent_size={latent_size}, info_size={self.info_size}")
+        else:
+            self.info_size = latent_size
+            print(f"[ECC] No ECC: latent_size={latent_size}")
 
     def decode_from_prior(self, ft_latent, rxn_latent, n, prob_decode=True):
         for i in range(n):
@@ -175,18 +193,35 @@ class Evaluator(nn.Module):
     def generate_discrete_latent(self, latent_size, method="gumbel", temp=0.4):
         """
         Generate latent variables conforming to discrete distribution, supporting Gumbel-Softmax and Bernoulli sampling
+        [ECC] Now supports error-correcting codes for improved generation
         """
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
+        # [ECC] Determine sampling size based on ECC configuration
+        if self.ecc_codec is not None:
+            # Sample from information space and encode
+            effective_size = self.info_size
+        else:
+            # No ECC, sample directly
+            effective_size = latent_size
+        
         if method == "gumbel":
-            logits = torch.zeros(1, latent_size, 2, device=device)  # logits size for binary case
+            logits = torch.zeros(1, effective_size, 2, device=device)  # logits size for binary case
             gumbel_noise = -torch.log(-torch.log(torch.rand(logits.shape, device=device) + 1e-20) + 1e-20)
             latent_sample = F.softmax((logits + gumbel_noise) / temp, dim=-1)
-            return latent_sample.argmax(dim=-1).float()  # Output one-hot approximation result
+            info_bits = latent_sample.argmax(dim=-1).float()  # Output one-hot approximation result
 
         elif method == "bernoulli":
-            probs = torch.full((1, latent_size), 0.5, device=device)  # Bernoulli parameter, assuming uniform distribution
-            return torch.bernoulli(probs)  # Return sampling result of 0 or 1
+            probs = torch.full((1, effective_size), 0.5, device=device)  # Bernoulli parameter, assuming uniform distribution
+            info_bits = torch.bernoulli(probs)  # Return sampling result of 0 or 1
+        else:
+            raise ValueError(f"Unknown method: {method}")
+        
+        # [ECC] Apply encoding if ECC is enabled
+        if self.ecc_codec is not None:
+            return self.ecc_codec.encode(info_bits)
+        else:
+            return info_bits
         
     def validate_and_save(self, train_rxn_trees, n=10000, output_file="generated_reactions.txt"):
         training_smiles = []

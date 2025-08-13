@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(python tests/test_ecc.py)",
+      "Bash(python:*)",
+      "Bash(chmod:*)",
+      "Bash(./scripts/smoke.sh:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(timeout:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
