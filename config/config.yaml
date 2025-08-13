@@ -21,6 +21,6 @@ opt:
   prop: 'qed'                                                               # optimized property
   num_end: 300                                                               # number for the end condition
   n_sample: 1                                                                # number of sampled binary vectors for each molecule
-  client: 'amplify'                                                          # amplify or d-wave
-  client_token: ''                                          # token for connection
+  client: 'gurobi'                                                           # solver client (gurobi only)
+  # client_token removed; using gurobi.lic for licensing
   batch_size: 3000

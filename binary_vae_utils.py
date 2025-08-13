@@ -53,13 +53,19 @@ class BaseQuboSolver(ABC):
 class GurobiQuboSolver(BaseQuboSolver):
     def __init__(self, options=None):
         env_params = options or {}
-        # Gurobi Cloud acks require setting these params this way
+        # Prefer local license via gurobi.lic or GRB_LICENSE_FILE; fall back to provided params
+        # Auto-wire gurobi.lic in project root if present and no GRB_LICENSE_FILE set
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        license_path = os.path.join(project_root, "gurobi.lic")
+        if not os.environ.get("GRB_LICENSE_FILE") and os.path.exists(license_path):
+            os.environ["GRB_LICENSE_FILE"] = license_path
+
         cloud_params = {k: v for k, v in env_params.items() if k in ["WLSACCESSID", "WLSSECRET", "LICENSEID"]}
         if cloud_params:
-            print("Using Gurobi with Cloud credentials.")
+            print("Using Gurobi with provided parameters (Cloud/Env).")
             self.gurobi_env = gp.Env(params=cloud_params)
         else:
-            print("Using Gurobi with local or default options.")
+            print("Using Gurobi with local license or defaults.")
             self.gurobi_env = gp.Env()
 
     def solve(self, model: TorchFM):

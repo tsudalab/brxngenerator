@@ -21,9 +21,10 @@ python sample.py -w 200 -l 100 -d 2 -v "./weights/data.txt_fragmentvocab.txt" -t
 3) Ising Machine
 The Ising Machine part is based on https://github.com/tsudalab/bVAE-IM/im
 
-To run it, you need to register one token from Amplify.
-The token can be registered freely at https://amplify.fixstars.com/en/.
-Then change the config.yaml in config folder.
+This project now uses the Gurobi solver only.
+Place a valid Gurobi license file `gurobi.lic` in the project root
+or set the environment variable `GRB_LICENSE_FILE` to its path.
+The runtime will automatically pick it up from `gurobi.lic` if present.
 
 Plese type the following command to run Ising Machine optimization
 (If you use SLURM,then it's ok to use this,otherwise you need to change the code in bvae.py.Also you can use other random seed you need.Despite whether using diffrent random seed,you should check if you are using SLURM to run the code)
@@ -31,6 +32,5 @@ python bvae_im.py -w 200 -l 100 -d 2 -r $SLURM_ARRAY_TASK_ID  -v "fragmentvocab_
 Example:
 python bvae_im.py -w 300 -l 100 -d 2 -r 1 -t "./data/data.txt" -s "/home/gzou/fitcheck/newnnn/brxngenerator-master/weights/hidden_size_300_latent_size_100_depth_2_beta_1.0_lr_0.001/bvae_iter-30-with.npy" -m "qed"
 Then the optimization result will be saved in Results folder.
-
 
 

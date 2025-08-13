@@ -40,11 +40,12 @@ PATIENCE = 300
 OPTIMIZE_NUM = 100 # Number of optimization iterations
 
 # --- Solver Settings ---
-CLIENT = "Gurobi"
-# Gurobi许可证信息，从代码中移到配置中
-GUROBI_OPTIONS = {
-    "LICENSEID": 2687913,
-    "WLSACCESSID": "5cbfb8e1-0066-4b7f-ab40-579464946573",
-    "WLSSECRET": "a5c475ea-ec91-4cd6-94e9-b73395e273d6",
-    # 可以添加其他Gurobi参数，例如 'TimeLimit': 3600
-}
+CLIENT = "gurobi"
+
+# 如果项目根目录存在 gurobi.lic，则默认使用它
+LICENSE_FILE = os.path.join(BASE_DIR, "gurobi.lic")
+if os.path.exists(LICENSE_FILE):
+    os.environ.setdefault("GRB_LICENSE_FILE", LICENSE_FILE)
+
+# 通过 gurobi.lic/GRB_LICENSE_FILE 管理授权，这里不再硬编码云端凭据
+GUROBI_OPTIONS = {}
