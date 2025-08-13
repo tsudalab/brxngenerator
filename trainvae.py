@@ -10,8 +10,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
-import math, random, sys
-from optparse import OptionParser
+import math, random, sys, argparse
 from collections import deque
 
 from rxnft_vae.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
@@ -24,6 +23,16 @@ import random
 
 TaskID =""
 # TaskID = "1"
+
+# [ECC] Parse command line arguments early to fix NameError  
+parser = argparse.ArgumentParser(description="Train binary VAE with optional ECC")
+parser.add_argument("-n", type=int, dest="params_num", default=0, help="Parameter set index (0-7)")
+parser.add_argument("--ecc-type", type=str, choices=["none", "repetition"], default="none", 
+                    help="ECC type: none or repetition")
+parser.add_argument("--ecc-R", type=int, default=3, help="Repetition factor for ECC")
+parser.add_argument("--subset", type=int, default=None, help="Limit dataset size for testing")
+cli_args = parser.parse_args()
+
 def schedule(counter, M):
 	x = counter/(2*M)
 	if x > M:
@@ -206,6 +215,13 @@ routes, scores = read_multistep_rxns(data_filename)
 
 rxn_trees = [ReactionTree(route) for route in routes]
 molecules = [rxn_tree.molecule_nodes[0].smiles for rxn_tree in rxn_trees]
+
+# [ECC] Apply subset filtering if requested  
+if cli_args.subset is not None and len(rxn_trees) > cli_args.subset:
+    print(f"Using subset of {cli_args.subset} reactions (out of {len(rxn_trees)})")
+    rxn_trees = rxn_trees[:cli_args.subset]
+    molecules = molecules[:cli_args.subset]
+    
 reactants = extract_starting_reactants(rxn_trees)
 templates, n_reacts = extract_templates(rxn_trees)
 reactantDic = StartingReactants(reactants)
@@ -261,11 +277,7 @@ params = [
 ]
 
 
-parser = OptionParser()
-parser.add_option("-n", dest="params_num", default=0)
-opts, _ = parser.parse_args()
-
-i = params[int(opts.params_num)]
+i = params[int(cli_args.params_num)]
 
 hidden_size = i[0]
 latent_size = i[1]
