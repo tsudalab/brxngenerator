@@ -157,7 +157,9 @@ evaluator = Evaluator(latent_size, model, ecc_type=ecc_type, ecc_R=ecc_R)
 with open("generated_reactions.txt", "w") as writer:
     writer.write("")
     
-evaluator.validate_and_save(rxn_trees, output_file="generated_reactions.txt")
+# [ECC] Test with small sample count
+n_samples = 10 if subset_size else 100
+evaluator.validate_and_save(rxn_trees, n=n_samples, output_file="generated_reactions.txt")
 
 
 

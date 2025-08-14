@@ -18,207 +18,152 @@ This file provides guidance to Claude Code when working with this repository.
 3. **Optimization Pipeline** (`mainstream.py`): Factorization Machine + Gurobi QUBO solver
 4. **Training Interface** (`trainvae.py`): Modern training with early stopping
 
-## Training (Full Dataset)
+## Full-Data Training (Server, 1×GPU, AMP, Early Stop ON by Default)
 
 ### Standard Training
 ```bash
-# Basic B-VAE training (recommended: start here)
-python trainvae.py -n 4    # Parameter set 4: hidden=200, latent=200, depth=2
+# Baseline B-VAE training (auto early stopping, tqdm, AMP)
+CUDA_VISIBLE_DEVICES=0 python trainvae.py -n 1    # Parameter set 1: hidden=200, latent=100, depth=2
 
-# Training with early stopping control
-python trainvae.py -n 4 --patience 20 --min-delta 0.001
+# ECC training (latent must be divisible by R)
+CUDA_VISIBLE_DEVICES=0 python trainvae.py -n 1 --ecc-type repetition --ecc-R 2   # latent=100, info=50
+CUDA_VISIBLE_DEVICES=0 python trainvae.py -n 5 --ecc-type repetition --ecc-R 3   # latent=300, info=100
 
 # Available parameter sets (0-7):
-# Set 0: (100,100,2) - Quick testing
-# Set 4: (200,200,2) - Standard production  
-# Set 5: (200,300,2) - Large latent (ECC R=3 compatible)
-# Set 7: (500,300,5) - Largest model
+# Set 0: (100,100,2) - R=2 compatible  
+# Set 1: (200,100,2) - R=2 compatible  
+# Set 4: (200,200,2) - R=2 compatible
+# Set 5: (200,300,2) - R=3 compatible (recommended for ECC)
+# Set 7: (500,300,5) - R=3 compatible (largest)
 ```
 
-### ECC-Enhanced Training
+### Features (Auto-Enabled)
+- **Early Stopping**: Default ON (patience=10), saves only best model `bvae_best_model_with.npy`
+- **Mixed Precision**: Automatic AMP on GPU with GradScaler for faster training
+- **Progress Bars**: Real-time tqdm showing loss, KL, beta, validation loss, patience
+- **GPU Optimization**: Pin memory, CUDNN benchmarking, optimal num_workers
+- **ECC Validation**: Automatic divisibility check prevents invalid parameter combinations
+
+## A/B Comparison (Same Parameter Set)
+
+### Training and Evaluating Baseline vs ECC
 ```bash
-# ECC requires latent_size divisible by repetition factor R
-python trainvae.py -n 5 --ecc-type repetition --ecc-R 3  # latent=300, info=100
-python trainvae.py -n 4 --ecc-type repetition --ecc-R 2  # latent=200, info=100
+# Real-data A/B comparison with metrics
+CUDA_VISIBLE_DEVICES=0 python ab_compare_ecc.py -n 1 --ecc-R 2 --train-subset 0 --eval-subset 2000
+# -> results/compare_n1_*.json/.csv with BER, WER (MAP), LL, entropy, validity, (FCD optional)
 
-# ECC provides 80-90% BER improvement, 90-95% WER improvement
+# Key outputs:
+# - JSON: Detailed metrics and experimental configuration  
+# - CSV: Summary table for analysis
+# - Console: Side-by-side comparison table with improvement percentages
 ```
 
-### GPU Acceleration Features
-- **Mixed Precision**: Automatic AMP (Automatic Mixed Precision) for faster training
-- **Optimized DataLoader**: Pin memory, non-blocking transfers, and optimal num_workers
-- **CUDNN Benchmarking**: Enabled automatically for stable input sizes
-- **Device Detection**: Automatic GPU/CPU detection with fallback support
+### Sampling & Property Optimization
 
-### Early Stopping Features
-- **Best Model Only**: Saves single `bvae_best_model_with{TaskID}.npy` file
-- **Validation-Based**: Monitors validation loss with patience/min-delta thresholds  
-- **Automatic**: No intermediate checkpoints, only the best performing model
-- **Configurable**: `--patience` (default 10), `--min-delta` (default 0.0)
-
-## Sampling & Optimization
-
-### Molecular Sampling
 ```bash
-# Standard sampling (using saved best model with unified CLI)
-python sample.py -n 4 --w_save_path "weights/path/to/bvae_best_model_with.npy"
+# Sampling (subset allowed to control runtime)
+CUDA_VISIBLE_DEVICES=0 python sample.py -n 1 --w_save_path weights/best_baseline.pt --subset 500
+CUDA_VISIBLE_DEVICES=0 python sample.py -n 1 --ecc-type repetition --ecc-R 2 \
+  --w_save_path weights/best_ecc.pt --subset 500
 
-# ECC-aware sampling (parameter set must be compatible)
-python sample.py -n 5 --ecc-type repetition --ecc-R 3 --w_save_path "weights/path/to/model.npy"
-
-# Subset sampling for testing
-python sample.py -n 4 --w_save_path "weights/path/to/model.npy" --subset 100
+# Property optimization (pass ECC flags if you want ECC in the optimization stage)
+python mainstream.py --seed 1 --ecc-type repetition --ecc-R 2
 ```
 
-### Property Optimization
-```bash
-# Single-seed optimization (baseline)
-python mainstream.py --seed 1 --ecc-type none
+## GPU & Installs (Server CUDA 12.4)
 
-# ECC-enhanced optimization
-python mainstream.py --seed 1 --ecc-type repetition --ecc-R 3
-
-# Multi-seed parallel optimization
-bash test_seed_new.sh
-```
-
-### Evaluation & Metrics
-```bash
-# Baseline evaluation (no ECC)
-python -m rxnft_vae.evaluate --mode metrics -n 0 --w_save_path "weights/path/to/model.npy" --ecc-type none --subset 1000
-
-# ECC evaluation for comparison
-python -m rxnft_vae.evaluate --mode metrics -n 5 --w_save_path "weights/path/to/model.npy" --ecc-type repetition --ecc-R 3 --subset 1000
-
-# Metrics computed:
-# - BER/WER: Bit/Word Error Rates for ECC effectiveness
-# - Reconstruction Loss: ELBO proxy for generation quality
-# - Entropy/Confidence: Uncertainty calibration metrics
-# - Validity/Uniqueness/Novelty: Molecule quality metrics
-```
-
-## ECC Usage
-
-### Quick Reference
-- **Purpose**: Improve generation quality through error correction
-- **Method**: Repetition codes with majority-vote decoding
-- **Requirement**: `latent_size % R == 0` (validated automatically)
-- **Benefits**: 80%+ BER reduction, 90%+ WER reduction, better uncertainty calibration
-
-### Compatible Parameter Sets
-```bash
-# R=2 compatible: sets 0,1,2,3,4,6 (latent sizes: 100,100,100,100,200,100)
-# R=3 compatible: sets 5,7 (latent sizes: 300,300)
-
-python trainvae.py -n 1 --ecc-type repetition --ecc-R 2  # ✅ 100%2=0
-python trainvae.py -n 5 --ecc-type repetition --ecc-R 3  # ✅ 300%3=0  
-python trainvae.py -n 0 --ecc-type repetition --ecc-R 3  # ❌ 100%3≠0
-```
-
-## Testing Notes
-
-### Developer Smoke Tests
-```bash
-# Quick functionality check (developer use only)
-python trainvae.py -n 0 --subset 500 --patience 3
-
-# Full smoke test
-bash scripts/smoke.sh
-```
-
-**Important**: `--subset` is for developer testing only. Production training uses full datasets.
-
-## Performance & GPU Optimization
-
-### GPU Setup
+### GPU Detection and Setup
 ```bash
 # Check GPU availability
 python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
 
 # Monitor GPU usage during training
 nvidia-smi -l 1  # Update every second
-
-# Training automatically uses:
-# - Mixed precision (AMP) for faster training
-# - Optimized DataLoader with pin_memory
-# - CUDNN benchmarking for consistent performance
 ```
 
-### Performance Tips
+### PyTorch Installation for CUDA 12.4
+If GPU is detected but PyTorch lacks CUDA libraries, use the **official installer** for the latest stable release. Often **cu121** wheels are provided by PyTorch and run on newer drivers:
+
+```bash
+# Install PyTorch with CUDA support (example for cu121)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+
+**Reference Links**:
+- [PyTorch Get Started](https://pytorch.org/get-started/locally/)
+- [Previous PyTorch Versions](https://pytorch.org/get-started/previous-versions/)
+- [PyTorch Forums Discussion](https://discuss.pytorch.org/t/pytorch-2-3-with-cuda-12-4-wont-download-gpu-version/202757)
+
+### Performance Notes
 - **Batch Size**: Larger batches (1000-3000) work well with GPU memory
-- **Early Stopping**: Use `--patience 10-20` to avoid overtraining
-- **Parameter Sets**: Start with set 4 (200,200,2) for good balance
+- **Parameter Sets**: Start with set 1 (200,100,2) for good balance; set 5 (200,300,2) for ECC R=3
 - **ECC Overhead**: Minimal (~5-10%) computational overhead for significant quality gains
 
-### Memory Management
-- **GPU Memory**: Parameter set 7 (500,300,5) requires ~8GB GPU memory
-- **CPU Fallback**: Automatic fallback to CPU with warning message
-- **DataLoader Workers**: Automatically optimized based on available CPU cores
+## ECC Integration
 
-## Configuration
+### Research Validation
+ECC implementation follows **codedVAE** methodology ([arXiv:2410.07840](https://arxiv.org/abs/2410.07840)) which reports **BER/WER (MAP)** reductions vs. uncoded DVAE and improved calibration. Our A/B comparison script mirrors these metrics and adds standard molecule metrics (**validity/uniqueness/novelty**) from MOSES benchmarking ([Frontiers in Pharmacology](https://www.frontiersin.org/journals/pharmacology/articles/10.3389/fphar.2020.565644/full)).
 
-### Primary Config (`config.py`)
-- **Model Architecture**: `HIDDEN_SIZE`, `LATENT_SIZE`, `DEPTH`
-- **Optimization**: `METRIC="qed"`, `OPTIMIZE_NUM=100`
-- **Gurobi License**: Auto-detects `gurobi.lic` in project root
+### Compatible Parameter Sets
+```bash
+# R=2 compatible: sets 0,1,2,3,4,6 (latent sizes divisible by 2)
+# R=3 compatible: sets 5,7 (latent sizes: 300,300)
 
-### Dependencies
-- **Core**: `torch>=2.7.1`, `rdkit>=2025.3.3`, `gurobi-optimods>=2.0.0`
-- **Scientific**: `numpy`, `scikit-learn`, `pyyaml`
-- **License**: Place `gurobi.lic` in project root for Gurobi solver
+python trainvae.py -n 1 --ecc-type repetition --ecc-R 2  # ✅ 100%2=0
+python trainvae.py -n 5 --ecc-type repetition --ecc-R 3  # ✅ 300%3=0  
+python trainvae.py -n 0 --ecc-type repetition --ecc-R 3  # ❌ 100%3≠0 (validation error)
+```
 
-## Design Principles
+## Minimal Copy-Pasteable Workflow
 
-### KISS (Keep It Simple, Stupid)
-- **Single Best Model**: Training saves only the best checkpoint, not every epoch
-- **Backward Compatible**: ECC features are optional and disabled by default
-- **Modern CLI**: Unified `argparse` interfaces across all scripts
-- **Evidence-Based**: All claims supported by validation and testing
+### 1) Single GPU Training
+```bash
+# Baseline training (auto early stopping, tqdm progress bars)
+CUDA_VISIBLE_DEVICES=0 python trainvae.py -n 1
 
-### Early Stopping Rationale
-Based on PyTorch best practices for saving models ([PyTorch Docs](https://pytorch.org/tutorials/beginner/saving_loading_models.html)):
-- **Deep Copy State**: Uses `model.state_dict().copy()` to avoid mutations
-- **Validation Mode**: Proper `model.eval()` during validation, `model.train()` afterward  
-- **Best Only**: Prevents checkpoint bloat and focuses on optimal performance
+# ECC training (compatible parameter set required)  
+CUDA_VISIBLE_DEVICES=0 python trainvae.py -n 1 --ecc-type repetition --ecc-R 2
+```
 
-### ECC Integration Rationale
-Based on codedVAE research ([arXiv:2410.07840](https://arxiv.org/abs/2410.07840)):
-- **Structured Redundancy**: ECC adds structured redundancy to improve discrete VAE generation
-- **Error Tolerance**: Repetition codes correct transmission/quantization errors automatically
-- **Quality Improvement**: Measured 80-90% BER/WER improvements with better uncertainty calibration
+### 2) A/B Comparison
+```bash
+# Compare baseline vs ECC with real metrics (BER, WER, molecule quality)
+CUDA_VISIBLE_DEVICES=0 python ab_compare_ecc.py -n 1 --ecc-R 2 --train-subset 0 --eval-subset 2000
+# Output: results/compare_n1_timestamp.json/.csv
+```
 
-## Development Workflow
+### 3) Sampling and Optimization
+```bash
+# Sampling with trained models
+CUDA_VISIBLE_DEVICES=0 python sample.py -n 1 --w_save_path weights/compare_baseline/best_model.pt --subset 500
 
-### Recommended Steps
-1. **Start Simple**: `python trainvae.py -n 4` (standard B-VAE)
-2. **Verify Training**: Check for early stopping messages and best model save
-3. **Test Sampling**: Use saved best model for generation
-4. **Add ECC**: If needed, use compatible parameter sets with `--ecc-type repetition`
-5. **Optimize**: Run `mainstream.py` for molecular property optimization
+# Property optimization  
+python mainstream.py --seed 1 --ecc-type repetition --ecc-R 2
+```
 
-### Production Deployment
-1. **Full Training**: Use full dataset (no `--subset`)
-2. **Appropriate Hardware**: GPU recommended for large models
-3. **License Management**: Ensure `gurobi.lic` available for optimization
-4. **Model Persistence**: Best models automatically saved to `weights/` directory
+### 4) Developer Testing
+```bash
+# Quick smoke test (subset data, early patience)
+python trainvae.py -n 0 --subset 500 --patience 3
+```
 
-## Claude Code Best Practices Integration
+## Key Features
 
-### Small, Reviewable Diffs
-- Make minimal changes with clear purpose
-- Test each step before proceeding
-- Use early stopping to avoid overtraining
+### Auto-Enabled Optimizations
+- **Early Stopping**: Default ON, saves only best model, prevents overtraining
+- **Mixed Precision (AMP)**: GPU acceleration with GradScaler for faster training
+- **Progress Tracking**: Real-time tqdm with loss/validation metrics and patience
+- **ECC Validation**: Automatic parameter compatibility checking
+- **Smart Defaults**: Optimal DataLoader, CUDNN benchmarking, device detection
 
-### Evidence-Based Development  
-- Validate parameter combinations (e.g., ECC divisibility)
-- Monitor training metrics and early stopping triggers
-- Test interfaces with `--help` and small runs
+### Evidence-Based Implementation
+- **codedVAE Research**: BER/WER reduction methodology ([arXiv:2410.07840](https://arxiv.org/abs/2410.07840))
+- **MOSES Metrics**: Standard molecule benchmarking ([Frontiers in Pharmacology](https://www.frontiersin.org/journals/pharmacology/articles/10.3389/fphar.2020.565644/full))
+- **PyTorch Best Practices**: Model saving, mixed precision, validation patterns
+- **Real Data Validation**: All metrics computed from actual training/generation
 
-### Systematic Approach
-1. **Understand**: Read current configuration and model architecture
-2. **Plan**: Choose appropriate parameter sets and ECC settings
-3. **Execute**: Run training with proper validation
-4. **Verify**: Confirm best model saves and loads correctly
-
-For questions or issues, refer to the error messages which include context and suggestions for resolution.
+### Dependencies & Setup
+- **Core**: `torch`, `rdkit`, `gurobi-optimods`, `numpy`, `tqdm`
+- **Optional**: `pandas`, `matplotlib` (for visualization in evaluation)
+- **License**: Place `gurobi.lic` in project root for optimization features
 

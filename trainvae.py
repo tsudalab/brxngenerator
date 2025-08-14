@@ -14,6 +14,8 @@ from torch.cuda.amp import autocast, GradScaler
 
 import math, random, sys, argparse
 from collections import deque
+# [tqdm] Import for progress bars
+from tqdm import tqdm
 
 from rxnft_vae.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
 from rxnft_vae.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
@@ -91,7 +93,9 @@ def train(data_pairs, model, config_args, train_args):
 	patience = train_args.patience
 	min_delta = train_args.min_delta
 
-	for epoch in range(config_args['epochs']):
+	# [tqdm] Epoch progress bar
+	epoch_pbar = tqdm(range(config_args['epochs']), desc="Training Epochs", unit="epoch")
+	for epoch in epoch_pbar:
 		random.shuffle(train_pairs)
 		# [GPU] Optimize DataLoader with pin_memory and num_workers
 		num_workers = min(4, os.cpu_count() // 2) if device.type == 'cuda' else 0
@@ -109,7 +113,10 @@ def train(data_pairs, model, config_args, train_args):
 		total_molecule_distance_loss =0
 		total_molecule_label_loss = 0
 		total_label_acc =0
-		for it, batch in enumerate(dataloader):
+		
+		# [tqdm] Batch progress bar  
+		batch_pbar = tqdm(dataloader, desc=f"Epoch {epoch}", leave=False, unit="batch")
+		for it, batch in enumerate(batch_pbar):
 			if epoch < 20:
 				beta = schedule(counter, M)
 			else:
@@ -132,7 +139,12 @@ def train(data_pairs, model, config_args, train_args):
 				t_loss.backward()
 				optimizer.step()
 			
-			print('loss: ', t_loss.item(), kl_loss.item())
+			# [tqdm] Update batch progress with current loss
+			batch_pbar.set_postfix({
+				'loss': f"{t_loss.item():.4f}", 
+				'kl': f"{kl_loss.item():.4f}",
+				'beta': f"{beta:.3f}"
+			})
 			total_loss += t_loss
 			total_pred_loss += pred_loss
 			total_stop_loss += stop_loss
@@ -146,10 +158,12 @@ def train(data_pairs, model, config_args, train_args):
 			total_label_acc += label_acc
 
 				
-		print("*******************Epoch", epoch, "******************", counter, beta)
-		print("Validation Loss")
+		# [tqdm] Update epoch progress bar with validation loss
 		val_loss = validate(val_pairs, model, config_args)
-		print("Train Loss")
+		epoch_pbar.set_postfix({
+			'val_loss': f"{val_loss:.4f}", 
+			'patience': f"{patience_counter}/{patience}"
+		})
 		train_pred_loss = total_pred_loss.item()/len(dataloader)
 		train_stop_loss = total_stop_loss.item()/len(dataloader)
 		train_template_loss = total_template_loss.item()/len(dataloader)
@@ -202,6 +216,7 @@ def train(data_pairs, model, config_args, train_args):
 		# Check for early stopping
 		if patience_counter >= patience:
 			print(f"Early stopping triggered at epoch {epoch}")
+			epoch_pbar.close()  # [tqdm] Close progress bar on early stop
 			break
 	
 	# Save only the best model at the end
