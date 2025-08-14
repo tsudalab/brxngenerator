@@ -69,11 +69,11 @@ class RXNDecoder1(nn.Module):
 		self.W_is_leaf = nn.Linear(self.latent_size + 3 * self.hidden_size, 1)
 
 
-		self.molecule_loss = nn.MSELoss(size_average=False)
-		self.is_leaf_loss = nn.BCEWithLogitsLoss(size_average=False)
-		self.starting_react_loss = nn.CrossEntropyLoss(size_average=False)
-		self.template_loss = nn.CrossEntropyLoss(size_average=False)
-		self.stop_loss = nn.BCEWithLogitsLoss(size_average=False)
+		self.molecule_loss = nn.MSELoss(reduction='sum')
+		self.is_leaf_loss = nn.BCEWithLogitsLoss(reduction='sum')
+		self.starting_react_loss = nn.CrossEntropyLoss(reduction='sum')
+		self.template_loss = nn.CrossEntropyLoss(reduction='sum')
+		self.stop_loss = nn.BCEWithLogitsLoss(reduction='sum')
 
 	def forward(self, rxn_tree_batch, latent_vecs, encoder_outputs):
 		orders = []
@@ -303,9 +303,9 @@ class RXNDecoder(nn.Module):
 		else:
 			self.mpn = mpn
 
-		self.molecule_distance_loss = nn.MSELoss(size_average = False)
-		self.template_loss = nn.CrossEntropyLoss(size_average = False)
-		self.molecule_label_loss = nn.CrossEntropyLoss(size_average = False) 
+		self.molecule_distance_loss = nn.MSELoss(reduction='sum')
+		self.template_loss = nn.CrossEntropyLoss(reduction='sum')
+		self.molecule_label_loss = nn.CrossEntropyLoss(reduction='sum') 
 
 		self.W_root = nn.Linear(self.latent_size, self.hidden_size)
 		self.W_template = nn.Linear(2 * self.hidden_size + self.latent_size, self.templateDic.size())
@@ -315,8 +315,8 @@ class RXNDecoder(nn.Module):
 
 
 
-		self.gru = nn.GRU(3 * self.hidden_size + self.latent_size, self.hidden_size, dropout=0.5)
-		self.gru_template = nn.GRU(1 * self.hidden_size + self.latent_size, self.hidden_size, dropout=0.5)
+		self.gru = nn.GRU(3 * self.hidden_size + self.latent_size, self.hidden_size, dropout=0.0)  # dropout=0 when num_layers=1
+		self.gru_template = nn.GRU(1 * self.hidden_size + self.latent_size, self.hidden_size, dropout=0.0)  # dropout=0 when num_layers=1
 
 
 	def decode_many_time(self, latent_vector, encoder_outputs, n):

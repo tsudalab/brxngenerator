@@ -31,6 +31,7 @@ from rxnft_vae.vae import bFTRXNVAE
 from rxnft_vae.mpn import MPN
 from rxnft_vae.evaluate import Evaluator
 from rxnft_vae.metrics_eval import MolecularMetrics, load_training_molecules
+from rxnft_vae.latent_metrics import LatentMetrics
 
 
 def seed_all(seed):
@@ -110,8 +111,8 @@ def train_model(model, data_pairs, config, model_name, device):
     patience = config.get('patience', 10)
     min_delta = config.get('min_delta', 0.0)
     
-    # Train/val split
-    val_size = min(500, len(data_pairs) // 10)
+    # Train/val split (ensure at least 1 validation sample)
+    val_size = max(1, min(500, len(data_pairs) // 10))
     val_pairs = data_pairs[:val_size]
     train_pairs = data_pairs[val_size:]
     
@@ -176,7 +177,7 @@ def train_model(model, data_pairs, config, model_name, device):
             for batch in val_dataloader:
                 t_loss, pred_loss, stop_loss, template_loss, molecule_label_loss, pred_acc, stop_acc, template_acc, label_acc, kl_loss, molecule_distance_loss = model(batch, config['beta'], epsilon_std=0.01)
                 val_loss += (pred_loss + stop_loss + template_loss + molecule_label_loss).item()
-            val_loss /= len(val_dataloader)
+            val_loss /= max(1, len(val_dataloader))
         
         # Early stopping check
         if val_loss < best_val_loss - min_delta:
@@ -213,9 +214,10 @@ def train_model(model, data_pairs, config, model_name, device):
     return best_model_path, training_time
 
 
-def compute_metrics(model, data_pairs, latent_size, ecc_type, ecc_R, model_name, n_samples=1000, reactions=False):
+def compute_metrics(model, data_pairs, latent_size, ecc_type, ecc_R, model_name, n_samples=1000, reactions=False, 
+                   latent_metrics_enabled=False, noise_epsilon=0.0, iwae_samples=0, device=None):
     """
-    Compute standardized 5 metrics for a trained model using new metrics_eval module.
+    Compute standardized 5 metrics + optional latent metrics for a trained model.
     
     Returns:
         metrics: Dictionary of computed metrics
@@ -226,12 +228,19 @@ def compute_metrics(model, data_pairs, latent_size, ecc_type, ecc_R, model_name,
     training_smiles = load_training_molecules("./data/data.txt")
     metrics_evaluator = MolecularMetrics(training_smiles=training_smiles)
     
+    # Initialize latent metrics if enabled
+    latent_evaluator = None
+    if latent_metrics_enabled:
+        print(f"[Latent Metrics] Enabled with noise_epsilon={noise_epsilon}, iwae_samples={iwae_samples}")
+        latent_evaluator = LatentMetrics(device or torch.device('cpu'))
+    
     # Generate samples using existing Evaluator
     evaluator = Evaluator(latent_size, model, ecc_type=ecc_type, ecc_R=ecc_R)
     
     # Generate molecules/reactions for evaluation
     print(f"Generating {n_samples} samples...")
     generated_samples = []
+    generated_reactions = []  # Track reactions separately
     max_attempts = n_samples * 3  # Allow some failures
     attempts = 0
     
@@ -243,12 +252,11 @@ def compute_metrics(model, data_pairs, latent_size, ecc_type, ecc_R, model_name,
             product, reactions_str = evaluator.decode_from_prior(ft_latent, rxn_latent, n=5)
             
             if product:
-                if reactions and reactions_str:
-                    # For reaction-based evaluation
-                    generated_samples.append(f"{reactions_str}>>{product}")
-                else:
-                    # For molecule-based evaluation
-                    generated_samples.append(product)
+                # Always collect molecules for MOSES metrics
+                generated_samples.append(product)
+                # Collect reactions if available for reaction validity metric
+                if reactions_str:
+                    generated_reactions.append(f"{reactions_str}>>{product}")
                     
         except Exception as e:
             continue
@@ -257,11 +265,22 @@ def compute_metrics(model, data_pairs, latent_size, ecc_type, ecc_R, model_name,
         print(f"[Warning] No valid samples generated for {model_name}")
         return {'model_name': model_name, 'error': 'No valid samples generated'}
     
-    print(f"Generated {len(generated_samples)} valid samples")
+    print(f"Generated {len(generated_samples)} molecules, {len(generated_reactions)} reactions")
     
-    # Compute standardized metrics
-    data_type = "reactions" if reactions else "molecules"
-    results = metrics_evaluator.evaluate_all_metrics(generated_samples, data_type=data_type)
+    # Compute molecule metrics (MOSES standard: validity, QED, uniqueness, novelty, SAS)
+    results = metrics_evaluator.evaluate_all_metrics(generated_samples, data_type="molecules")
+    
+    # Add reaction validity if reactions were generated
+    if generated_reactions:
+        reaction_validity = metrics_evaluator.compute_valid_reaction_rate(generated_reactions)
+        results.update(reaction_validity)
+        print(f"[Reaction Metrics] {reaction_validity['valid_count']}/{reaction_validity['total_count']} reactions valid")
+    else:
+        # No reactions generated - mark as N/A
+        results['valid_reaction_rate'] = 'N/A'
+        results['valid_count_reactions'] = 'N/A'
+        results['total_count_reactions'] = 'N/A'
+        print("[Reaction Metrics] N/A - no reaction strings generated")
     
     # Add model identification
     results.update({
@@ -272,6 +291,34 @@ def compute_metrics(model, data_pairs, latent_size, ecc_type, ecc_R, model_name,
         'generated_samples': len(generated_samples)
     })
     
+    # Compute latent metrics if enabled
+    if latent_evaluator is not None:
+        print(f"[Latent Metrics] Computing BER/WER/ECE/Entropy for {model_name}...")
+        try:
+            # Use a subset of data_pairs for latent evaluation (for speed)
+            latent_eval_batch = data_pairs[:min(100, len(data_pairs))]
+            
+            latent_results = latent_evaluator.evaluate_all_latent_metrics(
+                model=model,
+                data_batch=latent_eval_batch,
+                ecc_type=ecc_type,
+                ecc_R=ecc_R,
+                noise_epsilon=noise_epsilon,
+                iwae_samples=iwae_samples
+            )
+            
+            # Add latent metrics to results with prefix
+            for key, value in latent_results.items():
+                results[f"latent_{key}"] = value
+                
+            print(f"[Latent Metrics] ✅ BER={latent_results.get('ber_info', 0):.4f}, "
+                  f"WER={latent_results.get('wer', 0):.4f}, "
+                  f"ECE={latent_results.get('ece', 0):.4f}")
+                  
+        except Exception as e:
+            print(f"[Latent Metrics] ❌ Error: {e}")
+            results['latent_error'] = str(e)
+    
     return results
 
 
@@ -281,17 +328,24 @@ def compare_and_save_results(baseline_metrics, ecc_metrics, args, baseline_time,
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    # Calculate improvements for the 5 standardized metrics
+    # Calculate improvements for the 5 standardized metrics + latent metrics
     improvements = {}
     key_metrics = ['valid_reaction_rate', 'valid_molecule_rate', 'avg_qed', 'uniqueness', 'novelty', 'avg_sas']
+    
+    # Add latent metrics if available
+    latent_metric_keys = ['latent_ber_info', 'latent_wer', 'latent_ece', 'latent_entropy', 'latent_elbo']
+    if any(key in baseline_metrics for key in latent_metric_keys):
+        key_metrics.extend(latent_metric_keys)
     
     for key in key_metrics:
         if key in baseline_metrics and key in ecc_metrics:
             baseline_val = baseline_metrics[key]
             ecc_val = ecc_metrics[key]
-            if baseline_val > 0:
-                # For SAS, lower is better, so improvement calculation is reversed
-                if key == 'avg_sas':
+            # Skip if either value is not numeric (e.g., 'N/A')
+            if isinstance(baseline_val, (int, float)) and isinstance(ecc_val, (int, float)) and abs(baseline_val) > 1e-8:
+                # Metrics where lower is better (negative improvement means improvement)
+                lower_is_better = ['avg_sas', 'latent_ber_info', 'latent_wer', 'latent_ece', 'latent_entropy']
+                if key in lower_is_better:
                     improvement = ((baseline_val - ecc_val) / baseline_val) * 100
                 else:
                     # For other metrics, higher is better
@@ -350,7 +404,7 @@ def compare_and_save_results(baseline_metrics, ecc_metrics, args, baseline_time,
     print(f"{'METRIC':<25} {'BASELINE':<15} {'ECC':<15} {'IMPROVEMENT':<15}")
     print("-"*80)
     
-    # Display the 5 standardized metrics
+    # Display the 5 standardized metrics + latent metrics if available
     display_metrics = [
         ('valid_reaction_rate', 'Valid Reaction Rate'),
         ('valid_molecule_rate', 'Valid Molecule Rate'),
@@ -360,12 +414,31 @@ def compare_and_save_results(baseline_metrics, ecc_metrics, args, baseline_time,
         ('avg_sas', 'Average SAS')
     ]
     
+    # Add latent metrics if computed
+    latent_metrics = [
+        ('latent_ber_info', 'BER (info bits)'),
+        ('latent_wer', 'WER'),
+        ('latent_ece', 'ECE'),
+        ('latent_entropy', 'Entropy'),
+        ('latent_elbo', 'ELBO')
+    ]
+    
+    # Check if latent metrics are available
+    has_latent_metrics = any(key in baseline_metrics for key, _ in latent_metrics)
+    if has_latent_metrics:
+        display_metrics.extend(latent_metrics)
+    
     for key, display_name in display_metrics:
         baseline_val = baseline_metrics.get(key, 0)
         ecc_val = ecc_metrics.get(key, 0)
         improvement = improvements.get(f"{key}_improvement_%", 0)
         
-        print(f"{display_name:<25} {baseline_val:<15.4f} {ecc_val:<15.4f} {improvement:>14.1f}%")
+        # Format values, handling 'N/A' strings
+        baseline_str = f"{baseline_val:>15.4f}" if isinstance(baseline_val, (int, float)) else f"{str(baseline_val):>15}"
+        ecc_str = f"{ecc_val:>15.4f}" if isinstance(ecc_val, (int, float)) else f"{str(ecc_val):>15}"
+        improvement_str = f"{improvement:>14.1f}%" if isinstance(improvement, (int, float)) else f"{'N/A':>15}"
+        
+        print(f"{display_name:<25} {baseline_str} {ecc_str} {improvement_str}")
     
     print("-"*80)
     print(f"{'Training time (s)':<25} {baseline_time:<15.1f} {ecc_time:<15.1f} {'-':<15}")
@@ -384,6 +457,14 @@ def main():
     parser.add_argument('--fcd-samples', type=int, default=0, help='FCD sample count (0=skip FCD)')
     parser.add_argument('--patience', type=int, default=10, help='Early stopping patience')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
+    
+    # Latent metrics flags
+    parser.add_argument('--latent-metrics', type=str, default='false', choices=['true', 'false'], 
+                       help='Enable latent-space metrics (BER/WER/ECE/Entropy)')
+    parser.add_argument('--noise-epsilon', type=float, default=0.0, 
+                       help='Channel noise flip rate for ECC robustness test (0.0-0.1)')
+    parser.add_argument('--iwae-samples', type=int, default=0, 
+                       help='IWAE importance samples (0=skip, 64=recommended)')
     
     args = parser.parse_args()
     
@@ -431,6 +512,10 @@ def main():
     print(f"  Training data: {len(train_data_pairs)} pairs")
     print(f"  Evaluation data: {len(eval_data_pairs)} pairs")
     print(f"  Device: {device}")
+    print(f"  Latent metrics: {args.latent_metrics}")
+    if args.latent_metrics == 'true':
+        print(f"    Noise epsilon: {args.noise_epsilon}")
+        print(f"    IWAE samples: {args.iwae_samples}")
     
     # === BASELINE TRAINING ===
     # [ECC] Baseline model without ECC
@@ -440,7 +525,9 @@ def main():
     
     # Load best baseline model for evaluation
     baseline_model.load_state_dict(torch.load(baseline_path, map_location=device))
-    baseline_metrics = compute_metrics(baseline_model, eval_data_pairs, latent_size, 'none', args.ecc_R, "Baseline", args.eval_subset)
+    baseline_metrics = compute_metrics(baseline_model, eval_data_pairs, latent_size, 'none', args.ecc_R, "Baseline", 
+                                     args.eval_subset, latent_metrics_enabled=(args.latent_metrics == 'true'), 
+                                     noise_epsilon=args.noise_epsilon, iwae_samples=args.iwae_samples, device=device)
     
     # === ECC TRAINING ===
     # [ECC] ECC model with repetition code
@@ -450,7 +537,9 @@ def main():
     
     # Load best ECC model for evaluation  
     ecc_model.load_state_dict(torch.load(ecc_path, map_location=device))
-    ecc_metrics = compute_metrics(ecc_model, eval_data_pairs, latent_size, 'repetition', args.ecc_R, "ECC", args.eval_subset)
+    ecc_metrics = compute_metrics(ecc_model, eval_data_pairs, latent_size, 'repetition', args.ecc_R, "ECC", 
+                                args.eval_subset, latent_metrics_enabled=(args.latent_metrics == 'true'), 
+                                noise_epsilon=args.noise_epsilon, iwae_samples=args.iwae_samples, device=device)
     
     # === COMPARISON ===
     results = compare_and_save_results(baseline_metrics, ecc_metrics, args, baseline_time, ecc_time)

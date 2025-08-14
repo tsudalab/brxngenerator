@@ -21,11 +21,24 @@ import numpy as np
 try:
     from rdkit import Chem
     from rdkit.Chem import QED, rdChemReactions
-    import sascorer  # Assume sascorer.py is in same directory
     RDKIT_AVAILABLE = True
 except ImportError as e:
     print(f"[Warning] RDKit not available: {e}")
     RDKIT_AVAILABLE = False
+
+# SAS scorer import with fallback
+SAS_AVAILABLE = False
+try:
+    import sascorer
+    SAS_AVAILABLE = True
+except ImportError:
+    try:
+        # Try RDKit contrib version
+        from rdkit.Contrib.SA_Score import sascorer
+        SAS_AVAILABLE = True
+    except ImportError:
+        print("[Warning] SAS scorer not available - SAS metrics will be N/A")
+        SAS_AVAILABLE = False
 
 
 class MolecularMetrics:
@@ -224,8 +237,13 @@ class MolecularMetrics:
             Dict with 'novelty', 'novel_count', 'unique_count'
         """
         if not self.training_canonical:
-            print("[Warning] No training set provided - novelty = uniqueness")
-            return self.compute_uniqueness(smiles_list)
+            print("[Warning] No training set provided - novelty = N/A")
+            uniqueness_result = self.compute_uniqueness(smiles_list)
+            return {
+                'novelty': 'N/A',
+                'novel_count': 'N/A', 
+                'unique_count': uniqueness_result['unique_count']
+            }
             
         canonical_smiles = []
         for smi in smiles_list:
@@ -245,10 +263,10 @@ class MolecularMetrics:
             'unique_count': len(unique_canonical)
         }
     
-    def compute_average_sas(self, smiles_list: List[str]) -> Dict[str, float]:
+    def compute_average_sas(self, smiles_list: List[str]) -> Dict[str, Union[float, str]]:
         """
         Compute average SAS (Synthetic Accessibility Score) for valid molecules.
-        Lower scores indicate easier synthesis.
+        Lower scores indicate easier synthesis (range ~1-10).
         
         Args:
             smiles_list: List of SMILES strings
@@ -256,6 +274,9 @@ class MolecularMetrics:
         Returns:
             Dict with 'avg_sas', 'sas_std', 'valid_count'
         """
+        if not SAS_AVAILABLE:
+            return {'avg_sas': 'N/A', 'sas_std': 'N/A', 'valid_count': 'N/A'}
+            
         sas_scores = []
         
         for smi in smiles_list:
@@ -264,12 +285,14 @@ class MolecularMetrics:
                 if mol is not None:
                     Chem.SanitizeMol(mol)
                     sas_score = sascorer.calculateScore(mol)
-                    sas_scores.append(sas_score)
+                    # Ensure valid SAS range (typically 1-10)
+                    if 0.1 <= sas_score <= 15.0:  # Allow some tolerance
+                        sas_scores.append(sas_score)
             except Exception:
                 continue
                 
         if not sas_scores:
-            return {'avg_sas': 0.0, 'sas_std': 0.0, 'valid_count': 0}
+            return {'avg_sas': 'N/A', 'sas_std': 'N/A', 'valid_count': 0}
             
         return {
             'avg_sas': float(np.mean(sas_scores)),

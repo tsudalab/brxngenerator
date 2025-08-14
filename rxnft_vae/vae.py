@@ -122,7 +122,11 @@ class bFTRXNVAE(nn.Module):
 		self.template_vocab = template_vocab
 		self.depth = depth
 		self.n_class = 2
-		self.binary_size = latent_size//2
+		# [FIX] For fairness: baseline uses full latent_size, only ECC uses half for each part (ft/rxn)
+		if ecc_type == 'none':
+			self.binary_size = latent_size  # Baseline: full latent size as binary
+		else:
+			self.binary_size = latent_size//2  # ECC: split between ft and rxn parts
 		self.device = device
 		
 		# [ECC] Initialize error correcting code
@@ -162,6 +166,7 @@ class bFTRXNVAE(nn.Module):
 
 
 		self.fragment_encoder = FTEncoder(self.fragment_vocab, self.hidden_size, self.fragment_embedding)
+		# [FIX] Keep original latent_size, adjust vector dimensions at runtime
 		self.fragment_decoder = FTDecoder(self.fragment_vocab, self.hidden_size, self.latent_size, self.fragment_embedding)
 
 		self.rxn_decoder = RXNDecoder(self.hidden_size, self.latent_size, self.reactant_vocab, self.template_vocab, self.reactant_embedding, self.template_embedding, self.mpn)
@@ -169,11 +174,12 @@ class bFTRXNVAE(nn.Module):
 
 		self.combine_layer = nn.Linear(2 *hidden_size, hidden_size)
 
-		self.FT_mean = nn.Linear(hidden_size, int(latent_size))
-		self.FT_var = nn.Linear(hidden_size, int(latent_size))
+		# [FIX] Keep linear layers at binary_size for decoder compatibility
+		self.FT_mean = nn.Linear(hidden_size, int(self.binary_size))
+		self.FT_var = nn.Linear(hidden_size, int(self.binary_size))
 
-		self.RXN_mean = nn.Linear(hidden_size, int(latent_size))
-		self.RXN_var = nn.Linear(hidden_size, int(latent_size))
+		self.RXN_mean = nn.Linear(hidden_size, int(self.binary_size))
+		self.RXN_var = nn.Linear(hidden_size, int(self.binary_size))
 
 	def encode(self, ftrxn_tree_batch):
 		batch_size = len(ftrxn_tree_batch)
@@ -202,10 +208,20 @@ class bFTRXNVAE(nn.Module):
 	# 	kl_loss = torch.sum(q * torch.log(q * self.n_class + 1e-20), dim=-1).mean()# .to(self.device)
 	# 	return y, kl_loss
 	def gumbel_softmax(self, q, logits, temp):
-		# 生成 Gumbel 噪声并显式指定设备
-		G_sample = self.gumbel_sample(logits.shape).to(logits.device)  # 关键修复！
-		y = F.softmax((logits + G_sample) / temp, dim=-1).view(-1, self.binary_size*self.n_class)
-		kl_loss = torch.sum(q * torch.log(q * self.n_class + 1e-20), dim=-1).mean()
+		# [FIX] Reshape for proper softmax computation over class dimension
+		batch_size = q.size(0)
+		# Reshape to [batch_size * binary_size, n_class] for class-wise softmax
+		logits_reshaped = logits.view(-1, self.n_class)
+		q_reshaped = q.view(-1, self.n_class)
+		
+		# Generate Gumbel noise
+		G_sample = self.gumbel_sample(logits_reshaped.shape).to(logits.device)
+		# Apply Gumbel softmax over class dimension
+		y = F.softmax((logits_reshaped + G_sample) / temp, dim=-1)
+		
+		# Reshape back to match q shape
+		y = y.view(q.shape)
+		kl_loss = torch.sum(q_reshaped * torch.log(q_reshaped * self.n_class + 1e-20), dim=-1).mean()
 		return y, kl_loss
 
 	# def gumbel_sample(self, shape, eps=1e-20):
@@ -229,20 +245,34 @@ class bFTRXNVAE(nn.Module):
 		root_vecs_rxn = self.rxn_encoder(rxn_trees)
 		ft_mean = self.FT_mean(root_vecs)
 		rxn_mean = self.RXN_mean(root_vecs_rxn)
-
-		log_ft = ft_mean.view(-1, self.n_class)# .to(self.device)
-		q_ft = F.softmax(log_ft, dim=-1).view(-1, self.binary_size*self.n_class)
-		log_rxn = rxn_mean.view(-1, self.n_class)# .to(self.device)
-		q_rxn = F.softmax(log_rxn, dim=-1).view(-1, self.binary_size*self.n_class)
+		# [FIX] For binary VAE, treat each output as a separate binary choice
+		# Convert single logits to binary choice logits [value, 0] → [0, value] for Gumbel softmax
+		ft_binary_logits = torch.stack([torch.zeros_like(ft_mean), ft_mean], dim=-1)  # [batch, binary_size, 2]
+		rxn_binary_logits = torch.stack([torch.zeros_like(rxn_mean), rxn_mean], dim=-1)  # [batch, binary_size, 2]
+		
+		# Reshape for Gumbel softmax: [batch_size, binary_size*2]
+		log_ft = ft_binary_logits.view(-1, self.n_class)  # [batch*binary_size, 2]
+		q_ft = F.softmax(log_ft, dim=-1).view(batch_size, -1)  # [batch_size, binary_size*2]
+		log_rxn = rxn_binary_logits.view(-1, self.n_class)  # [batch*binary_size, 2] 
+		q_rxn = F.softmax(log_rxn, dim=-1).view(batch_size, -1)  # [batch_size, binary_size*2]
   
-		g_ft_vecs, ft_kl = self.gumbel_softmax(q_ft, log_ft, temp)
-		g_rxn_vecs, rxn_kl = self.gumbel_softmax(q_rxn, log_rxn, temp)
+		# Reshape log tensors to match q shape for gumbel_softmax
+		log_ft_reshaped = log_ft.view(batch_size, -1)  # [batch_size, binary_size*2]
+		log_rxn_reshaped = log_rxn.view(batch_size, -1)  # [batch_size, binary_size*2]
+		
+		g_ft_vecs, ft_kl = self.gumbel_softmax(q_ft, log_ft_reshaped, temp)
+		g_rxn_vecs, rxn_kl = self.gumbel_softmax(q_rxn, log_rxn_reshaped, temp)
   
 		# [ECC] Apply ECC encoding/decoding with code consistency regularization
 		ecc_consistency_loss = 0.0
 		if self.ecc_codec is not None:
+			# [FIX] Properly reshape vectors for ECC processing
+			# g_ft_vecs shape should be [batch_size, binary_size*n_class]
+			g_ft_reshaped = g_ft_vecs.view(batch_size, self.binary_size, self.n_class)
+			g_rxn_reshaped = g_rxn_vecs.view(batch_size, self.binary_size, self.n_class)
+			
 			# Process fragment vectors
-			g_ft_binary = torch.argmax(g_ft_vecs.view(-1, self.binary_size, self.n_class), dim=-1).float()
+			g_ft_binary = torch.argmax(g_ft_reshaped, dim=-1).float()  # [batch_size, binary_size]
 			ft_info_bits = self.ecc_codec.decode(g_ft_binary)
 			ft_encoded = self.ecc_codec.encode(ft_info_bits)
 			
@@ -250,7 +280,7 @@ class bFTRXNVAE(nn.Module):
 			ecc_consistency_loss += F.mse_loss(g_ft_binary, ft_encoded)
 			
 			# Process reaction vectors
-			g_rxn_binary = torch.argmax(g_rxn_vecs.view(-1, self.binary_size, self.n_class), dim=-1).float()
+			g_rxn_binary = torch.argmax(g_rxn_reshaped, dim=-1).float()  # [batch_size, binary_size]
 			rxn_info_bits = self.ecc_codec.decode(g_rxn_binary)
 			rxn_encoded = self.ecc_codec.encode(rxn_info_bits)
 			
@@ -258,13 +288,28 @@ class bFTRXNVAE(nn.Module):
 			ecc_consistency_loss += F.mse_loss(g_rxn_binary, rxn_encoded)
 			
 			# Update vectors with ECC-processed versions for improved training stability
-			g_ft_vecs = F.one_hot(ft_encoded.long(), num_classes=self.n_class).float().view(-1, self.binary_size*self.n_class)
-			g_rxn_vecs = F.one_hot(rxn_encoded.long(), num_classes=self.n_class).float().view(-1, self.binary_size*self.n_class)
+			g_ft_vecs = F.one_hot(ft_encoded.long(), num_classes=self.n_class).float().view(batch_size, self.binary_size*self.n_class)
+			g_rxn_vecs = F.one_hot(rxn_encoded.long(), num_classes=self.n_class).float().view(batch_size, self.binary_size*self.n_class)
   
 		kl_loss = ft_kl + rxn_kl
 
-		pred_loss, stop_loss, pred_acc, stop_acc = self.fragment_decoder(ft_trees, g_ft_vecs)
-		molecule_distance_loss, template_loss, molecule_label_loss, template_acc, label_acc = self.rxn_decoder(rxn_trees, g_rxn_vecs, encoder_outputs)
+		# [FIX] Extract binary representations for decoder input
+		# Convert Gumbel vectors back to binary latent representations
+		g_ft_binary = torch.argmax(g_ft_vecs.view(batch_size, self.binary_size, self.n_class), dim=-1).float()
+		g_rxn_binary = torch.argmax(g_rxn_vecs.view(batch_size, self.binary_size, self.n_class), dim=-1).float()
+		
+		# For decoders, we need vectors of size latent_size
+		# Pad to latent_size if needed (for fair comparison between baseline and ECC)
+		if self.binary_size < self.latent_size:
+			pad_size = self.latent_size - self.binary_size
+			ft_decoder_vec = F.pad(g_ft_binary, (0, pad_size))
+			rxn_decoder_vec = F.pad(g_rxn_binary, (0, pad_size))
+		else:
+			ft_decoder_vec = g_ft_binary[:, :self.latent_size]
+			rxn_decoder_vec = g_rxn_binary[:, :self.latent_size]
+		
+		pred_loss, stop_loss, pred_acc, stop_acc = self.fragment_decoder(ft_trees, ft_decoder_vec)
+		molecule_distance_loss, template_loss, molecule_label_loss, template_acc, label_acc = self.rxn_decoder(rxn_trees, rxn_decoder_vec, encoder_outputs)
 		
 		rxn_decoding_loss = template_loss  + molecule_label_loss# + molecule_distance_loss
 		fragment_decoding_loss = pred_loss + stop_loss
@@ -274,12 +319,36 @@ class bFTRXNVAE(nn.Module):
 		total_loss = fragment_decoding_loss + rxn_decoding_loss + beta * (kl_loss) + ecc_weight * ecc_consistency_loss
 
 		return total_loss, pred_loss, stop_loss, template_loss, molecule_label_loss, pred_acc, stop_acc, template_acc, label_acc, kl_loss, molecule_distance_loss
+	
+	def encode_posteriors(self, ftrxn_tree_batch):
+		"""
+		Encode batch and return posterior probabilities for latent metrics.
+		
+		Args:
+			ftrxn_tree_batch: Batch of (fragment_tree, reaction_tree) pairs
+			
+		Returns:
+			posterior_probs: Tensor of shape [batch_size, binary_size] with p(z_i=1|x)
+		"""
+		self.eval()
+		with torch.no_grad():
+			batch_size = len(ftrxn_tree_batch)
+			ft_trees = [ftrxn_tree[0] for ftrxn_tree in ftrxn_tree_batch]
+			rxn_trees = [ftrxn_tree[1] for ftrxn_tree in ftrxn_tree_batch]
+			set_batch_nodeID(ft_trees, self.fragment_vocab)
 
-
-
-
-
-
-
-
-
+			# Encode to get posterior parameters
+			encoder_outputs, root_vecs = self.fragment_encoder(ft_trees)
+			root_vecs_rxn = self.rxn_encoder(rxn_trees)
+			
+			ft_mean = self.FT_mean(root_vecs)  # [batch, binary_size]
+			rxn_mean = self.RXN_mean(root_vecs_rxn)  # [batch, binary_size]
+			
+			# Convert single logits to probabilities for binary choices
+			ft_probs = torch.sigmoid(ft_mean)  # [batch, binary_size]
+			rxn_probs = torch.sigmoid(rxn_mean)  # [batch, binary_size]
+			
+			# Concatenate both parts to get full posterior
+			posterior_probs = torch.cat([ft_probs, rxn_probs], dim=1)  # shape: [batch, 2*binary_size]
+			
+			return posterior_probs

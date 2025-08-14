@@ -216,6 +216,54 @@ python trainvae.py -n 0 --subset 500 --patience 3
 - **Training-Time ECC**: Integrated ECC encoding/decoding in VAE forward pass with consistency regularization
 - **Real Data Validation**: All metrics computed from actual training/generation
 
+## Latent-space Metrics (codedVAE-style)
+
+### Overview
+Complementing the 5 standardized molecular metrics, we implement **latent-space evaluation metrics** following codedVAE methodology. These metrics diagnose **latent stability & calibration**, providing insights into the VAE's internal representations and ECC effectiveness.
+
+### Metrics Reported
+- **BER/WER (MAP with ECC grouping)**: Bit/Word Error Rate using Maximum A Posteriori decoding with ECC majority-vote correction
+- **ELBO (+ optional IWAE-K)**: Evidence Lower Bound and Importance Weighted Autoencoder bounds for generative quality  
+- **ECE**: Expected Calibration Error using reliability-diagram binning for confidence assessment
+- **Bitwise Entropy**: Average Shannon entropy over encoder posterior distributions
+
+### Why They Matter
+These metrics provide **orthogonal insights** to molecular quality scores:
+- **BER/WER reduction** demonstrates ECC's error-correction effectiveness ([codedVAE](https://arxiv.org/abs/2410.07840))
+- **Better calibration** (lower ECE) indicates more reliable confidence estimates
+- **IWAE bounds** provide tighter likelihood estimates than standard ELBO ([Burda et al.](https://arxiv.org/abs/1509.00519))
+- **Entropy analysis** reveals posterior sharpness and learning progression
+
+### Usage
+
+**Standard A/B comparison with latent metrics:**
+```bash
+CUDA_VISIBLE_DEVICES=0 python ab_compare_ecc.py -n 1 --ecc-R 2 --eval-subset 5000 \
+  --latent-metrics true --iwae-samples 64 --gpu 0
+```
+
+**With noise robustness testing:**
+```bash
+CUDA_VISIBLE_DEVICES=0 python ab_compare_ecc.py -n 1 --ecc-R 2 --eval-subset 5000 \
+  --latent-metrics true --noise-epsilon 0.05 --iwae-samples 64 --gpu 0
+```
+
+### Implementation Notes
+- **Real Posteriors**: Uses `encode_posteriors()` method for authentic per-bit probability distributions
+- **MOSES Compliance**: Validity metrics use proper denominators (#valid/#total) following MOSES benchmarking standards  
+- **IWAE computation** is slower but provides tighter bounds (use `--iwae-samples 64` for balance)
+- **ECE** follows reliability-diagram binning with 10 bins ([calibration literature](https://arxiv.org/html/2501.19047v2))
+- **Entropy** is averaged over bit posteriors: `H(p) = -p*log(p) - (1-p)*log(1-p)`
+- **Noisy-channel test** validates ECC robustness under controlled bit-flip perturbations
+- **Fair Comparison**: Baseline and ECC models use equivalent latent space sizes for unbiased evaluation
+
+### Expected Results
+With proper ECC implementation, expect:
+- **BER/WER reduction**: ECC should show lower error rates vs baseline
+- **Improved calibration**: ECC models often exhibit better confidence calibration  
+- **Comparable ELBO**: Likelihood bounds should remain competitive
+- **Controlled entropy**: Well-trained models show appropriate posterior sharpness
+
 ### Dependencies & Setup
 - **Core**: `torch`, `rdkit`, `gurobi-optimods`, `numpy`, `tqdm`
 - **Optional**: `pandas`, `matplotlib` (for visualization in evaluation)

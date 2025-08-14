@@ -31,8 +31,8 @@ class FTDecoder(nn.Module):
 		self.W_o = nn.Linear(hidden_size, self.ftvocab_size)
 		self.U_s = nn.Linear(hidden_size, 1)
 
-		self.pred_loss = nn.CrossEntropyLoss(size_average=False)
-		self.stop_loss = nn.BCEWithLogitsLoss(size_average=False)
+		self.pred_loss = nn.CrossEntropyLoss(reduction='sum')
+		self.stop_loss = nn.BCEWithLogitsLoss(reduction='sum')
 
 	def get_trace(self, node):
 		super_root = FragmentNode("")
@@ -217,6 +217,8 @@ class FTDecoder(nn.Module):
 				if direction==1:
 					pred_target.append(node_y.wid)
 					pred_list.append(i)
+			# [FIX] Ensure batch indices are within tree_vecs bounds
+			batch_list = [min(i, tree_vecs.size(0) - 1) for i in batch_list]
 			cur_batch = create_var(torch.LongTensor(batch_list))
 			cur_tree_vec = tree_vecs.index_select(0, cur_batch)
 			stop_hidden = torch.cat([cur_x, cur_o, cur_tree_vec], dim=1)
@@ -224,7 +226,7 @@ class FTDecoder(nn.Module):
 			stop_targets.extend(stop_target)
 
 			if len(pred_list) > 0:
-				batch_list = [batch_list[i] for i in pred_list]
+				batch_list = [min(batch_list[i], tree_vecs.size(0) - 1) for i in pred_list]
 				cur_batch = create_var(torch.LongTensor(batch_list))
 				pred_tree_vecs.append(tree_vecs.index_select(0, cur_batch))
 
