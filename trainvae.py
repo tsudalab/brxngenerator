@@ -9,6 +9,8 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
+# [GPU] Mixed precision training
+from torch.cuda.amp import autocast, GradScaler
 
 import math, random, sys, argparse
 from collections import deque
@@ -31,7 +33,9 @@ parser.add_argument("--ecc-type", type=str, choices=["none", "repetition"], defa
                     help="ECC type: none or repetition")
 parser.add_argument("--ecc-R", type=int, default=3, help="Repetition factor for ECC")
 parser.add_argument("--subset", type=int, default=None, help="Limit dataset size for testing")
-cli_args = parser.parse_args()
+parser.add_argument("--patience", type=int, default=10, help="Early stopping patience")
+parser.add_argument("--min-delta", type=float, default=0.0, help="Minimum improvement threshold")
+args = parser.parse_args()
 
 def schedule(counter, M):
 	x = counter/(2*M)
@@ -40,20 +44,34 @@ def schedule(counter, M):
 	else:
 		return 1.0 * x/M
 
-def train(data_pairs, model,args):
+def train(data_pairs, model, config_args, train_args):
 	n_pairs = len(data_pairs)
 	ind_list = [i for i in range(n_pairs)]
 	data_pairs = [data_pairs[i] for i in ind_list]
-	lr = args['lr']
-	batch_size = args['batch_size']
-	beta = args['beta']
-	save_path = args['save_path']
-	val_pairs = data_pairs[:1000]
-	train_pairs = data_pairs[1000:-1]
-	print("trainng size:", len(train_pairs))
+	lr = config_args['lr']
+	batch_size = config_args['batch_size']
+	beta = config_args['beta']
+	save_path = config_args['save_path']
+	device = config_args['device']  # [GPU] Get device from config
+	
+	# Proper train/val split that works with small datasets
+	val_size = min(1000, len(data_pairs) // 10)  # Use 10% for validation, capped at 1000
+	val_pairs = data_pairs[:val_size]
+	train_pairs = data_pairs[val_size:]
+	print("training size:", len(train_pairs))
 	print("valid size:", len(val_pairs))
+	
+	# [GPU] Enable CUDNN benchmarking for stable input sizes
+	if device.type == 'cuda':
+		torch.backends.cudnn.benchmark = True
+		print(f"[GPU] Training on {device} with CUDNN benchmark enabled")
+	
 	optimizer = optim.Adam(model.parameters(), lr = lr, weight_decay = 0.0001)
 	scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = 30, gamma = 0.5)
+	
+	# [GPU] Initialize mixed precision scaler
+	scaler = GradScaler() if device.type == 'cuda' else None
+	
 	tr_rec_loss_list = []
 	tr_kl_loss_list=[]
 	beta_list=[]
@@ -65,10 +83,21 @@ def train(data_pairs, model,args):
 
 	counter = 0
 	temp = init_temp
+	
+	# Early stopping variables
+	best_val_loss = float('inf')
+	best_model_state = None
+	patience_counter = 0
+	patience = train_args.patience
+	min_delta = train_args.min_delta
 
-	for epoch in range(args['epochs']):
+	for epoch in range(config_args['epochs']):
 		random.shuffle(train_pairs)
-		dataloader = DataLoader(train_pairs, batch_size = batch_size, shuffle = True, collate_fn = lambda x:x)
+		# [GPU] Optimize DataLoader with pin_memory and num_workers
+		num_workers = min(4, os.cpu_count() // 2) if device.type == 'cuda' else 0
+		dataloader = DataLoader(train_pairs, batch_size = batch_size, shuffle = True, 
+		                       collate_fn = lambda x:x, pin_memory=(device.type == 'cuda'),
+		                       num_workers=num_workers)
 		total_loss = 0
 		total_pred_loss=0
 		total_stop_loss =0
@@ -84,14 +113,25 @@ def train(data_pairs, model,args):
 			if epoch < 20:
 				beta = schedule(counter, M)
 			else:
-				beta = args['beta']
+				beta = config_args['beta']  # [Fix] Use config_args instead of undefined args
 			counter +=1
 			total_step += 1
 			temp = max(min_temp, temp*np.exp(-temp_anneal_rate*total_step))
-			model.zero_grad()
-			t_loss, pred_loss, stop_loss, template_loss, molecule_label_loss, pred_acc, stop_acc, template_acc, label_acc, kl_loss, molecule_distance_loss = model(batch, beta, temp=temp)
-			t_loss.backward()
-			optimizer.step()
+			
+			optimizer.zero_grad()
+			
+			# [GPU] Mixed precision forward pass
+			if scaler is not None:
+				with autocast():
+					t_loss, pred_loss, stop_loss, template_loss, molecule_label_loss, pred_acc, stop_acc, template_acc, label_acc, kl_loss, molecule_distance_loss = model(batch, beta, temp=temp)
+				scaler.scale(t_loss).backward()
+				scaler.step(optimizer)
+				scaler.update()
+			else:
+				t_loss, pred_loss, stop_loss, template_loss, molecule_label_loss, pred_acc, stop_acc, template_acc, label_acc, kl_loss, molecule_distance_loss = model(batch, beta, temp=temp)
+				t_loss.backward()
+				optimizer.step()
+			
 			print('loss: ', t_loss.item(), kl_loss.item())
 			total_loss += t_loss
 			total_pred_loss += pred_loss
@@ -108,7 +148,7 @@ def train(data_pairs, model,args):
 				
 		print("*******************Epoch", epoch, "******************", counter, beta)
 		print("Validation Loss")
-		val_loss = validate(val_pairs, model, args)
+		val_loss = validate(val_pairs, model, config_args)
 		print("Train Loss")
 		train_pred_loss = total_pred_loss.item()/len(dataloader)
 		train_stop_loss = total_stop_loss.item()/len(dataloader)
@@ -149,10 +189,31 @@ def train(data_pairs, model,args):
 				f.write(f"  kl loss: {train_kl_loss}\n")
 				f.write(f"  reconstruction loss: {train_reconstruction_loss}\n\n")
 
-		torch.save(model.state_dict(),"{}/bvae_iter-{}-with{}.npy".format(save_path,epoch+1,TaskID))
-		print("saving file:{}/bvae_iter-{}-with{}.npy".format(save_path,epoch+1,TaskID))
+		# Early stopping logic
+		if val_loss < best_val_loss - min_delta:
+			print(f"Best model updated at epoch {epoch}, val_loss = {val_loss:.6f}")
+			best_val_loss = val_loss
+			best_model_state = model.state_dict().copy()  # Deep copy current state
+			patience_counter = 0
+		else:
+			patience_counter += 1
+			print(f"No improvement for {patience_counter}/{patience} epochs")
+			
+		# Check for early stopping
+		if patience_counter >= patience:
+			print(f"Early stopping triggered at epoch {epoch}")
+			break
+	
+	# Save only the best model at the end
+	if best_model_state is not None:
+		best_model_path = "{}/bvae_best_model_with{}.npy".format(save_path, TaskID)
+		torch.save(best_model_state, best_model_path)
+		print(f"Best model saved: {best_model_path}")
+	else:
+		print("Warning: No best model state to save")
 
 def validate(data_pairs, model, args):
+	model.eval()  # Set model to evaluation mode
 	beta = args['beta']
 	batch_size = args['batch_size']
 	dataloader = DataLoader(data_pairs, batch_size = batch_size, shuffle = True, collate_fn = lambda x:x)
@@ -186,7 +247,11 @@ def validate(data_pairs, model, args):
 
 	print("*** template loss: ",total_template_loss.item()/len(dataloader), "template acc:", total_template_acc/len(dataloader))
 	print("*** label loss: ",total_molecule_label_loss.item()/len(dataloader), "label acc:", total_label_acc/len(dataloader))
-	return t_loss - beta * kl_loss
+	
+	# Calculate validation loss (using the total loss instead of just the last batch)
+	val_loss = (total_pred_loss + total_stop_loss + total_template_loss + total_molecule_label_loss).item() / len(dataloader)
+	model.train()  # Set model back to training mode
+	return val_loss
 
 
 
@@ -199,12 +264,16 @@ batch_size = 1000
 vocab_path = "./weights/data.txt_fragmentvocab.txt"
 data_filename = "./data/data.txt"
 epochs = 100
+# [DEV] Override epochs for subset testing
+if args.subset is not None:
+    epochs = min(5, epochs)  # Limit epochs for dev testing
+    print(f"[DEV] Subset mode: limiting epochs to {epochs}")
 
-args={}
+legacy_args={}
 
-args['batch_size'] = batch_size
-args['datasetname'] = data_filename
-args['epochs'] = epochs
+legacy_args['batch_size'] = batch_size
+legacy_args['datasetname'] = data_filename
+legacy_args['epochs'] = epochs
 
 print("loading data.....")
 
@@ -217,10 +286,10 @@ rxn_trees = [ReactionTree(route) for route in routes]
 molecules = [rxn_tree.molecule_nodes[0].smiles for rxn_tree in rxn_trees]
 
 # [ECC] Apply subset filtering if requested  
-if cli_args.subset is not None and len(rxn_trees) > cli_args.subset:
-    print(f"Using subset of {cli_args.subset} reactions (out of {len(rxn_trees)})")
-    rxn_trees = rxn_trees[:cli_args.subset]
-    molecules = molecules[:cli_args.subset]
+if args.subset is not None and len(rxn_trees) > args.subset:
+    print(f"Using subset of {args.subset} reactions (out of {len(rxn_trees)})")
+    rxn_trees = rxn_trees[:args.subset]
+    molecules = molecules[:args.subset]
     
 reactants = extract_starting_reactants(rxn_trees)
 templates, n_reacts = extract_templates(rxn_trees)
@@ -277,7 +346,7 @@ params = [
 ]
 
 
-i = params[int(cli_args.params_num)]
+i = params[int(args.params_num)]
 
 hidden_size = i[0]
 latent_size = i[1]
@@ -286,15 +355,23 @@ beta = i[3]
 lr = i[4]
 save_path = "weights" + i[5]
 
-args['save_path'] = save_path
-args['beta'] = beta
-args['lr'] = lr
+# [ECC] Validate ECC parameters after latent_size is defined
+if args.ecc_type == "repetition" and latent_size % args.ecc_R != 0:
+    raise ValueError(f"ECC repetition requires latent_size % ecc_R == 0. Got {latent_size} % {args.ecc_R} != 0")
+
+config_args = {}
+config_args['save_path'] = save_path
+config_args['beta'] = beta
+config_args['lr'] = lr
+config_args['batch_size'] = batch_size
+config_args['epochs'] = epochs
+config_args['device'] = device  # [GPU] Add device to config
 print("hidden size:", hidden_size, "latent_size:", latent_size, "batch size:", batch_size, "depth:", depth)
 print("beta:", beta, "lr:", lr)
 mpn = MPN(hidden_size, depth)
 model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, device=device, fragment_embedding=None, reactant_embedding=None, template_embedding=None).to(device)
 print("size of data pairs:", len(data_pairs))
-train(data_pairs, model,args)
+train(data_pairs, model, config_args, args)
 
 
 

@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
 import math, random, sys
-from optparse import OptionParser
+import argparse
 from collections import deque
 
 from rxnft_vae.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
@@ -31,54 +31,68 @@ def schedule(counter, M):
 	else:
 		return 1.0 * x/M
 
-parser = OptionParser()
-parser.add_option("-w", "--hidden", dest="hidden_size", default=200)
-parser.add_option("-l", "--latent", dest="latent_size", default=50)
-parser.add_option("-d", "--depth", dest="depth", default=2)
-parser.add_option("-b", "--batch", dest="batch_size", default = 32)
-parser.add_option("-s", "--save_dir", dest="save_path", default="weights")
-parser.add_option("--w_save_path", dest="w_save_path")
-parser.add_option("-t", "--data_path", dest="data_path")
-parser.add_option("-v", "--vocab_path", dest="vocab_path")
-parser.add_option("-q", "--lr", dest="lr", default = 0.001)
-parser.add_option("-z", "--beta", dest="beta", default = 1.0)
-parser.add_option("-e", "--epochs", dest="epochs", default = 100)
-# [ECC] Error-correcting code options
-parser.add_option("--ecc-type", dest="ecc_type", default="none", help="ECC type: none or repetition")
-parser.add_option("--ecc-R", dest="ecc_R", type="int", default=3, help="Repetition factor for ECC")
-parser.add_option("--subset", dest="subset", type="int", default=None, help="Limit dataset size for testing")
+# [CLI] Unified parameter set approach consistent with trainvae.py
+parser = argparse.ArgumentParser(description="Sample from binary VAE with optional ECC")
+parser.add_argument("-n", type=int, dest="params_num", default=4, help="Parameter set index (0-7)")
+parser.add_argument("--w_save_path", dest="w_save_path", required=True, help="Path to saved model weights")
+parser.add_argument("--ecc-type", dest="ecc_type", default="none", choices=["none", "repetition"], help="ECC type: none or repetition")
+parser.add_argument("--ecc-R", dest="ecc_R", type=int, default=3, help="Repetition factor for ECC")
+parser.add_argument("--subset", dest="subset", type=int, default=None, help="Limit dataset size for testing")
 
-opts, _ = parser.parse_args()
+args = parser.parse_args()
 
-batch_size = int(opts.batch_size)
-hidden_size = int(opts.hidden_size)
-latent_size = int(opts.latent_size)
-depth = int(opts.depth)
-beta = float(opts.beta)
-lr = float(opts.lr)
-vocab_path = opts.vocab_path
-data_filename = opts.data_path
-epochs = int(opts.epochs)
-save_path = opts.save_path
-w_save_path = opts.w_save_path
+# [CLI] Parameter sets (same as trainvae.py)
+params = [
+    (100, 100, 2),  # Set 0
+    (200, 100, 2),  # Set 1
+    (200, 100, 3),  # Set 2
+    (200, 100, 5),  # Set 3
+    (200, 200, 2),  # Set 4 - recommended
+    (200, 300, 2),  # Set 5 - ECC R=3 compatible
+    (300, 100, 2),  # Set 6
+    (500, 300, 5),  # Set 7 - largest
+]
+
+param_set = params[args.params_num]
+hidden_size = param_set[0]
+latent_size = param_set[1]  
+depth = param_set[2]
+
+# [ECC] Validate ECC parameters
+if args.ecc_type == "repetition" and latent_size % args.ecc_R != 0:
+    raise ValueError(f"ECC repetition requires latent_size % ecc_R == 0. Got {latent_size} % {args.ecc_R} != 0")
+
+# [CLI] Fixed parameters
+batch_size = 32
+beta = 1.0
+lr = 0.001
+epochs = 100
+save_path = "weights"
+vocab_path = None  # Not used in current implementation
+
+w_save_path = args.w_save_path
+data_filename = "./data/data.txt"  # [CLI] Fixed data path
 # [ECC] Parse ECC options
-ecc_type = opts.ecc_type
-ecc_R = opts.ecc_R
-subset_size = opts.subset
+ecc_type = args.ecc_type
+ecc_R = args.ecc_R
+subset_size = args.subset
 
-args={}
-args['beta'] = beta
-args['lr'] = lr
-args['batch_size'] = batch_size
-args['datasetname'] = data_filename
-args['epochs'] = epochs
-args['save_path'] = save_path
+config_args={}
+config_args['beta'] = beta
+config_args['lr'] = lr
+config_args['batch_size'] = batch_size
+config_args['datasetname'] = data_filename
+config_args['epochs'] = epochs
+config_args['save_path'] = save_path
 
 
 print("hidden size:", hidden_size, "latent_size:", latent_size, "batch size:", batch_size, "depth:", depth)
 print("beta:", beta, "lr:", lr)
+print("ECC type:", ecc_type, "ECC R:", ecc_R)  # [ECC] Show ECC settings
+
+# [ECC] CLI validation completed successfully
+
 print("loading data.....")
-data_filename = opts.data_path
 routes, scores = read_multistep_rxns(data_filename)
 
 
@@ -139,7 +153,7 @@ checkpoint = torch.load(w_save_path, map_location=device)
 model.load_state_dict(checkpoint)
 print("loaded model....")
 evaluator = Evaluator(latent_size, model, ecc_type=ecc_type, ecc_R=ecc_R)
-        # Ensure the output file is empty
+# Ensure the output file is empty
 with open("generated_reactions.txt", "w") as writer:
     writer.write("")
     

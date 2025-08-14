@@ -19,7 +19,7 @@ python sample.py -w 200 -l 100 -d 2 -v "./weights/data.txt_fragmentvocab.txt" -t
 
 
 3) Ising Machine
-The Ising Machine part is based on https://github.com/tsudalab/bVAE-IM/im
+The Ising Machine part is based on https://github.com/tsudalab/bVAE-IM
 
 This project now uses the Gurobi solver only.
 Place a valid Gurobi license file `gurobi.lic` in the project root
