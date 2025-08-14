@@ -23,7 +23,7 @@ CYCLE_SCORES_PATH = os.path.join(DATA_DIR, "cycle_scores.txt")
 HIDDEN_SIZE = 300
 LATENT_SIZE = 100
 DEPTH = 2
-WEIGHTS_SAVE_PATH = os.path.join(WEIGHTS_DIR, "hidden_size_300_latent_size_100_depth_2_beta_1.0_lr_0.001/bvae_iter-30-with.npy")
+WEIGHTS_SAVE_PATH = os.path.join(WEIGHTS_DIR, "hidden_size_300_latent_size_100_depth_2_beta_1.0_lr_0.001/bvae_best_model_with.pt")
 
 # --- Factorization Machine Surrogate Model ---
 FACTOR_NUM = 8      # 'k' for Factorization Machine

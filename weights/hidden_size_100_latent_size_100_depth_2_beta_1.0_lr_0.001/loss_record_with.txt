@@ -98,3 +98,53 @@ Train Losses:
   kl loss: 3.4210550785064697
   reconstruction loss: 103.5765862967968
 
+Epoch 0, Counter 1, Beta 0.0
+Validation Loss: 93.27145385742188
+Train Losses:
+  pred loss: 63.74729919433594, pred acc: 0.03920220211148262
+  stop loss: 22.507831573486328, stop acc: 0.5152482390403748
+  template loss: 4.815141677856445, template acc: 0.0077220075763762
+  molecule label loss: 5.10909366607666, molecule acc: 0.0060606058686971664
+  kl loss: 1.8385995626449585
+  reconstruction loss: 96.17935943603516
+
+Epoch 1, Counter 2, Beta 5e-05
+Validation Loss: 91.0297622680664
+Train Losses:
+  pred loss: 62.29958724975586, pred acc: 0.14649243652820587
+  stop loss: 21.79254150390625, stop acc: 0.5258865356445312
+  template loss: 4.72345495223999, template acc: 0.023166023194789886
+  molecule label loss: 5.003750801086426, molecule acc: 0.014141414314508438
+  kl loss: 1.8822344541549683
+  reconstruction loss: 93.81933337851167
+
+Epoch 2, Counter 3, Beta 0.0001
+Validation Loss: 88.86304473876953
+Train Losses:
+  pred loss: 60.87995529174805, pred acc: 0.1960110068321228
+  stop loss: 21.230222702026367, stop acc: 0.6003546118736267
+  template loss: 4.637012004852295, template acc: 0.0617760606110096
+  molecule label loss: 4.922184467315674, molecule acc: 0.12525252997875214
+  kl loss: 2.134270191192627
+  reconstruction loss: 91.6693727546215
+
+Epoch 3, Counter 4, Beta 0.00015
+Validation Loss: 86.61531066894531
+Train Losses:
+  pred loss: 59.424598693847656, pred acc: 0.24209079146385193
+  stop loss: 20.744157791137695, stop acc: 0.6095744967460632
+  template loss: 4.541500091552734, template acc: 0.07722007483243942
+  molecule label loss: 4.837001323699951, molecule acc: 0.3373737335205078
+  kl loss: 2.590876340866089
+  reconstruction loss: 89.54725693739653
+
+Epoch 4, Counter 5, Beta 0.0002
+Validation Loss: 84.07677459716797
+Train Losses:
+  pred loss: 57.875892639160156, pred acc: 0.24209079146385193
+  stop loss: 20.266984939575195, stop acc: 0.6280142068862915
+  template loss: 4.437197685241699, template acc: 0.1428571492433548
+  molecule label loss: 4.732624530792236, molecule acc: 0.34545454382896423
+  kl loss: 3.257638454437256
+  reconstruction loss: 87.31269533510208
+

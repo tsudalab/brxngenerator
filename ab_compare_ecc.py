@@ -30,6 +30,7 @@ from rxnft_vae.fragment import FragmentVocab, FragmentTree
 from rxnft_vae.vae import bFTRXNVAE
 from rxnft_vae.mpn import MPN
 from rxnft_vae.evaluate import Evaluator
+from rxnft_vae.metrics_eval import MolecularMetrics, load_training_molecules
 
 
 def seed_all(seed):
@@ -212,26 +213,64 @@ def train_model(model, data_pairs, config, model_name, device):
     return best_model_path, training_time
 
 
-def compute_metrics(model, data_pairs, latent_size, ecc_type, ecc_R, model_name, n_samples=1000):
+def compute_metrics(model, data_pairs, latent_size, ecc_type, ecc_R, model_name, n_samples=1000, reactions=False):
     """
-    Compute comprehensive metrics for a trained model.
+    Compute standardized 5 metrics for a trained model using new metrics_eval module.
     
     Returns:
         metrics: Dictionary of computed metrics
     """
-    print(f"\n=== Evaluating {model_name} ===")
+    print(f"\n=== Evaluating {model_name} with 5 standardized metrics ===")
     
-    # Create evaluator
+    # Load training molecules for novelty computation
+    training_smiles = load_training_molecules("./data/data.txt")
+    metrics_evaluator = MolecularMetrics(training_smiles=training_smiles)
+    
+    # Generate samples using existing Evaluator
     evaluator = Evaluator(latent_size, model, ecc_type=ecc_type, ecc_R=ecc_R)
     
-    # Use the built-in metrics evaluation
-    results = evaluator.evaluate_ecc_metrics(data_pairs, n_samples=min(n_samples, len(data_pairs)))
+    # Generate molecules/reactions for evaluation
+    print(f"Generating {n_samples} samples...")
+    generated_samples = []
+    max_attempts = n_samples * 3  # Allow some failures
+    attempts = 0
     
-    # Add model name for identification
-    results['model_name'] = model_name
-    results['ecc_type'] = ecc_type
-    results['ecc_R'] = ecc_R
-    results['latent_size'] = latent_size
+    while len(generated_samples) < n_samples and attempts < max_attempts:
+        attempts += 1
+        try:
+            ft_latent = evaluator.generate_discrete_latent(latent_size, method="gumbel", temp=0.4)
+            rxn_latent = evaluator.generate_discrete_latent(latent_size, method="gumbel", temp=0.4)
+            product, reactions_str = evaluator.decode_from_prior(ft_latent, rxn_latent, n=5)
+            
+            if product:
+                if reactions and reactions_str:
+                    # For reaction-based evaluation
+                    generated_samples.append(f"{reactions_str}>>{product}")
+                else:
+                    # For molecule-based evaluation
+                    generated_samples.append(product)
+                    
+        except Exception as e:
+            continue
+            
+    if not generated_samples:
+        print(f"[Warning] No valid samples generated for {model_name}")
+        return {'model_name': model_name, 'error': 'No valid samples generated'}
+    
+    print(f"Generated {len(generated_samples)} valid samples")
+    
+    # Compute standardized metrics
+    data_type = "reactions" if reactions else "molecules"
+    results = metrics_evaluator.evaluate_all_metrics(generated_samples, data_type=data_type)
+    
+    # Add model identification
+    results.update({
+        'model_name': model_name,
+        'ecc_type': ecc_type,
+        'ecc_R': ecc_R,
+        'latent_size': latent_size,
+        'generated_samples': len(generated_samples)
+    })
     
     return results
 
@@ -242,14 +281,21 @@ def compare_and_save_results(baseline_metrics, ecc_metrics, args, baseline_time,
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    # Calculate improvements
+    # Calculate improvements for the 5 standardized metrics
     improvements = {}
-    for key in ['BER', 'WER', 'reconstruction_loss', 'entropy']:
+    key_metrics = ['valid_reaction_rate', 'valid_molecule_rate', 'avg_qed', 'uniqueness', 'novelty', 'avg_sas']
+    
+    for key in key_metrics:
         if key in baseline_metrics and key in ecc_metrics:
             baseline_val = baseline_metrics[key]
             ecc_val = ecc_metrics[key]
             if baseline_val > 0:
-                improvement = ((baseline_val - ecc_val) / baseline_val) * 100
+                # For SAS, lower is better, so improvement calculation is reversed
+                if key == 'avg_sas':
+                    improvement = ((baseline_val - ecc_val) / baseline_val) * 100
+                else:
+                    # For other metrics, higher is better
+                    improvement = ((ecc_val - baseline_val) / baseline_val) * 100
                 improvements[f"{key}_improvement_%"] = improvement
     
     # Combine results
@@ -299,18 +345,27 @@ def compare_and_save_results(baseline_metrics, ecc_metrics, args, baseline_time,
     
     # Print comparison table
     print("\n" + "="*80)
-    print(f"{'COMPARISON RESULTS':^80}")
+    print(f"{'COMPARISON RESULTS - 5 STANDARDIZED METRICS':^80}")
     print("="*80)
     print(f"{'METRIC':<25} {'BASELINE':<15} {'ECC':<15} {'IMPROVEMENT':<15}")
     print("-"*80)
     
-    key_metrics = ['BER', 'WER', 'reconstruction_loss', 'entropy', 'validity', 'uniqueness', 'novelty']
-    for key in key_metrics:
+    # Display the 5 standardized metrics
+    display_metrics = [
+        ('valid_reaction_rate', 'Valid Reaction Rate'),
+        ('valid_molecule_rate', 'Valid Molecule Rate'),
+        ('avg_qed', 'Average QED'),
+        ('uniqueness', 'Uniqueness'),
+        ('novelty', 'Novelty'),
+        ('avg_sas', 'Average SAS')
+    ]
+    
+    for key, display_name in display_metrics:
         baseline_val = baseline_metrics.get(key, 0)
         ecc_val = ecc_metrics.get(key, 0)
         improvement = improvements.get(f"{key}_improvement_%", 0)
         
-        print(f"{key:<25} {baseline_val:<15.4f} {ecc_val:<15.4f} {improvement:<15.1f}%")
+        print(f"{display_name:<25} {baseline_val:<15.4f} {ecc_val:<15.4f} {improvement:>14.1f}%")
     
     print("-"*80)
     print(f"{'Training time (s)':<25} {baseline_time:<15.1f} {ecc_time:<15.1f} {'-':<15}")

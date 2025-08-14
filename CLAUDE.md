@@ -45,18 +45,58 @@ CUDA_VISIBLE_DEVICES=0 python trainvae.py -n 5 --ecc-type repetition --ecc-R 3  
 - **ECC Integration**: Training-time ECC with code consistency regularization
 - **ECC Validation**: Automatic divisibility check prevents invalid parameter combinations
 
+## Standardized Evaluation Metrics
+
+The project implements **5 standardized metrics** for molecular generation evaluation, ensuring consistency with MOSES benchmarking and research reproducibility:
+
+### Core Metrics
+
+1. **Valid Reaction Rate** - Fraction of generated reactions that pass RDKit parsing and validation
+   - **Purpose**: Measures chemical reaction validity and parser compatibility
+   - **Computation**: Uses `rdChemReactions.ReactionFromSmarts/SMILES` with sanitization checks
+   - **Range**: [0.0, 1.0], higher is better
+
+2. **Average QED** - Drug-likeness score based on molecular descriptors
+   - **Purpose**: Quantitative Estimate of Drug-likeness for pharmaceutical relevance
+   - **Reference**: [Bickerton et al., Nature Chemistry (2012)](https://pubmed.ncbi.nlm.nih.gov/22270643/)
+   - **Computation**: RDKit `QED.qed()` with Lipinski's rule considerations
+   - **Range**: [0.0, 1.0], higher is better (0.67+ considered drug-like)
+
+3. **Uniqueness** - Fraction of unique molecules among valid generated molecules
+   - **Purpose**: Measures generative diversity and mode collapse detection
+   - **Computation**: Canonical SMILES deduplication via RDKit `MolToSmiles`
+   - **Range**: [0.0, 1.0], higher is better
+
+4. **Novelty** - Fraction of unique valid molecules not present in training set
+   - **Purpose**: Measures true generative capability vs. memorization
+   - **Computation**: Set difference between generated and training canonical SMILES
+   - **Range**: [0.0, 1.0], higher is better
+
+5. **Average SAS** - Synthetic Accessibility Score for synthesis difficulty
+   - **Purpose**: Estimates synthetic feasibility of generated molecules
+   - **Reference**: [Ertl & Schuffenhauer, J. Cheminformatics (2009)](https://jcheminf.biomedcentral.com/articles/10.1186/1758-2946-1-8)
+   - **Computation**: RDKit `sascorer.calculateScore()` based on reaction frequency
+   - **Range**: [1.0, 10.0], lower is better (1-3: easy, 6+: difficult)
+
+### Research Validation
+
+Our implementation follows established benchmarking standards:
+- **MOSES Metrics**: [Polykovskiy et al., Frontiers in Pharmacology (2020)](https://www.frontiersin.org/journals/pharmacology/articles/10.3389/fphar.2020.565644/full)
+- **ECC Validation**: Follows codedVAE methodology for BER/WER evaluation ([arXiv:2410.07840](https://arxiv.org/abs/2410.07840))
+- **RDKit Standards**: All computations use RDKit 2023+ with proper sanitization and error handling
+
 ## A/B Comparison (Same Parameter Set)
 
 ### Training and Evaluating Baseline vs ECC
 ```bash
-# Real-data A/B comparison with metrics
+# Real-data A/B comparison with 5 standardized metrics
 CUDA_VISIBLE_DEVICES=0 python ab_compare_ecc.py -n 1 --ecc-R 2 --train-subset 0 --eval-subset 2000
-# -> results/compare_n1_*.json/.csv with BER, WER (MAP), LL, entropy, validity, (FCD optional)
+# -> results/compare_n1_*.json/.csv with 5 standardized metrics + metadata
 
 # Key outputs:
-# - JSON: Detailed metrics and experimental configuration  
-# - CSV: Summary table for analysis
-# - Console: Side-by-side comparison table with improvement percentages
+# - JSON: Complete results with experimental configuration and metric definitions
+# - CSV: Summary table for statistical analysis and plotting
+# - Console: Side-by-side comparison with improvement percentages for all 5 metrics
 ```
 
 ### Sampling & Property Optimization
