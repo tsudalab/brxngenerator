@@ -38,10 +38,11 @@ CUDA_VISIBLE_DEVICES=0 python trainvae.py -n 5 --ecc-type repetition --ecc-R 3  
 ```
 
 ### Features (Auto-Enabled)
-- **Early Stopping**: Default ON (patience=10), saves only best model `bvae_best_model_with.npy`
+- **Early Stopping**: Default ON (patience=10), saves only best model `bvae_best_model_with.pt`
 - **Mixed Precision**: Automatic AMP on GPU with GradScaler for faster training
 - **Progress Bars**: Real-time tqdm showing loss, KL, beta, validation loss, patience
 - **GPU Optimization**: Pin memory, CUDNN benchmarking, optimal num_workers
+- **ECC Integration**: Training-time ECC with code consistency regularization
 - **ECC Validation**: Automatic divisibility check prevents invalid parameter combinations
 
 ## A/B Comparison (Same Parameter Set)
@@ -147,6 +148,18 @@ python mainstream.py --seed 1 --ecc-type repetition --ecc-R 2
 python trainvae.py -n 0 --subset 500 --patience 3
 ```
 
+## Recent Optimizations ✨
+
+### Training-Time ECC Integration
+- **Code Consistency Regularization**: ECC encoding/decoding integrated into VAE forward pass
+- **Improved Training Stability**: ECC-processed latent vectors with consistency loss (weight: 0.01)
+- **Real BER/WER Reduction**: Training-time error correction following codedVAE methodology
+
+### Enhanced Pipeline Performance  
+- **Fixed Weight Extension**: Consistent `.pt` format across training, sampling, and evaluation
+- **Optimized A/B Comparison**: Complete baseline vs ECC comparison with real metrics
+- **Validated Training Flow**: Comprehensive testing with subset validation
+
 ## Key Features
 
 ### Auto-Enabled Optimizations
@@ -160,6 +173,7 @@ python trainvae.py -n 0 --subset 500 --patience 3
 - **codedVAE Research**: BER/WER reduction methodology ([arXiv:2410.07840](https://arxiv.org/abs/2410.07840))
 - **MOSES Metrics**: Standard molecule benchmarking ([Frontiers in Pharmacology](https://www.frontiersin.org/journals/pharmacology/articles/10.3389/fphar.2020.565644/full))
 - **PyTorch Best Practices**: Model saving, mixed precision, validation patterns
+- **Training-Time ECC**: Integrated ECC encoding/decoding in VAE forward pass with consistency regularization
 - **Real Data Validation**: All metrics computed from actual training/generation
 
 ### Dependencies & Setup

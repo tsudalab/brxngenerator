@@ -221,7 +221,7 @@ def train(data_pairs, model, config_args, train_args):
 	
 	# Save only the best model at the end
 	if best_model_state is not None:
-		best_model_path = "{}/bvae_best_model_with{}.npy".format(save_path, TaskID)
+		best_model_path = "{}/bvae_best_model_with{}.pt".format(save_path, TaskID)  # [Fix] Changed .npy to .pt for PyTorch compatibility
 		torch.save(best_model_state, best_model_path)
 		print(f"Best model saved: {best_model_path}")
 	else:
@@ -384,7 +384,10 @@ config_args['device'] = device  # [GPU] Add device to config
 print("hidden size:", hidden_size, "latent_size:", latent_size, "batch size:", batch_size, "depth:", depth)
 print("beta:", beta, "lr:", lr)
 mpn = MPN(hidden_size, depth)
-model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, device=device, fragment_embedding=None, reactant_embedding=None, template_embedding=None).to(device)
+# [ECC] Pass ECC parameters to model for training-time integration
+model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, device=device, 
+                  fragment_embedding=None, reactant_embedding=None, template_embedding=None,
+                  ecc_type=args.ecc_type, ecc_R=args.ecc_R).to(device)
 print("size of data pairs:", len(data_pairs))
 train(data_pairs, model, config_args, args)
 

@@ -378,7 +378,9 @@ def main():
     print(f"  Device: {device}")
     
     # === BASELINE TRAINING ===
-    baseline_model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, device=device).to(device)
+    # [ECC] Baseline model without ECC
+    baseline_model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, device=device,
+                               ecc_type='none', ecc_R=args.ecc_R).to(device)
     baseline_path, baseline_time = train_model(baseline_model, train_data_pairs, config, "Baseline", device)
     
     # Load best baseline model for evaluation
@@ -386,7 +388,9 @@ def main():
     baseline_metrics = compute_metrics(baseline_model, eval_data_pairs, latent_size, 'none', args.ecc_R, "Baseline", args.eval_subset)
     
     # === ECC TRAINING ===
-    ecc_model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, device=device).to(device)
+    # [ECC] ECC model with repetition code
+    ecc_model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, device=device,
+                          ecc_type='repetition', ecc_R=args.ecc_R).to(device)
     ecc_path, ecc_time = train_model(ecc_model, train_data_pairs, config, "ECC", device)
     
     # Load best ECC model for evaluation  

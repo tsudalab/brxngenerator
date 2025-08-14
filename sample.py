@@ -148,7 +148,10 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 mpn = MPN(hidden_size, depth)
-model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, fragment_embedding=None, reactant_embedding=None, template_embedding=None,device=device).to(device)
+# [ECC] Pass ECC parameters to model for consistent behavior
+model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, 
+                  fragment_embedding=None, reactant_embedding=None, template_embedding=None,
+                  device=device, ecc_type=ecc_type, ecc_R=ecc_R).to(device)
 checkpoint = torch.load(w_save_path, map_location=device)
 model.load_state_dict(checkpoint)
 print("loaded model....")

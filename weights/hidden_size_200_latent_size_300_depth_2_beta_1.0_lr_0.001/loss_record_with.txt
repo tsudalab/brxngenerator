@@ -1,0 +1,10 @@
+Epoch 0, Counter 2, Beta 5e-05
+Validation Loss: 106.00218200683594
+Train Losses:
+  pred loss: 84.96224975585938, pred acc: 0.10807105641288217
+  stop loss: 22.791166305541992, stop acc: 0.5208913683891296
+  template loss: 7.23132848739624, template acc: 0.002113799098879099
+  molecule label loss: 7.318840026855469, molecule acc: 0.17749187350273132
+  kl loss: 4.156182289123535
+  reconstruction loss: 122.30847749361992
+
