@@ -19,7 +19,8 @@
       "Bash(grep:*)",
       "Bash(gtimeout:*)",
       "Bash(pip install:*)",
-      "Bash(.venv/bin/pip install:*)"
+      "Bash(.venv/bin/pip install:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

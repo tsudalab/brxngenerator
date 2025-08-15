@@ -32,6 +32,7 @@ from rxnft_vae.mpn import MPN
 from rxnft_vae.evaluate import Evaluator
 from rxnft_vae.metrics_eval import MolecularMetrics, load_training_molecules
 from rxnft_vae.latent_metrics import LatentMetrics
+from metrics.molecule_metrics import canon_smi, to_mol, mean_sas, novelty, uniqueness
 
 
 def seed_all(seed):
@@ -224,8 +225,22 @@ def compute_metrics(model, data_pairs, latent_size, ecc_type, ecc_R, model_name,
     """
     print(f"\n=== Evaluating {model_name} with 5 standardized metrics ===")
     
-    # Load training molecules for novelty computation
-    training_smiles = load_training_molecules("./data/data.txt")
+    # Build canonical training set from the actual training data_pairs used
+    print(f"Extracting and canonicalizing training molecules from {len(data_pairs)} data pairs...")
+    train_canon_set = set()
+    
+    for fgm_tree, rxn_tree in tqdm(data_pairs, desc="Canonicalizing training molecules"):
+        # Extract molecule SMILES from the reaction tree
+        mol_smiles = rxn_tree.molecule_nodes[0].smiles
+        canonical = canon_smi(mol_smiles)
+        if canonical is not None:
+            train_canon_set.add(canonical)
+    
+    print(f"Training set: {len(train_canon_set)} canonical molecules")
+    assert len(train_canon_set) > 0, "Canonical training set must be > 0"
+    
+    # Create a training_smiles list from canonical set for MolecularMetrics compatibility
+    training_smiles = list(train_canon_set)
     metrics_evaluator = MolecularMetrics(training_smiles=training_smiles)
     
     # Initialize latent metrics if enabled
@@ -242,24 +257,29 @@ def compute_metrics(model, data_pairs, latent_size, ecc_type, ecc_R, model_name,
     generated_samples = []
     generated_reactions = []  # Track reactions separately
     max_attempts = n_samples * 3  # Allow some failures
-    attempts = 0
     
-    while len(generated_samples) < n_samples and attempts < max_attempts:
-        attempts += 1
-        try:
-            ft_latent = evaluator.generate_discrete_latent(latent_size, method="gumbel", temp=0.4)
-            rxn_latent = evaluator.generate_discrete_latent(latent_size, method="gumbel", temp=0.4)
-            product, reactions_str = evaluator.decode_from_prior(ft_latent, rxn_latent, n=5)
-            
-            if product:
-                # Always collect molecules for MOSES metrics
-                generated_samples.append(product)
-                # Collect reactions if available for reaction validity metric
-                if reactions_str:
-                    generated_reactions.append(f"{reactions_str}>>{product}")
+    # Use tqdm progress bar for generation
+    with tqdm(total=n_samples, desc="Generating samples") as pbar:
+        attempts = 0
+        while len(generated_samples) < n_samples and attempts < max_attempts:
+            attempts += 1
+            try:
+                ft_latent = evaluator.generate_discrete_latent(latent_size, method="gumbel", temp=0.4)
+                rxn_latent = evaluator.generate_discrete_latent(latent_size, method="gumbel", temp=0.4)
+                product, reactions_str = evaluator.decode_from_prior(ft_latent, rxn_latent, n=5)
+                
+                if product:
+                    # Always collect molecules for MOSES metrics
+                    generated_samples.append(product)
+                    # Collect reactions if available for reaction validity metric
+                    if reactions_str:
+                        generated_reactions.append(f"{reactions_str}>>{product}")
                     
-        except Exception as e:
-            continue
+                    # Update progress bar
+                    pbar.update(1)
+                        
+            except Exception as e:
+                continue
             
     if not generated_samples:
         print(f"[Warning] No valid samples generated for {model_name}")
@@ -269,6 +289,23 @@ def compute_metrics(model, data_pairs, latent_size, ecc_type, ecc_R, model_name,
     
     # Compute molecule metrics (MOSES standard: validity, QED, uniqueness, novelty, SAS)
     results = metrics_evaluator.evaluate_all_metrics(generated_samples, data_type="molecules")
+    
+    # Compute enhanced novelty and SAS using our improved implementations
+    print("Computing enhanced novelty and SAS metrics...")
+    gen_canonical = [canon_smi(smi) for smi in generated_samples]
+    gen_mols = [to_mol(smi) for smi in generated_samples]
+    
+    # Override with enhanced implementations
+    enhanced_novelty = novelty(gen_canonical, train_canon_set)
+    enhanced_uniqueness = uniqueness(gen_canonical)
+    enhanced_sas = mean_sas(gen_mols)
+    
+    if enhanced_novelty is not None:
+        results['novelty'] = enhanced_novelty
+    if enhanced_uniqueness is not None:
+        results['uniqueness'] = enhanced_uniqueness  
+    if enhanced_sas is not None:
+        results['avg_sas'] = enhanced_sas
     
     # Add reaction validity if reactions were generated
     if generated_reactions:

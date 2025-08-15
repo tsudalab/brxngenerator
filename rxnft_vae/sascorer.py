@@ -16,7 +16,9 @@ def readFragmentScores(name='fpscores'):
     import gzip
     global _fscores
     if name == "fpscores":
-        name = op.join(op.dirname(__file__), name)
+        # Look for fpscores.pkl.gz in the project root directory
+        project_root = op.dirname(op.dirname(__file__))
+        name = op.join(project_root, name)
     data = pickle.load(gzip.open('%s.pkl.gz' % name))
     outDict = {}
     for i in data:

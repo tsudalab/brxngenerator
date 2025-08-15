@@ -124,6 +124,24 @@ Based on **codedVAE (UAI'25)** which showed ECC improves:
 
 ---
 
+## New Metrics & UX Improvements
+
+### Enhanced Molecular Metrics
+- **Novelty**: MOSES-compatible novelty metric (fraction not in training set)
+- **SAS**: Synthetic Accessibility Score using official RDKit scorer  
+- **Improved canonicalization**: RDKit standardization for better deduplication
+- **Progress bars**: Real-time tqdm progress for generation and evaluation
+
+### FM Surrogate Dimension Fix
+- **ECC dimension flow**: FM feature size now adapts to ECC info bits automatically
+- **No dimension mismatch**: `X_train.shape[1]` used instead of hardcoded `LATENT_SIZE // 2`
+
+### References
+- **MOSES novelty**: [Polykovskiy et al., Frontiers in Pharmacology (2020)](https://www.frontiersin.org/journals/pharmacology/articles/10.3389/fphar.2020.565644/full)
+- **SAS score**: [Ertl & Schuffenhauer, J. Cheminformatics (2009)](https://jcheminf.biomedcentral.com/articles/10.1186/1758-2946-1-8)
+
+---
+
 **Status**: ✅ All deliverables completed successfully  
 **Integration quality**: KISS principles maintained, backward compatible, well-tested  
-**Performance**: Significant improvements demonstrated in BER/WER metrics
+**Performance**: Significant improvements demonstrated in BER/WER metrics + enhanced molecular evaluation
