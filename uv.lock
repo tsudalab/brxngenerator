@@ -3,27 +3,6 @@ revision = 1
 requires-python = ">=3.12"
 
 [[package]]
-name = "amplify"
-version = "1.3.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-    { name = "typing-extensions" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/21/85/ba4e179f9ca576ad3471f9f93a411823fe61a30bcb333a0b8284d044a069/amplify-1.3.1-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:1b2fa41b6a2a6c41cab815f7d23cadebcc980aa7fbb86b3233325d158818a6b0", size = 7121914 },
-    { url = "https://files.pythonhosted.org/packages/f9/b0/cf174bdad4e8ac3f9e711560320d505d919e70437dfa167de525c1997fb7/amplify-1.3.1-cp312-cp312-macosx_12_0_x86_64.whl", hash = "sha256:00334ebe5213dced8b212c89c861e88f1db9dbb1fe28226f6b451ce0288799bd", size = 7485967 },
-    { url = "https://files.pythonhosted.org/packages/2e/93/424b18b139dbc857ee5b3194eceba30c8b45253ed5305679bdafd8171450/amplify-1.3.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:efc4d8a5373e5e8bf25290a18a1c376b9fc59b862136c5fc3859d5fb32cac3c8", size = 7451516 },
-    { url = "https://files.pythonhosted.org/packages/aa/b2/9f4fd74286696aed69d84addeec454a926281b6d8be98d9464aa4ed65d63/amplify-1.3.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6f9920b9d169cb41270666a2bc775e3fadfd43a356db309ec0a4674d4aca268f", size = 7857248 },
-    { url = "https://files.pythonhosted.org/packages/1f/c9/7f00cb460769d312b8a746cd81cf5fc8b67fcfb51e6a78f1d0a2a96cb8da/amplify-1.3.1-cp312-cp312-win_amd64.whl", hash = "sha256:03d401b62a3b4089f1b07ed3bc042df7d8d13f6d3c52efa92b6b47b1289c2c15", size = 6105626 },
-    { url = "https://files.pythonhosted.org/packages/e8/15/1f413ca352a64d739fe4d83a0989bb10a2a94b41f900a00220f5252bbd4d/amplify-1.3.1-cp313-cp313-macosx_12_0_arm64.whl", hash = "sha256:1c22050dd28b53942ff1d59e23283a40f035621505d18f6c8b17e82fa9d8a619", size = 7121935 },
-    { url = "https://files.pythonhosted.org/packages/b5/4e/464fdce4ac4861d0befdf1977fdbb87050e7ca2869006361be6d28fb35b6/amplify-1.3.1-cp313-cp313-macosx_12_0_x86_64.whl", hash = "sha256:0f858174aac13f30a1c7eab462fc230fa6a3ea134a36fabd852c0bbb76ad20bd", size = 7485931 },
-    { url = "https://files.pythonhosted.org/packages/33/8d/4699827ff49beaccbae962929937c9b0e8bd866a78f12e907fb7750a0e05/amplify-1.3.1-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:9c94e26c7db5669b4ab154408d19249dabcc8415ad34c953b0133db1226445e7", size = 7451519 },
-    { url = "https://files.pythonhosted.org/packages/5b/7a/1e2f913e6cc5a5ffe02672ab1b8b73228bc8ac8770d4a2d993181aec8d11/amplify-1.3.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6ef0f357cf4fcd3796dad9c44742c325c6bf6d64ac2e082e40057f2ab654d649", size = 7857247 },
-    { url = "https://files.pythonhosted.org/packages/e9/db/aefad4bf00a58d405e10566848b3e0485bc217bfdfa99d883ddbed2d41f7/amplify-1.3.1-cp313-cp313-win_amd64.whl", hash = "sha256:969e642744e77c18c19155c4a915ceb196120a9a46ace69fba9fd3fae0347397", size = 6105638 },
-]
-
-[[package]]
 name = "anyio"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -172,7 +151,6 @@ name = "brxngenerator"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "amplify" },
     { name = "gurobi-optimods" },
     { name = "jupyter" },
     { name = "matplotlib" },
@@ -187,7 +165,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "amplify", specifier = ">=1.3.1" },
     { name = "gurobi-optimods", specifier = ">=2.0.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "matplotlib", specifier = ">=3.10.3" },
