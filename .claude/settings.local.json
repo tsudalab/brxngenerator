@@ -20,7 +20,12 @@
       "Bash(gtimeout:*)",
       "Bash(pip install:*)",
       "Bash(.venv/bin/pip install:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(.venv/bin/python:*)",
+      "WebSearch",
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
