@@ -2,14 +2,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from nnutils import create_var, attention
-from ftencoder import FTEncoder
-from ftdecoder import FTDecoder
-from rxndecoder import RXNDecoder, RXNDecoder1
-from rxnencoder import RXNEncoder
-from mpn import MPN,PP,Discriminator
+from ..models.networks.nnutils import create_var, attention
+from ..models.encoders.ftencoder import FTEncoder
+from ..models.decoders.ftdecoder import FTDecoder
+from ..models.decoders.rxndecoder import RXNDecoder, RXNDecoder1
+from ..models.encoders.rxnencoder import RXNEncoder
+from ..models.networks.mpn import MPN,PP,Discriminator
 # [ECC] Import ECC utilities for training-time integration
-from ecc import create_ecc_codec
+from .ecc import create_ecc_codec
 
 
 def set_batch_nodeID(ft_trees, ft_vocab):

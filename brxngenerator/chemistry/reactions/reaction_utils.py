@@ -9,7 +9,7 @@ import itertools
 from rdkit.Chem import rdChemReactions
 import networkx as nx
 from rdkit.Chem import QED
-from rxnft_vae import sascorer
+from ..utils import sascorer
 
 def get_clogp_score(smiles, logp_m, logp_s, sascore_m, sascore_s, cycle_m, cycle_s):
 	logp_value = Descriptors.MolLogP(MolFromSmiles(smiles))

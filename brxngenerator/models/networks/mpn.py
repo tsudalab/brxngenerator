@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import rdkit.Chem as Chem
 import torch.nn.functional as F
-from reaction_utils import get_mol_from_smiles
-from nnutils import *
+from ...chemistry.reactions.reaction_utils import get_mol_from_smiles
+from .nnutils import *
 
 
 

@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-from nnutils import create_var, GRU
-from fragment import FragmentVocab, FragmentTree, FragmentNode
-from chemutils import set_atommap, enum_assemble, enum_attach
+from ..networks.nnutils import create_var, GRU
+from ...chemistry.fragments.fragment import FragmentVocab, FragmentTree, FragmentNode
+from ...chemistry.utils.chemutils import set_atommap, enum_assemble, enum_attach
 import copy
 
 

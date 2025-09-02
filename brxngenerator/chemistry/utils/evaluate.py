@@ -7,16 +7,16 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
-from nnutils import create_var
+from ...models.networks.nnutils import create_var
 import math
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from vae import FTRXNVAE, set_batch_nodeID
-from mpn import MPN,PP,Discriminator
+from ...core.vae import FTRXNVAE, set_batch_nodeID
+from ...models.networks.mpn import MPN,PP,Discriminator
 import random
-from reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
-from fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
-from reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
+from ..reactions.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
+from ..fragments.fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
+from ..reactions.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
 
 # Optional visualization dependencies - install with: pip install pandas seaborn matplotlib
 try:
@@ -38,7 +38,7 @@ import pandas as pd
 import sys
 
 # [ECC] Import error correcting code utilities
-from ecc import create_ecc_codec, sample_ecc_latent, extract_info_bits
+from ...core.ecc import create_ecc_codec, sample_ecc_latent, extract_info_bits
 
 class Evaluator(nn.Module):
     def __init__(self, latent_size, model, ecc_type='none', ecc_R=3):

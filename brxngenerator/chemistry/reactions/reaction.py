@@ -1,6 +1,6 @@
 import rdkit
 import rdkit.Chem as Chem
-from reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns,get_template_order
+from .reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns,get_template_order
 from collections import deque
 
 

@@ -12,15 +12,14 @@ import sys
 
 # 1. 从配置文件和工具文件中导入
 import config
-import binary_vae_utils
+from ..core import binary_vae_utils
 
 # 2. 导入所有必要的第三方和自定义库
 # 确保 rxnft_vae 模块在 Python 路径中
-sys.path.append(os.path.dirname(config.BASE_DIR)) # 添加项目根目录到路径
-from rxnft_vae.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates
-from rxnft_vae.fragment import FragmentVocab, FragmentTree
-from rxnft_vae.vae import bFTRXNVAE
-from rxnft_vae.reaction_utils import read_multistep_rxns
+from ..chemistry.reactions.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates
+from ..chemistry.fragments.fragment import FragmentVocab, FragmentTree
+from ..core.vae import bFTRXNVAE
+from ..chemistry.reactions.reaction_utils import read_multistep_rxns
 
 
 def seed_all(seed):

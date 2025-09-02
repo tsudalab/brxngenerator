@@ -1,7 +1,6 @@
 import os
 import sys
-sys.path.append('./rxnft_vae')
-from rxnft_vae.evaluate import Evaluator
+from brxngenerator.chemistry.utils.evaluate import Evaluator
 import torch
 import numpy as np
 import torch.nn as nn
@@ -14,12 +13,12 @@ import math, random, sys
 import argparse
 from collections import deque
 
-from rxnft_vae.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
-from rxnft_vae.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
-from rxnft_vae.fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
-from rxnft_vae.vae import FTRXNVAE, set_batch_nodeID, bFTRXNVAE
-from rxnft_vae.mpn import MPN,PP,Discriminator
-import rxnft_vae.sascorer as sascorer
+from brxngenerator.chemistry.reactions.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
+from brxngenerator.chemistry.reactions.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
+from brxngenerator.chemistry.fragments.fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
+from brxngenerator.core.vae import FTRXNVAE, set_batch_nodeID, bFTRXNVAE
+from brxngenerator.models.networks.mpn import MPN,PP,Discriminator
+import brxngenerator.chemistry.utils.sascorer as sascorer
 import random
 
 # TaskID =os.environ["TaskID"]

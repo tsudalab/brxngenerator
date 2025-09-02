@@ -23,16 +23,15 @@ import random
 from tqdm import tqdm
 
 # [ECC] Import project modules
-sys.path.append('./rxnft_vae')
-from rxnft_vae.reaction_utils import read_multistep_rxns
-from rxnft_vae.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates
-from rxnft_vae.fragment import FragmentVocab, FragmentTree
-from rxnft_vae.vae import bFTRXNVAE
-from rxnft_vae.mpn import MPN
-from rxnft_vae.evaluate import Evaluator
-from rxnft_vae.metrics_eval import MolecularMetrics, load_training_molecules
-from rxnft_vae.latent_metrics import LatentMetrics
-from metrics.molecule_metrics import canon_smi, to_mol, mean_sas, novelty, uniqueness
+from brxngenerator.chemistry.reactions.reaction_utils import read_multistep_rxns
+from brxngenerator.chemistry.reactions.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates
+from brxngenerator.chemistry.fragments.fragment import FragmentVocab, FragmentTree
+from brxngenerator.core.vae import bFTRXNVAE
+from brxngenerator.models.networks.mpn import MPN
+from brxngenerator.chemistry.utils.evaluate import Evaluator
+from brxngenerator.metrics.molecular.metrics_eval import MolecularMetrics, load_training_molecules
+from brxngenerator.metrics.latent.latent_metrics import LatentMetrics
+from brxngenerator.metrics.molecular.molecule_metrics import canon_smi, to_mol, mean_sas, novelty, uniqueness
 
 
 def seed_all(seed):

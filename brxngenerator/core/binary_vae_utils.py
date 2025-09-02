@@ -13,13 +13,11 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from sklearn.metrics import r2_score
-sys.path.append('./rxnft_vae')
 
 
-sys.path.append(os.path.join(os.path.dirname(__file__), 'rxnft_vae'))
-from rxnft_vae.reaction_utils import get_qed_score, get_clogp_score
+from ..chemistry.reactions.reaction_utils import get_qed_score, get_clogp_score
 # [ECC] Import ECC utilities for latent processing
-from rxnft_vae.ecc import create_ecc_codec, extract_info_bits
+from .ecc import create_ecc_codec, extract_info_bits
 
 class TorchFM(nn.Module):
     def __init__(self, n=None, k=None):

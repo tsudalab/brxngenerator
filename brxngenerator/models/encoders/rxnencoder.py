@@ -1,11 +1,11 @@
 import rdkit
 import rdkit.Chem as Chem
-from reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order
-from reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates
+from ...chemistry.reactions.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order
+from ...chemistry.reactions.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates
 from collections import deque
 import torch
 import torch.nn as nn
-from nnutils import create_var
+from ..networks.nnutils import create_var
 MAX_REACTANTS = 7
 
 

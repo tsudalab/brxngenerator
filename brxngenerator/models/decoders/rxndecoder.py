@@ -5,14 +5,14 @@ from rdkit.Chem import MolFromSmiles, MolToSmiles
 from rdkit.Chem import rdmolops
 import torch
 import torch.nn as nn
-from nnutils import create_var, attention
+from ..networks.nnutils import create_var, attention
 import math
 import torch.nn.functional as F
 from rdkit.Chem import rdChemReactions
 from collections import deque
-from mpn import MPN
-from reaction import MoleculeNode, TemplateNode
-from reaction_utils import *
+from ..networks.mpn import MPN
+from ...chemistry.reactions.reaction import MoleculeNode, TemplateNode
+from ...chemistry.reactions.reaction_utils import *
 from rdkit.Chem import AllChem
 
 def get_template_order(rxn):

@@ -1,7 +1,7 @@
 import rdkit
 import rdkit.Chem as Chem
 import copy
-from chemutils import get_mol, decode_stereo, tree_decomp, get_clique_mol, get_smiles, set_atommap, enum_assemble
+from ..utils.chemutils import get_mol, decode_stereo, tree_decomp, get_clique_mol, get_smiles, set_atommap, enum_assemble
 
 
 

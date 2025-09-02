@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from nnutils import create_var, GRU
-from fragment import FragmentVocab, FragmentTree
+from ..networks.nnutils import create_var, GRU
+from ...chemistry.fragments.fragment import FragmentVocab, FragmentTree
 from collections import deque
 
 
