@@ -27,7 +27,7 @@ except ImportError:
 
 # Import SAS scorer from project  
 try:
-    import sascorer
+    from ...chemistry.utils import sascorer
     # Test that it can load the fragment scores
     sascorer.readFragmentScores()
     SAS_AVAILABLE = True
