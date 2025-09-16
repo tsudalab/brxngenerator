@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(python tests/test_ecc.py)",
+      "Bash(python:*)",
+      "Bash(chmod:*)",
+      "Bash(./scripts/smoke.sh:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(timeout:*)",
+      "Bash(pkill:*)",
+      "Bash(rm:*)",
+      "Bash(for file in trainvae.py sample.py mainstream.py config.py binary_vae_utils.py)",
+      "Bash(do)",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "Bash(bash:*)",
+      "Bash(grep:*)",
+      "Bash(gtimeout:*)",
+      "Bash(pip install:*)",
+      "Bash(.venv/bin/pip install:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(.venv/bin/python:*)",
+      "WebSearch",
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(git checkout:*)",
+      "Read(//tmp/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

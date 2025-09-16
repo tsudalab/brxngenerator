@@ -11,16 +11,15 @@ from tqdm import tqdm
 import sys
 
 # 1. 从配置文件和工具文件中导入
-import config
-import binary_vae_utils
+from brxngenerator.utils import core as config
+from brxngenerator.core import binary_vae_utils
 
 # 2. 导入所有必要的第三方和自定义库
 # 确保 rxnft_vae 模块在 Python 路径中
-sys.path.append(os.path.dirname(config.BASE_DIR)) # 添加项目根目录到路径
-from rxnft_vae.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates
-from rxnft_vae.fragment import FragmentVocab, FragmentTree
-from rxnft_vae.vae import bFTRXNVAE
-from rxnft_vae.reaction_utils import read_multistep_rxns
+from brxngenerator.chemistry.reactions.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates
+from brxngenerator.chemistry.fragments.fragment import FragmentVocab, FragmentTree
+from brxngenerator.core.vae import bFTRXNVAE
+from brxngenerator.chemistry.reactions.reaction_utils import read_multistep_rxns
 
 
 def seed_all(seed):
@@ -85,8 +84,11 @@ def main(seed_to_run):
     
     # --- 3. Initialize Components based on Configuration ---
     logging.info("Initializing components for optimization...")
+    # Use actual feature size from X_train
+    n_features = X_train.shape[1]
+    print(f"[FM Surrogate] Using n_binary={n_features} (adapted from X_train shape)")
     fm_surrogate = binary_vae_utils.FactorizationMachineSurrogate(
-        n_binary=config.LATENT_SIZE // 2, k_factors=config.FACTOR_NUM, lr=config.LR,
+        n_binary=n_features, k_factors=config.FACTOR_NUM, lr=config.LR,
         decay_weight=config.DECAY_WEIGHT, batch_size=config.BATCH_SIZE, max_epoch=config.MAX_EPOCH,
         patience=config.PATIENCE, param_init=config.PARAM_INIT, cache_dir=config.CACHE_DIR,
         prop=config.PROP, client=config.CLIENT, random_seed=config.RANDOM_SEED, device=config.DEVICE
@@ -111,15 +113,11 @@ def main(seed_to_run):
 # main.py (末尾部分)
 
 if __name__ == "__main__":
- # 1. 创建一个命令行参数解析器
     parser = argparse.ArgumentParser(description="Run Molecule Optimization with a specific random seed.")
-    # 2. 添加一个名为'--seed'的参数，类型为整数
     parser.add_argument('--seed', type=int, required=True, help='The random seed to use for the experiment.')
-    
-    # 3. 解析命令行传入的参数
+
     args = parser.parse_args()
-    
-    # 4. 调用主函数，并把解析到的种子号传递进去
+
     print("="*60)
     print(f"--- Starting experiment with RANDOM_SEED = {args.seed} ---")
     print("="*60)
