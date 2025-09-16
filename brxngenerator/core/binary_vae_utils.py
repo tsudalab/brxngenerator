@@ -15,9 +15,7 @@ import numpy as np
 from sklearn.metrics import r2_score
 
 
-from ..chemistry.reactions.reaction_utils import get_qed_score, get_clogp_score
-# [ECC] Import ECC utilities for latent processing
-from .ecc import create_ecc_codec, extract_info_bits
+from ..chemistry.chemistry_core import get_qed_score, get_clogp_score
 
 class TorchFM(nn.Module):
     def __init__(self, n=None, k=None):
@@ -275,33 +273,11 @@ class MolData(Dataset):
     def __getitem__(self, index): return self.binary[index], self.targets[index]
 
 
-# [ECC] Helper function for ECC-aware latent processing
-def extract_latent_info_bits(latent_tensor, ecc_codec=None):
-    """
-    Extract information bits from latent tensor with optional ECC decoding.
-    
-    Args:
-        latent_tensor: Tensor of shape (batch_size, latent_size) 
-        ecc_codec: ECC codec instance (None for no ECC)
-        
-    Returns:
-        Information bits tensor
-    """
-    if ecc_codec is None:
-        return latent_tensor
-    else:
-        # Decode each sample in the batch
-        return extract_info_bits(latent_tensor, ecc_codec)
 
 
-def prepare_dataset(model, data_pairs, latent_size, metric, logp_paths, ecc_type='none', ecc_R=3):
+def prepare_dataset(model, data_pairs, latent_size, metric, logp_paths):
     print("Preparing dataset. Number of samples:", len(data_pairs))
     latent_list, score_list = [], []
-    
-    # [ECC] Initialize ECC codec for latent processing
-    ecc_codec = create_ecc_codec(ecc_type, R=ecc_R)
-    if ecc_codec is not None:
-        print(f"[ECC] Using {ecc_type} with R={ecc_R} for latent processing")
 
     if metric == "logp":
         logP_values, SA_scores, cycle_scores = [np.loadtxt(p) for p in logp_paths.values()]
@@ -324,11 +300,6 @@ def prepare_dataset(model, data_pairs, latent_size, metric, logp_paths, ecc_type
     # Use only the first half of the latent vector as per original logic
     half_latents = latents[:, : latent_size // 2]
     
-    # [ECC] Apply ECC decoding if enabled to extract information bits
-    if ecc_codec is not None:
-        # Extract information bits from the first half
-        half_latents = extract_latent_info_bits(half_latents, ecc_codec)
-        print(f"[ECC] Extracted {half_latents.shape[1]} info bits from {latent_size // 2} code bits")
     
     latents = half_latents.detach().cpu().numpy()
     n = latents.shape[0]

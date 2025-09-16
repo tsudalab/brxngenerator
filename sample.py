@@ -1,6 +1,5 @@
 import os
 import sys
-from brxngenerator.chemistry.utils.evaluate import Evaluator
 import torch
 import numpy as np
 import torch.nn as nn
@@ -13,12 +12,11 @@ import math, random, sys
 import argparse
 from collections import deque
 
-from brxngenerator.chemistry.reactions.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
-from brxngenerator.chemistry.reactions.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
+from brxngenerator.chemistry.chemistry_core import get_mol_from_smiles, get_smiles_from_mol, read_multistep_rxns, get_template_order, get_qed_score, get_clogp_score, Evaluator
+from brxngenerator.chemistry.reactions.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates, stats
 from brxngenerator.chemistry.fragments.fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
 from brxngenerator.core.vae import FTRXNVAE, set_batch_nodeID, bFTRXNVAE
-from brxngenerator.models.networks.mpn import MPN,PP,Discriminator
-import brxngenerator.chemistry.utils.sascorer as sascorer
+from brxngenerator.models.models import MPN, PP, Discriminator
 import random
 
 # TaskID =os.environ["TaskID"]
@@ -31,11 +29,9 @@ def schedule(counter, M):
 		return 1.0 * x/M
 
 # [CLI] Unified parameter set approach consistent with trainvae.py
-parser = argparse.ArgumentParser(description="Sample from binary VAE with optional ECC")
+parser = argparse.ArgumentParser(description="Sample from binary VAE")
 parser.add_argument("-n", type=int, dest="params_num", default=4, help="Parameter set index (0-7)")
 parser.add_argument("--w_save_path", dest="w_save_path", required=True, help="Path to saved model weights")
-parser.add_argument("--ecc-type", dest="ecc_type", default="none", choices=["none", "repetition"], help="ECC type: none or repetition")
-parser.add_argument("--ecc-R", dest="ecc_R", type=int, default=3, help="Repetition factor for ECC")
 parser.add_argument("--subset", dest="subset", type=int, default=None, help="Limit dataset size for testing")
 
 args = parser.parse_args()
@@ -57,10 +53,6 @@ hidden_size = param_set[0]
 latent_size = param_set[1]  
 depth = param_set[2]
 
-# [ECC] Validate ECC parameters
-if args.ecc_type == "repetition" and latent_size % args.ecc_R != 0:
-    raise ValueError(f"ECC repetition requires latent_size % ecc_R == 0. Got {latent_size} % {args.ecc_R} != 0")
-
 # [CLI] Fixed parameters
 batch_size = 32
 beta = 1.0
@@ -71,9 +63,6 @@ vocab_path = None  # Not used in current implementation
 
 w_save_path = args.w_save_path
 data_filename = "./data/data.txt"  # [CLI] Fixed data path
-# [ECC] Parse ECC options
-ecc_type = args.ecc_type
-ecc_R = args.ecc_R
 subset_size = args.subset
 
 config_args={}
@@ -147,14 +136,13 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 mpn = MPN(hidden_size, depth)
-# [ECC] Pass ECC parameters to model for consistent behavior
-model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, 
+model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth,
                   fragment_embedding=None, reactant_embedding=None, template_embedding=None,
-                  device=device, ecc_type=ecc_type, ecc_R=ecc_R).to(device)
+                  device=device).to(device)
 checkpoint = torch.load(w_save_path, map_location=device)
 model.load_state_dict(checkpoint)
 print("loaded model....")
-evaluator = Evaluator(latent_size, model, ecc_type=ecc_type, ecc_R=ecc_R)
+evaluator = Evaluator(latent_size, model)
 # Ensure the output file is empty
 with open("generated_reactions.txt", "w") as writer:
     writer.write("")

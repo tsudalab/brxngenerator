@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from brxngenerator.core.binary_vae_utils import FactorizationMachineSurrogate, prepare_dataset, create_ecc_codec
+from brxngenerator.core.binary_vae_utils import FactorizationMachineSurrogate, prepare_dataset
 from rxnft_vae.vae import bFTRXNVAE
 
 class FMHyperparamTester:
@@ -152,14 +152,6 @@ class FMHyperparamTester:
                 
             # Use first half of latent vector as per original logic
             half_latents = latents[:, :latents.shape[1] // 2]
-            
-            # Apply ECC decoding if enabled
-            if ecc_type != 'none':
-                ecc_codec = create_ecc_codec(ecc_type, R=ecc_R)
-                if ecc_codec is not None:
-                    from brxngenerator.core.binary_vae_utils import extract_latent_info_bits
-                    half_latents = extract_latent_info_bits(half_latents, ecc_codec)
-                    print(f"[ECC] Extracted {half_latents.shape[1]} info bits from {latents.shape[1] // 2} code bits")
             
             latents_np = half_latents.detach().cpu().numpy()
             n = latents_np.shape[0]

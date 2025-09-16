@@ -11,7 +11,7 @@ from tqdm import tqdm
 import sys
 
 # 1. 从配置文件和工具文件中导入
-import config
+from brxngenerator.utils import core as config
 from brxngenerator.core import binary_vae_utils
 
 # 2. 导入所有必要的第三方和自定义库
@@ -31,7 +31,7 @@ def seed_all(seed):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-def main(seed_to_run, ecc_type='none', ecc_R=3):
+def main(seed_to_run):
     """Main execution function."""
     # --- 0. Setup ---
     config.RANDOM_SEED = seed_to_run
@@ -76,18 +76,15 @@ def main(seed_to_run, ecc_type='none', ecc_R=3):
         'SA': config.SA_SCORES_PATH,
         'cycle': config.CYCLE_SCORES_PATH
     }
-    # [ECC] Use configurable ECC settings for dataset preparation
-    print(f"[ECC] Using ECC type: {ecc_type}, R: {ecc_R}")
     X_train, y_train, X_test, y_test = binary_vae_utils.prepare_dataset(
-        model=model, data_pairs=data_pairs, latent_size=config.LATENT_SIZE, metric=config.METRIC, logp_paths=logp_paths,
-        ecc_type=ecc_type, ecc_R=ecc_R
+        model=model, data_pairs=data_pairs, latent_size=config.LATENT_SIZE, metric=config.METRIC, logp_paths=logp_paths
     )
     X_train, y_train = torch.Tensor(X_train), torch.Tensor(y_train)
     X_test, y_test = torch.Tensor(X_test), torch.Tensor(y_test)
     
     # --- 3. Initialize Components based on Configuration ---
     logging.info("Initializing components for optimization...")
-    # [ECC] Use actual feature size from X_train to handle ECC dimension reduction properly
+    # Use actual feature size from X_train
     n_features = X_train.shape[1]
     print(f"[FM Surrogate] Using n_binary={n_features} (adapted from X_train shape)")
     fm_surrogate = binary_vae_utils.FactorizationMachineSurrogate(
@@ -116,20 +113,13 @@ def main(seed_to_run, ecc_type='none', ecc_R=3):
 # main.py (末尾部分)
 
 if __name__ == "__main__":
-    # [ECC] Add ECC options for A/B comparison during optimization
     parser = argparse.ArgumentParser(description="Run Molecule Optimization with a specific random seed.")
     parser.add_argument('--seed', type=int, required=True, help='The random seed to use for the experiment.')
-    parser.add_argument('--ecc-type', type=str, choices=['none', 'repetition'], default='none',
-                        help='ECC type for latent processing (default: none)')
-    parser.add_argument('--ecc-R', type=int, default=3, 
-                        help='Repetition factor for ECC (default: 3)')
-    
+
     args = parser.parse_args()
-    
-    # [ECC] Pass ECC parameters to main function
+
     print("="*60)
     print(f"--- Starting experiment with RANDOM_SEED = {args.seed} ---")
-    print(f"--- ECC type: {args.ecc_type}, R: {args.ecc_R} ---")
     print("="*60)
-    main(seed_to_run=args.seed, ecc_type=args.ecc_type, ecc_R=args.ecc_R)
+    main(seed_to_run=args.seed)
     print(f"\nExperiment with seed {args.seed} finished.")

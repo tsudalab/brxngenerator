@@ -2,14 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..models.networks.nnutils import create_var, attention
-from ..models.encoders.ftencoder import FTEncoder
-from ..models.decoders.ftdecoder import FTDecoder
-from ..models.decoders.rxndecoder import RXNDecoder, RXNDecoder1
-from ..models.encoders.rxnencoder import RXNEncoder
-from ..models.networks.mpn import MPN,PP,Discriminator
-# [ECC] Import ECC utilities for training-time integration
-from .ecc import create_ecc_codec
+from ..models.models import create_var, attention, FTEncoder, FTDecoder, RXNDecoder, RXNEncoder, MPN, PP, Discriminator
 
 
 def set_batch_nodeID(ft_trees, ft_vocab):
@@ -115,34 +108,15 @@ class FTRXNVAE(nn.Module):
 
 
 class bFTRXNVAE(nn.Module):
-	def __init__(self, fragment_vocab, reactant_vocab, template_vocab, hidden_size, latent_size, depth, device, fragment_embedding=None, reactant_embedding=None, template_embedding=None, ecc_type='none', ecc_R=3):
+	def __init__(self, fragment_vocab, reactant_vocab, template_vocab, hidden_size, latent_size, depth, device, fragment_embedding=None, reactant_embedding=None, template_embedding=None):
 		super(bFTRXNVAE, self).__init__()
 		self.fragment_vocab = fragment_vocab
 		self.reactant_vocab = reactant_vocab
 		self.template_vocab = template_vocab
 		self.depth = depth
 		self.n_class = 2
-		# [FIX] For fairness: baseline uses full latent_size, only ECC uses half for each part (ft/rxn)
-		if ecc_type == 'none':
-			self.binary_size = latent_size  # Baseline: full latent size as binary
-		else:
-			self.binary_size = latent_size//2  # ECC: split between ft and rxn parts
+		self.binary_size = latent_size
 		self.device = device
-		
-		# [ECC] Initialize error correcting code
-		self.ecc_type = ecc_type
-		self.ecc_R = ecc_R
-		self.ecc_codec = create_ecc_codec(ecc_type, R=ecc_R)
-		
-		# [ECC] Determine effective binary size based on ECC configuration
-		if self.ecc_codec is not None:
-			if not self.ecc_codec.group_shape_ok(self.binary_size):
-				raise ValueError(f"Binary size {self.binary_size} must be divisible by ECC repetition factor {ecc_R}")
-			self.info_size = self.ecc_codec.get_info_size(self.binary_size)
-			print(f"[ECC] VAE using {ecc_type} with R={ecc_R}: binary_size={self.binary_size}, info_size={self.info_size}")
-		else:
-			self.info_size = self.binary_size
-			print(f"[ECC] VAE without ECC: binary_size={self.binary_size}")
 
 
 		self.hidden_size = hidden_size
@@ -263,50 +237,16 @@ class bFTRXNVAE(nn.Module):
 		g_ft_vecs, ft_kl = self.gumbel_softmax(q_ft, log_ft_reshaped, temp)
 		g_rxn_vecs, rxn_kl = self.gumbel_softmax(q_rxn, log_rxn_reshaped, temp)
   
-		# [ECC] Apply ECC encoding/decoding with code consistency regularization
-		ecc_consistency_loss = 0.0
-		if self.ecc_codec is not None:
-			# [FIX] Properly reshape vectors for ECC processing
-			# g_ft_vecs shape should be [batch_size, binary_size*n_class]
-			g_ft_reshaped = g_ft_vecs.view(batch_size, self.binary_size, self.n_class)
-			g_rxn_reshaped = g_rxn_vecs.view(batch_size, self.binary_size, self.n_class)
-			
-			# Process fragment vectors
-			g_ft_binary = torch.argmax(g_ft_reshaped, dim=-1).float()  # [batch_size, binary_size]
-			ft_info_bits = self.ecc_codec.decode(g_ft_binary)
-			ft_encoded = self.ecc_codec.encode(ft_info_bits)
-			
-			# Code consistency regularization (minimize distance between original and reconstructed)
-			ecc_consistency_loss += F.mse_loss(g_ft_binary, ft_encoded)
-			
-			# Process reaction vectors
-			g_rxn_binary = torch.argmax(g_rxn_reshaped, dim=-1).float()  # [batch_size, binary_size]
-			rxn_info_bits = self.ecc_codec.decode(g_rxn_binary)
-			rxn_encoded = self.ecc_codec.encode(rxn_info_bits)
-			
-			# Code consistency regularization
-			ecc_consistency_loss += F.mse_loss(g_rxn_binary, rxn_encoded)
-			
-			# Update vectors with ECC-processed versions for improved training stability
-			g_ft_vecs = F.one_hot(ft_encoded.long(), num_classes=self.n_class).float().view(batch_size, self.binary_size*self.n_class)
-			g_rxn_vecs = F.one_hot(rxn_encoded.long(), num_classes=self.n_class).float().view(batch_size, self.binary_size*self.n_class)
   
 		kl_loss = ft_kl + rxn_kl
 
-		# [FIX] Extract binary representations for decoder input
+		# Extract binary representations for decoder input
 		# Convert Gumbel vectors back to binary latent representations
 		g_ft_binary = torch.argmax(g_ft_vecs.view(batch_size, self.binary_size, self.n_class), dim=-1).float()
 		g_rxn_binary = torch.argmax(g_rxn_vecs.view(batch_size, self.binary_size, self.n_class), dim=-1).float()
-		
-		# For decoders, we need vectors of size latent_size
-		# Pad to latent_size if needed (for fair comparison between baseline and ECC)
-		if self.binary_size < self.latent_size:
-			pad_size = self.latent_size - self.binary_size
-			ft_decoder_vec = F.pad(g_ft_binary, (0, pad_size))
-			rxn_decoder_vec = F.pad(g_rxn_binary, (0, pad_size))
-		else:
-			ft_decoder_vec = g_ft_binary[:, :self.latent_size]
-			rxn_decoder_vec = g_rxn_binary[:, :self.latent_size]
+
+		ft_decoder_vec = g_ft_binary
+		rxn_decoder_vec = g_rxn_binary
 		
 		pred_loss, stop_loss, pred_acc, stop_acc = self.fragment_decoder(ft_trees, ft_decoder_vec)
 		molecule_distance_loss, template_loss, molecule_label_loss, template_acc, label_acc = self.rxn_decoder(rxn_trees, rxn_decoder_vec, encoder_outputs)
@@ -314,9 +254,7 @@ class bFTRXNVAE(nn.Module):
 		rxn_decoding_loss = template_loss  + molecule_label_loss# + molecule_distance_loss
 		fragment_decoding_loss = pred_loss + stop_loss
 		
-		# [ECC] Add ECC consistency loss with small weight to avoid overwhelming main objectives
-		ecc_weight = 0.01 if self.ecc_codec is not None else 0.0
-		total_loss = fragment_decoding_loss + rxn_decoding_loss + beta * (kl_loss) + ecc_weight * ecc_consistency_loss
+		total_loss = fragment_decoding_loss + rxn_decoding_loss + beta * (kl_loss)
 
 		return total_loss, pred_loss, stop_loss, template_loss, molecule_label_loss, pred_acc, stop_acc, template_acc, label_acc, kl_loss, molecule_distance_loss
 	

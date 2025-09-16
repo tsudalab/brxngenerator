@@ -88,7 +88,7 @@ def main(seed_to_run, ecc_type='none', ecc_R=3):
     
     # --- 3. Initialize Components based on Configuration ---
     logging.info("Initializing components for optimization...")
-    # [ECC] Use actual feature size from X_train to handle ECC dimension reduction properly
+    # Use actual feature size from X_train
     n_features = X_train.shape[1]
     print(f"[FM Surrogate] Using n_binary={n_features} (adapted from X_train shape)")
     fm_surrogate = binary_vae_utils.FactorizationMachineSurrogate(

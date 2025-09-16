@@ -25,7 +25,8 @@
       "WebSearch",
       "Bash(find:*)",
       "Bash(tree:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Read(//tmp/**)"
     ],
     "deny": [],
     "ask": []

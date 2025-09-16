@@ -16,23 +16,18 @@ from collections import deque
 # [tqdm] Import for progress bars
 from tqdm import tqdm
 
-from brxngenerator.chemistry.reactions.reaction_utils import get_mol_from_smiles, get_smiles_from_mol,read_multistep_rxns, get_template_order, get_qed_score,get_clogp_score
-from brxngenerator.chemistry.reactions.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates,stats
+from brxngenerator.chemistry.chemistry_core import get_mol_from_smiles, get_smiles_from_mol, read_multistep_rxns, get_template_order, get_qed_score, get_clogp_score, calculateScore as sascorer_calculateScore
+from brxngenerator.chemistry.reactions.reaction import ReactionTree, extract_starting_reactants, StartingReactants, Templates, extract_templates, stats
 from brxngenerator.chemistry.fragments.fragment import FragmentVocab, FragmentTree, FragmentNode, can_be_decomposed
 from brxngenerator.core.vae import FTRXNVAE, set_batch_nodeID, bFTRXNVAE
-from brxngenerator.models.networks.mpn import MPN,PP,Discriminator
-import brxngenerator.chemistry.utils.sascorer as sascorer
+from brxngenerator.models.models import MPN, PP, Discriminator
 import random
 
 TaskID =""
 # TaskID = "1"
 
-# [ECC] Parse command line arguments early to fix NameError  
-parser = argparse.ArgumentParser(description="Train binary VAE with optional ECC")
+parser = argparse.ArgumentParser(description="Train binary VAE")
 parser.add_argument("-n", type=int, dest="params_num", default=0, help="Parameter set index (0-7)")
-parser.add_argument("--ecc-type", type=str, choices=["none", "repetition"], default="none", 
-                    help="ECC type: none or repetition")
-parser.add_argument("--ecc-R", type=int, default=3, help="Repetition factor for ECC")
 parser.add_argument("--subset", type=int, default=None, help="Limit dataset size for testing")
 parser.add_argument("--patience", type=int, default=10, help="Early stopping patience")
 parser.add_argument("--min-delta", type=float, default=0.0, help="Minimum improvement threshold")
@@ -383,10 +378,8 @@ config_args['device'] = device  # [GPU] Add device to config
 print("hidden size:", hidden_size, "latent_size:", latent_size, "batch size:", batch_size, "depth:", depth)
 print("beta:", beta, "lr:", lr)
 mpn = MPN(hidden_size, depth)
-# [ECC] Pass ECC parameters to model for training-time integration
-model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, device=device, 
-                  fragment_embedding=None, reactant_embedding=None, template_embedding=None,
-                  ecc_type=args.ecc_type, ecc_R=args.ecc_R).to(device)
+model = bFTRXNVAE(fragmentDic, reactantDic, templateDic, hidden_size, latent_size, depth, device=device,
+                  fragment_embedding=None, reactant_embedding=None, template_embedding=None).to(device)
 print("size of data pairs:", len(data_pairs))
 train(data_pairs, model, config_args, args)
 
